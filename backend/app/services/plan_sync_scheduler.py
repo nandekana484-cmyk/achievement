@@ -16,6 +16,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import SyncConfig
 from app.services.plan_sync import PlanSyncResult, record_skipped, run_plan_sync
 
 logger = logging.getLogger(__name__)
@@ -23,23 +24,26 @@ logger = logging.getLogger(__name__)
 _lock = threading.Lock()
 
 
-def run_plan_sync_exclusive(session_factory: sessionmaker[Session], legacy_db_path: Path) -> PlanSyncResult:
+def run_plan_sync_exclusive(
+    session_factory: sessionmaker[Session], legacy_db_path: Path, sync_config: SyncConfig | None = None
+) -> PlanSyncResult:
     """同期を1回行う。ほかの同期が実行中なら、実行せずに skipped を記録する。"""
     if not _lock.acquire(blocking=False):
         with session_factory() as session:
             return record_skipped(session, "前回の同期が実行中のため、今回は実行しませんでした")
     try:
         with session_factory() as session:
-            return run_plan_sync(session, legacy_db_path)
+            return run_plan_sync(session, legacy_db_path, sync_config)
     finally:
         _lock.release()
 
 
 class PlanSyncScheduler:
-    def __init__(self, session_factory: sessionmaker[Session], legacy_db_path: Path, interval_sec: float) -> None:
+    def __init__(self, session_factory: sessionmaker[Session], legacy_db_path: Path, sync_config: SyncConfig) -> None:
         self._session_factory = session_factory
         self._legacy_db_path = legacy_db_path
-        self._interval_sec = interval_sec
+        self._sync_config = sync_config
+        self._interval_sec = sync_config.plan_interval_sec
         self._task: asyncio.Task | None = None
 
     def start(self) -> None:
@@ -58,7 +62,9 @@ class PlanSyncScheduler:
     async def _loop(self) -> None:
         while True:
             try:
-                await asyncio.to_thread(run_plan_sync_exclusive, self._session_factory, self._legacy_db_path)
+                await asyncio.to_thread(
+                    run_plan_sync_exclusive, self._session_factory, self._legacy_db_path, self._sync_config
+                )
             except Exception:  # noqa: BLE001  次の回は実行する
                 logger.exception("計画の同期で想定外のエラーが起きました")
             await asyncio.sleep(self._interval_sec)

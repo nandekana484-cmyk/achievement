@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.clock import JST
+from app.core.config import SyncConfig
 from app.db.models import Plan, PlanSyncRun, PlanSyncWarning
 from app.services.plan_sync import run_plan_sync
 from legacy_fixture import deactivate, insert_plan
@@ -115,7 +116,9 @@ def test_cancelled_plan_comes_back(sync, session_factory, legacy_db):
     insert_plan(legacy_db, kitting_no=K1, qty=250)
     r = sync()
 
-    assert (r.added, r.cancelled) == (1, 0)
+    assert (r.added, r.revived, r.cancelled) == (0, 1, 0)
+    with session_factory() as s:
+        assert (s.get(PlanSyncRun, r.sync_run_id).added, s.get(PlanSyncRun, r.sync_run_id).revived) == (0, 1)
     plans = _plans(session_factory)
     assert len(plans) == 1
     p = plans[(K1, "L001")]
@@ -169,8 +172,8 @@ def test_read_warnings_are_recorded(sync, session_factory, legacy_db):
     assert r.added == 1 and r.warnings == 1
     with session_factory() as s:
         w = s.scalars(select(PlanSyncWarning)).one()
-        assert w.sync_run_id == r.sync_run_id
-        assert w.legacy_plan_item_id == bad_id and w.kitting_no == "BROKEN"
+        assert w.legacy_plan_item_id == bad_id and w.kitting_no == "BROKEN" and w.lot_no == "L001"
+        assert w.resolved_at is None
 
 
 def test_legacy_db_files_are_not_changed(sync, legacy_db):
@@ -196,3 +199,110 @@ def test_times_are_read_back_with_jst(sync, session_factory, legacy_db):
             assert v.isoformat().endswith("+09:00")
         run = s.get(PlanSyncRun, r.sync_run_id)
         assert run.started_at.utcoffset() == nine and run.finished_at.utcoffset() == nine
+
+
+def _warnings(session_factory) -> list[PlanSyncWarning]:
+    with session_factory() as s:
+        return list(s.scalars(select(PlanSyncWarning).order_by(PlanSyncWarning.id)))
+
+
+def test_unreadable_row_is_not_cancelled(sync, session_factory, legacy_db):
+    insert_plan(legacy_db, kitting_no=K1)
+    sync()
+    before = _snapshot(session_factory)
+
+    insert_plan(legacy_db, kitting_no=K1, start="21/10/2026 09:00")  # 既存側で日時の書式が壊れた
+    r = sync()
+
+    assert r.result == "ok" and (r.changed, r.cancelled) == (0, 0) and r.warnings == 1
+    assert _snapshot(session_factory) == before  # active のまま、値も更新しない
+
+
+def test_same_warning_is_kept_as_one(sync, session_factory, legacy_db, fake_clock):
+    insert_plan(legacy_db, kitting_no="BROKEN")
+    sync()
+    first_seen = fake_clock.current
+    sync()
+    sync()
+
+    [w] = _warnings(session_factory)
+    assert w.first_seen_at == first_seen
+    assert w.last_seen_at == fake_clock.current
+    assert w.resolved_at is None
+
+
+def test_warning_resolves_and_recurs(sync, session_factory, legacy_db, fake_clock):
+    insert_plan(legacy_db, kitting_no="BROKEN")
+    sync()
+
+    deactivate(legacy_db, "BROKEN")  # 直った
+    sync()
+    [w] = _warnings(session_factory)
+    assert w.resolved_at == fake_clock.current
+
+    insert_plan(legacy_db, kitting_no="BROKEN")  # 再発
+    sync()
+    [w] = _warnings(session_factory)
+    assert w.resolved_at is None and w.last_seen_at == fake_clock.current
+
+
+def test_warnings_unchanged_when_sync_fails(sync, session_factory, legacy_db, tmp_path):
+    insert_plan(legacy_db, kitting_no="BROKEN")
+    sync()
+    with session_factory() as s:
+        run_plan_sync(s, tmp_path / "moved.db")
+    [w] = _warnings(session_factory)
+    assert w.resolved_at is None
+
+
+def _many(legacy_db, n):
+    keys = [f"{i:04d}-1-S-251014-{i:02d}" for i in range(1, n + 1)]
+    for k in keys:
+        insert_plan(legacy_db, kitting_no=k, file_no=k[:4])
+    return keys
+
+
+def test_mass_cancel_is_guarded(sync, session_factory, legacy_db):
+    keys = _many(legacy_db, 12)
+    sync()
+    before = _snapshot(session_factory)
+
+    for k in keys[:10]:  # 10件(83%)が一斉に消えた
+        deactivate(legacy_db, k)
+    insert_plan(legacy_db, kitting_no="0999-1-S-251020-01", file_no="0999")  # 同時に増えた計画も反映しない
+    r = sync()
+
+    assert r.result == "guarded"
+    assert "取消 10件 / 有効な計画 12件" in r.error_message
+    assert _snapshot(session_factory) == before
+    with session_factory() as s:
+        assert s.get(PlanSyncRun, r.sync_run_id).result == "guarded"
+
+
+def test_cancel_below_min_is_applied(sync, session_factory, legacy_db):
+    keys = _many(legacy_db, 9)
+    sync()
+    for k in keys:  # 全部消えても 9件 < 10件 なので反映する
+        deactivate(legacy_db, k)
+    r = sync()
+    assert r.result == "ok" and r.cancelled == 9
+
+
+def test_cancel_below_ratio_is_applied(sync, session_factory, legacy_db):
+    keys = _many(legacy_db, 40)
+    sync()
+    for k in keys[:10]:  # 10件だが 10 / 40 = 25% < 30%
+        deactivate(legacy_db, k)
+    r = sync()
+    assert r.result == "ok" and r.cancelled == 10
+
+
+def test_guard_uses_config(session_factory, legacy_db, fake_clock):
+    keys = _many(legacy_db, 3)
+    with session_factory() as s:
+        run_plan_sync(s, legacy_db)
+    for k in keys[:2]:
+        deactivate(legacy_db, k)
+    with session_factory() as s:
+        r = run_plan_sync(s, legacy_db, SyncConfig(cancel_guard_min=2, cancel_guard_ratio=0.5))
+    assert r.result == "guarded"

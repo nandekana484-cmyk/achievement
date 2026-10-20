@@ -1,5 +1,6 @@
 import asyncio
 
+from app.core.config import SyncConfig
 from app.db.models import PlanSyncRun
 from app.services import plan_sync_scheduler
 from app.services.plan_sync_scheduler import PlanSyncScheduler, run_plan_sync_exclusive
@@ -27,7 +28,7 @@ def test_skipped_while_another_sync_is_running(session_factory, legacy_db, fake_
 def test_loop_continues_after_exception(monkeypatch, session_factory, legacy_db):
     calls = []
 
-    def flaky(_factory, _path):
+    def flaky(_factory, _path, _config):
         calls.append(1)
         if len(calls) == 1:
             raise RuntimeError("想定外のエラー")
@@ -35,7 +36,7 @@ def test_loop_continues_after_exception(monkeypatch, session_factory, legacy_db)
     monkeypatch.setattr(plan_sync_scheduler, "run_plan_sync_exclusive", flaky)
 
     async def main():
-        s = PlanSyncScheduler(session_factory, legacy_db, interval_sec=0.01)
+        s = PlanSyncScheduler(session_factory, legacy_db, SyncConfig(plan_interval_sec=0.01))
         s.start()
         for _ in range(500):
             if len(calls) >= 3:

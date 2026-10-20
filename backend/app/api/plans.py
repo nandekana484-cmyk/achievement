@@ -45,6 +45,7 @@ class SyncRunOut(BaseModel):
     finished_at: dt.datetime
     result: str
     added: int
+    revived: int  # 取消から復活した計画
     changed: int
     unchanged: int
     cancelled: int
@@ -53,7 +54,7 @@ class SyncRunOut(BaseModel):
 
 class SyncStatusOut(BaseModel):
     last_run: SyncRunOut | None
-    warning_count: int
+    warning_count: int  # 解決していない(resolved_at が空の)警告の件数
 
 
 @router.get("/lines/{line_code}/plans", response_model=list[PlanOut])
@@ -83,11 +84,12 @@ def list_line_plans(
 
 @router.get("/sync/status", response_model=SyncStatusOut)
 def sync_status(session: Session = Depends(get_session)) -> SyncStatusOut:
-    """直近の計画の同期の結果と、その回の警告の件数。"""
+    """直近の計画の同期の結果と、解決していない警告の件数。"""
     run = session.scalars(select(PlanSyncRun).order_by(PlanSyncRun.id.desc()).limit(1)).first()
-    if run is None:
-        return SyncStatusOut(last_run=None, warning_count=0)
     count = session.scalar(
-        select(func.count()).select_from(PlanSyncWarning).where(PlanSyncWarning.sync_run_id == run.id)
+        select(func.count()).select_from(PlanSyncWarning).where(PlanSyncWarning.resolved_at.is_(None))
     )
-    return SyncStatusOut(last_run=SyncRunOut.model_validate(run), warning_count=count or 0)
+    return SyncStatusOut(
+        last_run=SyncRunOut.model_validate(run) if run is not None else None,
+        warning_count=count or 0,
+    )

@@ -88,8 +88,13 @@ def test_sync_status(client, legacy_db, tmp_path):
 
     _sync(tmp_path / "nothing.db")
     body = client.get("/api/sync/status").json()
-    assert body["last_run"]["result"] == "error" and body["warning_count"] == 0
+    assert body["last_run"]["result"] == "error"
     assert "既存DBが見つかりません" in body["last_run"]["error_message"]
+    assert body["warning_count"] == 1  # 読めなかった回は警告を変えない
+
+    deactivate(legacy_db, "BROKEN")  # 警告の元が直った
+    _sync(legacy_db)
+    assert client.get("/api/sync/status").json()["warning_count"] == 0
 
 
 def test_scheduler_runs_on_startup(tmp_path, monkeypatch, legacy_db):

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Date, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -19,6 +19,7 @@ PLAN_CANCELLED = "cancelled"
 SYNC_OK = "ok"
 SYNC_ERROR = "error"
 SYNC_SKIPPED = "skipped"
+SYNC_GUARDED = "guarded"  # 一括取消の安全装置が働き、反映しなかった
 
 
 class Plan(Base):
@@ -65,8 +66,9 @@ class PlanSyncRun(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     started_at: Mapped[datetime] = mapped_column(TZDateTime)
     finished_at: Mapped[datetime] = mapped_column(TZDateTime)
-    result: Mapped[str] = mapped_column(String)  # ok / error / skipped
+    result: Mapped[str] = mapped_column(String)  # ok / error / skipped / guarded
     added: Mapped[int] = mapped_column(Integer, default=0)
+    revived: Mapped[int] = mapped_column(Integer, default=0)  # 取消から復活した計画(added とは別に数える)
     changed: Mapped[int] = mapped_column(Integer, default=0)
     unchanged: Mapped[int] = mapped_column(Integer, default=0)
     cancelled: Mapped[int] = mapped_column(Integer, default=0)
@@ -74,12 +76,25 @@ class PlanSyncRun(Base):
 
 
 class PlanSyncWarning(Base):
-    """同期で見つかった警告(取り込めなかった行、面やラインの食い違いなど)。"""
+    """同期で見つかった警告(取り込めなかった行、面やラインの食い違いなど)。
+
+    同じ (kitting_no, lot_no, message) の警告は1件にまとめ、出続けている間は last_seen_at を更新する。
+    同期で出なくなったら resolved_at を入れ、再び出たら resolved_at を空に戻す。
+    """
 
     __tablename__ = "plan_sync_warnings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    sync_run_id: Mapped[int] = mapped_column(ForeignKey("plan_sync_runs.id"), index=True)
-    legacy_plan_item_id: Mapped[int | None] = mapped_column(Integer)
     kitting_no: Mapped[str | None] = mapped_column(String)
+    lot_no: Mapped[str | None] = mapped_column(String)
     message: Mapped[str] = mapped_column(Text)
+    # 最後に警告になった既存DBの行番号(キッティングNo.が空の行を探すときの手がかり)
+    legacy_plan_item_id: Mapped[int | None] = mapped_column(Integer)
+    first_seen_at: Mapped[datetime] = mapped_column(TZDateTime)
+    last_seen_at: Mapped[datetime] = mapped_column(TZDateTime)
+    resolved_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+
+    __table_args__ = (
+        Index("ix_plan_sync_warnings_key", "kitting_no", "lot_no"),
+        Index("ix_plan_sync_warnings_resolved_at", "resolved_at"),
+    )

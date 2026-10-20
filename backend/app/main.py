@@ -40,9 +40,7 @@ async def lifespan(_app: FastAPI):
     if config.paths.legacy_database is None:
         logger.info("paths.legacy_database が未設定のため、計画の同期はしません")
     else:
-        scheduler = PlanSyncScheduler(
-            get_sessionmaker(), config.paths.legacy_database, config.sync.plan_interval_sec
-        )
+        scheduler = PlanSyncScheduler(get_sessionmaker(), config.paths.legacy_database, config.sync)
         scheduler.start()
     try:
         yield
