@@ -38,6 +38,14 @@ def test_invalid_kitting_no_becomes_warning(db):
     r = read_active_plans(db)
     assert [p.kitting_no for p in r.plans] == ["0722-1-S-251014-02"]
     assert len(r.warnings) == 1 and r.warnings[0].kitting_no == "BROKEN"
+    assert r.warnings[0].lot_no == "L001"  # 読めなかった行でも lot_no は入る
+
+
+def test_bad_datetime_warning_has_key(db):
+    insert_plan(db, kitting_no="0722-1-S-251014-01", lot_no="L009", start="21/10/2026 09:00")
+    r = read_active_plans(db)
+    assert r.plans == []
+    assert r.warnings[0].key == ("0722-1-S-251014-01", "L009")
 
 
 def test_side_mismatch_warns_and_uses_side(db):
@@ -68,3 +76,11 @@ def test_parse_datetime():
     assert parse_legacy_datetime("") is None
     with pytest.raises(ValueError):
         parse_legacy_datetime("07/01/2026")
+
+
+def test_fixture_closes_connections(db):
+    # Windows では、接続が残っているとファイルを消せない
+    insert_plan(db, kitting_no="0722-1-S-251014-01")
+    deactivate(db, "0722-1-S-251014-01")
+    read_active_plans(db)
+    db.unlink()

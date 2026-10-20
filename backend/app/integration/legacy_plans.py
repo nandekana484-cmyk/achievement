@@ -67,6 +67,14 @@ class ReadWarning:
     legacy_plan_item_id: int | None
     kitting_no: str | None
     message: str
+    lot_no: str | None = None  # 読めなかった行でも、取れる範囲で入れる
+
+    @property
+    def key(self) -> tuple[str, str] | None:
+        """警告の行の計画のキー。キッティングNo.が空のときは計画と結びつけられないので None。"""
+        if not self.kitting_no or self.lot_no is None:
+            return None
+        return (self.kitting_no, self.lot_no)
 
 
 @dataclass(frozen=True)
@@ -139,23 +147,24 @@ def read_active_plans(db_path: Path) -> ReadResult:
     for r in rows:
         item_id = r["plan_item_id"]
         kno = (r["kitting_list_no"] or "").strip()
+        lot = str(r["lot_no"] or "").strip()
         try:
             parsed = parse_kitting_no(kno)
             side = int(str(r["production_side"]).strip())
             if side not in (1, 2):
                 raise ValueError(f"面が1・2以外です: {r['production_side']!r}")
             if side != parsed.run_no:
-                warnings.append(ReadWarning(item_id, kno, f"面({side})とキッティングNo.の回({parsed.run_no})が食い違っています。面を採用します"))
+                warnings.append(ReadWarning(item_id, kno, lot_no=lot, message=f"面({side})とキッティングNo.の回({parsed.run_no})が食い違っています。面を採用します"))
             line = (r["mounting_line"] or "").strip() or parsed.line_code
             if line != parsed.line_code:
-                warnings.append(ReadWarning(item_id, kno, f"実装ライン({line})とキッティングNo.のライン({parsed.line_code})が食い違っています。実装ラインを採用します"))
+                warnings.append(ReadWarning(item_id, kno, lot_no=lot, message=f"実装ライン({line})とキッティングNo.のライン({parsed.line_code})が食い違っています。実装ラインを採用します"))
             file_no = (r["setup_file_no"] or "").strip() or parsed.file_no
             planned_qty = _to_int(r["planned_qty"])
             if planned_qty is None:
                 raise ValueError("数量が空です")
             plans.append(LegacyPlan(
                 kitting_no=kno,
-                lot_no=(r["lot_no"] or "").strip(),
+                lot_no=lot,
                 file_no=file_no,
                 line_code=line,
                 product_name=(r["board_name"] or "").strip(),
@@ -174,7 +183,7 @@ def read_active_plans(db_path: Path) -> ReadResult:
                 legacy_version=r["version"] or 1,
             ))
         except (KittingNoError, ValueError, TypeError) as e:
-            warnings.append(ReadWarning(item_id, kno or None, str(e)))
+            warnings.append(ReadWarning(item_id, kno or None, lot_no=lot, message=str(e)))
     return ReadResult(plans=plans, warnings=warnings)
 
 
