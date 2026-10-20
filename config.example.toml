@@ -8,8 +8,11 @@ port = 8000
 [paths]
 database = "data/genba.db"
 # 既存アプリのSQLite。どちらも読み取り専用で開く。未設定なら計画の同期をしない
-# legacy_database = "C:/path/to/monthly.db"        # 計画(kitting_plan_items)がある月次DB
-# legacy_master_database = "C:/path/to/master.db"  # 想定タクト(production_side_master)
+# 相対パスは起動したフォルダ(開発中は backend)から見た位置。
+# 開発中は、既存DBの複製をリポジトリ直下の legacy-db/ に置いて指す(legacy-db/ はGitに入らない)。
+# 本番(担当者PC)では、既存アプリの実際のDBの場所を書く。
+# legacy_database = "../legacy-db/monthly.db"        # 計画(kitting_plan_items)がある月次DB
+# legacy_master_database = "../legacy-db/master.db"  # 想定タクト(production_side_master)
 exchange_dir = "exchange"
 # バックアップの保存先(共有フォルダ)
 # backup_dir = "//server/share/genba-backup"
@@ -17,3 +20,8 @@ log_dir = "logs"
 
 [sync]
 plan_interval_sec = 60
+# 一括取消の安全装置。1回の同期で取消になる計画が cancel_guard_min 件以上 かつ
+# 有効な計画の cancel_guard_ratio(割合)以上なら、何も反映せずに result=guarded を記録する
+# (既存アプリで古い月のDBに切り替えたときに、計画が一斉に取消になるのを防ぐ)
+cancel_guard_min = 10
+cancel_guard_ratio = 0.3

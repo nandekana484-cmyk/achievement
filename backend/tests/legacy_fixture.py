@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 PLAN_DDL = """
@@ -23,8 +25,15 @@ CREATE UNIQUE INDEX ux_active ON kitting_plan_items(kitting_list_no, lot_no) WHE
 """
 
 
+@contextmanager
+def _connect(path: Path) -> Iterator[sqlite3.Connection]:
+    """コミットして、接続も必ず閉じる(sqlite3 の with はコミットするだけで閉じないため)。"""
+    with closing(sqlite3.connect(path)) as c, c:
+        yield c
+
+
 def make_plan_db(path: Path) -> None:
-    with sqlite3.connect(path) as c:
+    with _connect(path) as c:
         c.executescript(PLAN_DDL)
 
 
@@ -33,7 +42,7 @@ def insert_plan(path: Path, *, kitting_no: str, lot_no: str = "L001", side: str 
                 start: str = "2026/10/21 09:00:00", end: str = "2026/10/21 12:00:00",
                 delete_flag: int = 0, board: str = "基板A") -> int:
     """「版」方式で計画を入れる: 同じキーの有効な行があれば無効にして新しい版を足す。"""
-    with sqlite3.connect(path) as c:
+    with _connect(path) as c:
         prev = c.execute(
             "SELECT plan_item_id, version FROM kitting_plan_items WHERE kitting_list_no=? AND lot_no=? AND is_active=1",
             (kitting_no, lot_no),
@@ -52,5 +61,5 @@ def insert_plan(path: Path, *, kitting_no: str, lot_no: str = "L001", side: str 
 
 
 def deactivate(path: Path, kitting_no: str, lot_no: str = "L001") -> None:
-    with sqlite3.connect(path) as c:
+    with _connect(path) as c:
         c.execute("UPDATE kitting_plan_items SET is_active=0 WHERE kitting_list_no=? AND lot_no=?", (kitting_no, lot_no))

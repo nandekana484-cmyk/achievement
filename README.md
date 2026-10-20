@@ -53,6 +53,10 @@ npm run dev
 
 ブラウザで http://localhost:5173 を開く。稼働確認は http://localhost:8000/api/health 。
 
+## DBの構造の更新(Alembic)
+
+起動時に自動で最新の構造に更新される。手で `python -m alembic ...` を使うとき(backend フォルダで、venv の中で)は、**対象が config.toml(環境変数 `GENBA_CONFIG`、未指定なら `data\config.toml`)の `paths.database` になる**ので、どのDBを指しているか確認してから実行する。
+
 ## 本番と同じ形で確認する
 
 ```powershell

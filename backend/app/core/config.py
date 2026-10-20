@@ -32,6 +32,9 @@ class PathsConfig:
 @dataclass(frozen=True)
 class SyncConfig:
     plan_interval_sec: int = 60
+    # 一括取消の安全装置: 取消が cancel_guard_min 件以上 かつ 有効な計画の cancel_guard_ratio 以上なら反映しない
+    cancel_guard_min: int = 10
+    cancel_guard_ratio: float = 0.3
 
 
 @dataclass(frozen=True)
@@ -68,7 +71,11 @@ def load_config(path: Path | None = None) -> AppConfig:
             backup_dir=_opt_path(p.get("backup_dir")),
             log_dir=Path(p.get("log_dir", defaults.log_dir)),
         ),
-        sync=SyncConfig(plan_interval_sec=int(y.get("plan_interval_sec", 60))),
+        sync=SyncConfig(
+            plan_interval_sec=int(y.get("plan_interval_sec", 60)),
+            cancel_guard_min=int(y.get("cancel_guard_min", SyncConfig.cancel_guard_min)),
+            cancel_guard_ratio=float(y.get("cancel_guard_ratio", SyncConfig.cancel_guard_ratio)),
+        ),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     )
 

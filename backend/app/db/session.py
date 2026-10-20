@@ -47,8 +47,13 @@ def init_db(db_path: Path) -> Engine:
     return engine
 
 
-def get_session() -> Iterator[Session]:
+def get_sessionmaker() -> sessionmaker[Session]:
+    """API 以外(定期同期など)でセッションを作るときに使う。"""
     if _SessionLocal is None:
         raise RuntimeError("init_db() が呼ばれていません")
-    with _SessionLocal() as session:
+    return _SessionLocal
+
+
+def get_session() -> Iterator[Session]:
+    with get_sessionmaker()() as session:
         yield session
