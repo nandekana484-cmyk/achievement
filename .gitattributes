@@ -1,0 +1,24 @@
+# 改行はLFで統一する(2拠点のPCで差分が出ないように)
+* text=auto eol=lf
+
+# Windowsのスクリプトは CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# バイナリ
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary

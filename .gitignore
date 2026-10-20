@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# 実行時のデータ(本番データはリポジトリに入れない)
+# backend/data/ には PCごとの config.toml と本アプリのDBを置く
+backend/data/
+backend/exchange/
+logs/
+*.db
+*.db-wal
+*.db-shm
+
+# 既存アプリのDBの複製(テスト用。各PCに置き、コミットしない)
+legacy-db/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# TypeScript のビルドキャッシュ(ビルドのたびに変わる)
+*.tsbuildinfo

@@ -1,0 +1,7 @@
+# Python 3.14(.python-version で固定。tomllib を使うため 3.11 以上が必須)
+# ライセンスはすべて MIT / BSD / Apache-2.0 系
+fastapi==0.150.0          # MIT  API
+uvicorn[standard]==0.54.0 # BSD  サーバー
+sqlalchemy==2.1.5         # MIT  ORM
+alembic==1.20.0           # MIT  DB構造の更新
+tzdata==2026.5            # Apache-2.0  Windows には時刻帯データがないため(ZoneInfo("Asia/Tokyo") に必要)

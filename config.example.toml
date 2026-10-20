@@ -1,0 +1,19 @@
+# 本番は C:\GenbaApp\data\config.toml に置く。開発中は backend\data\config.toml。
+timezone = "Asia/Tokyo"
+
+[server]
+host = "0.0.0.0"
+port = 8000
+
+[paths]
+database = "data/genba.db"
+# 既存アプリのSQLite。どちらも読み取り専用で開く。未設定なら計画の同期をしない
+# legacy_database = "C:/path/to/monthly.db"        # 計画(kitting_plan_items)がある月次DB
+# legacy_master_database = "C:/path/to/master.db"  # 想定タクト(production_side_master)
+exchange_dir = "exchange"
+# バックアップの保存先(共有フォルダ)
+# backup_dir = "//server/share/genba-backup"
+log_dir = "logs"
+
+[sync]
+plan_interval_sec = 60
