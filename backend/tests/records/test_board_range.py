@@ -101,9 +101,9 @@ def test_other_day_start(client, plans, fake_clock):
 
 
 def test_get_run_for_plan_outside_display_range(client, plans):
-    r = ok(client.get(f"/api/runs/{PAST_UNTOUCHED}/L001"))
+    r = ok(client.get(f"/api/runs/{PAST_UNTOUCHED}"))
     assert r["plan"]["kitting_no"] == PAST_UNTOUCHED and r["events"] == [] and r["completed"] is False
-    assert client.get("/api/runs/9999-1-S-251014-99/L001").status_code == 404
+    assert client.get("/api/runs/9999-1-S-251014-99").status_code == 404
 
 
 def test_restart_reason_still_required_for_late_plan(client, plans):

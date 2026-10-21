@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.db.models import Equipment, Line, Reason
 from legacy_fixture import insert_plan
-from records_helpers import K1, LOT, rid, new_session, sync_plans, reason_id, start, ok
+from records_helpers import K1, rid, new_session, sync_plans, reason_id, start, ok
 
 
 def test_masters(client, staffed, equipment):
@@ -33,7 +33,7 @@ def test_sync_registers_new_lines(client, world):
 
 
 def test_requests_without_request_id_are_rejected(client, staffed):
-    r = client.post(f"/api/runs/{K1}/{LOT}/steps/setup/start", json={})
+    r = client.post(f"/api/runs/{K1}/steps/setup/start", json={})
     assert r.status_code == 422
-    r = client.post(f"/api/runs/{K1}/{LOT}/steps/setup/start", json={"request_id": rid(), "unknown": 1})
+    r = client.post(f"/api/runs/{K1}/steps/setup/start", json={"request_id": rid(), "unknown": 1})
     assert r.status_code == 422  # 知らない項目は受け付けない

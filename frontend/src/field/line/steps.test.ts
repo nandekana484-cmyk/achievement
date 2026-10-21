@@ -4,7 +4,7 @@ import { formatPercent, stepStatus } from "./steps";
 
 let nextId = 1;
 const ev = (step: string, seq: number, start: string, end: string | null): RunEvent => ({
-  id: nextId++, kitting_no: "K1", lot_no: "L1", step_type: step, seq,
+  id: nextId++, kitting_no: "K1", step_type: step, seq,
   start_at: `2026-10-21T${start}:00+09:00`, end_at: end ? `2026-10-21T${end}:00+09:00` : null,
   started_by: 1, started_by_name: "山田", ended_by: end ? 1 : null, ended_by_name: end ? "山田" : null,
   produced_qty: null, restart_reason_id: null, restart_reason_name: null, equipment_id: null, equipment_name: null,

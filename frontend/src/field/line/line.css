@@ -154,3 +154,12 @@
 .tt-clip-mark-end { margin-top: auto; }
 
 .col-center > .notice { margin: 8px; }
+
+/* ロットの一覧(右のパネルの見出し)。ロットが多いときはこの中でスクロールする */
+.lot-table-wrap { max-height: 168px; overflow-y: auto; margin-top: 8px; border: 2px solid var(--border); border-radius: 8px; }
+.lot-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.lot-table th, .lot-table td { padding: 4px 8px; border-bottom: 1px solid #eaeef2; text-align: left; }
+.lot-table th { position: sticky; top: 0; background: #f6f8fa; color: var(--muted); font-weight: 600; }
+.lot-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.plan-warning { margin: 6px 0 0; font-size: 16px; color: var(--warn); }
+.hit-matched { font-size: 16px; color: var(--accent); }

@@ -95,3 +95,12 @@ h1 { font-size: 26px; }
 }
 
 .dialog-error { padding: 10px 12px; border-radius: 8px; border: 2px solid var(--danger); background: var(--danger-bg); font-size: 16px; }
+
+/* NG数の入力(ロット → 面 → テンキー) */
+.ng-layout { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+.ng-step-title { margin: 8px 0 4px; font-size: 18px; font-weight: 700; }
+.ng-lots { max-height: 220px; overflow-y: auto; }
+.ng-note { font-size: 16px; color: var(--muted); }
+.ng-entries ul { margin: 4px 0; padding-left: 20px; font-size: 16px; }
+.choice-sub { font-size: 16px; font-weight: 400; color: var(--muted); }
+.ng-pad .pad-key { min-height: 60px; }

@@ -3,6 +3,7 @@ import type { Board, BoardPlan, Masters, Reason } from "../../shared/api";
 import type { RunResult } from "../../shared/useOperation";
 import { ConfirmDialog } from "./dialogs/ConfirmDialog";
 import { LineEventStartDialog } from "./dialogs/LineEventStartDialog";
+import { NgDialog } from "./dialogs/NgDialog";
 import { NumberPadDialog } from "./dialogs/NumberPadDialog";
 import { RestartReasonDialog } from "./dialogs/RestartReasonDialog";
 import { TextDialog } from "./dialogs/TextDialog";
@@ -76,11 +77,9 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
       );
     case "ng":
       return (
-        <NumberPadDialog
-          title="NG数の入力"
-          initial={dialog.plan.ng_qty}
-          submitLabel="NG数を記録"
-          onSubmit={(n) => untilSuccess(actions.setNg(dialog.plan, n, { showError: false }))}
+        <NgDialog
+          plan={dialog.plan}
+          onSubmit={(lot, side, n) => untilSuccess(actions.setNg(dialog.plan, lot, side, n, { showError: false }))}
           onCancel={close}
         />
       );

@@ -5,6 +5,7 @@
 - それでもロックが取れなかったときは 503。api_requests には記録せず、同じ request_id で送り直せば記録される
 """
 
+import json
 import sqlite3
 import threading
 import time
@@ -27,6 +28,7 @@ from app.db.models import (
     RunCompletion,
     RunEvent,
     RunInput,
+    RunNgInput,
 )
 from app.db.session import get_sessionmaker, make_engine, write_transaction
 from app.services import masters
@@ -147,7 +149,7 @@ class _Load:
         return first
 
     def plan_worker(self, i: int) -> None:
-        base = f"/api/runs/{_plan_kno(i)}/L{i:03d}"
+        base = f"/api/runs/{_plan_kno(i)}"
         op = {"operator_id": self.yamada}
         self.barrier.wait()
         self.send("POST", f"{base}/steps/setup/start", op)
@@ -155,7 +157,7 @@ class _Load:
         for seg in range(3):
             self.send("POST", f"{base}/steps/production/start", {**op, "restart_reason_id": self.restart[seg - 1] if seg else None})
             self.send("POST", f"{base}/steps/production/end", {**op, "produced_qty": 10 * (seg + 1)})
-        self.send("PUT", f"{base}/ng-qty", {**op, "ng_qty": i})
+        self.send("PUT", f"{base}/ng-qty", {**op, "lot_no": f"L{i:03d}", "side": 1, "ng_qty": i})
         self.send("POST", f"{base}/remarks", {**op, "text": f"備考{i}"})
         self.send("POST", f"{base}/steps/cleanup/start", op)
         self.send("POST", f"{base}/steps/cleanup/end", op)
@@ -186,7 +188,8 @@ def _assert_records_are_exact(operations: int) -> None:
     assert _count(RunEvent) == N_PLANS * 5
     assert _count(RunEvent, RunEvent.end_at.is_(None)) == 0
     assert _count(RunCompletion) == N_PLANS
-    assert _count(RunInput) == N_PLANS * 2
+    assert _count(RunInput) == N_PLANS  # 備考
+    assert _count(RunNgInput) == N_PLANS
     assert _count(LineEvent) == N_LINE_EVENT_THREADS * N_LINE_EVENT_CYCLES
     assert _count(LineEvent, LineEvent.end_at.is_(None)) == 0
     assert _count(LineOperator) == 1 + N_OPERATOR_CHANGES
@@ -199,7 +202,7 @@ def _assert_records_are_exact(operations: int) -> None:
                 RunEvent.kitting_no == _plan_kno(i), RunEvent.step_type == "production").order_by(RunEvent.seq)))
             assert seqs == [1, 2, 3]
             c = s.scalars(select(RunCompletion).where(RunCompletion.kitting_no == _plan_kno(i))).one()
-            assert (c.produced_qty, c.ng_qty) == (60, i)
+            assert c.produced_qty == 60 and json.loads(c.ng_snapshot)[0]["ng_qty"] == i
         assert s.get(Plan, (SYNC_TARGET, "L999")).planned_qty == 100 + N_SYNCS
 
 
@@ -253,7 +256,7 @@ def test_lock_contention_returns_503_and_resend_records(tmp_path, monkeypatch, s
             run_plan_sync(s, legacy_app)
             op = masters.add_operator(s, "山田").id
         body = {"request_id": rid(), "operator_id": op}
-        url = "/api/runs/0722-1-S-251014-01/L001/steps/setup/start"
+        url = "/api/runs/0722-1-S-251014-01/steps/setup/start"
 
         holder = _hold_write_lock(tmp_path / "api.db")
         try:
@@ -303,11 +306,11 @@ def test_busy_error_in_service_is_not_recorded(session_factory, legacy_app, lega
     holder = _hold_write_lock(engine.url.database)
     try:
         with session_factory() as s, pytest.raises(Busy):
-            run_records.start_step(s, "0722-1-S-251014-01", "L001", StepType.SETUP, "same-id", operator_id=op)
+            run_records.start_step(s, "0722-1-S-251014-01", StepType.SETUP, "same-id", operator_id=op)
     finally:
         holder.rollback()
         holder.close()
     with session_factory() as s:
-        run_records.start_step(s, "0722-1-S-251014-01", "L001", StepType.SETUP, "same-id", operator_id=op)
+        run_records.start_step(s, "0722-1-S-251014-01", StepType.SETUP, "same-id", operator_id=op)
         assert s.scalar(select(func.count()).select_from(RunEvent)) == 1
         assert s.scalar(select(func.count()).select_from(Operator)) == 1

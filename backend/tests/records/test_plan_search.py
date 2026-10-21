@@ -1,4 +1,4 @@
-"""計画の検索(GET /api/plans/search)。"""
+"""計画の検索(GET /api/plans/search)。当たったキッティングNo.のまとまりを返す。"""
 
 from datetime import datetime
 
@@ -8,12 +8,15 @@ from app.core.clock import JST
 from legacy_fixture import deactivate, insert_plan
 from records_helpers import ok, sync_plans
 
+MULTI = "0722-1-S-251018-01"  # ロット LOT-A01 / LOT-A02 の2ロット
+
 
 @pytest.fixture
 def plans(client, world, fake_clock):
     db = world["db"]
-    insert_plan(db, kitting_no="0722-1-S-251018-01", lot_no="LOT-A01", file_no="0722", board="制御基板ＡＢＣ",
-                start="2026/10/18 09:00:00", end="2026/10/18 12:00:00")
+    for lot, board in (("LOT-A01", "制御基板ＡＢＣ"), ("LOT-A02", "制御基板ＸＹＺ")):
+        insert_plan(db, kitting_no=MULTI, lot_no=lot, file_no="0722", board=board, qty=100,
+                    start="2026/10/18 09:00:00", end="2026/10/18 12:00:00")
     insert_plan(db, kitting_no="0722-2-S-251018-02", lot_no="LOT-A01", file_no="0722", side="2", board="制御基板ＡＢＣ",
                 start="2026/10/21 09:00:00", end="2026/10/21 12:00:00")
     insert_plan(db, kitting_no="T458-1-T-251018-03", lot_no="lot-b02", file_no="T458", line="T", board="表示基板",
@@ -26,21 +29,39 @@ def plans(client, world, fake_clock):
     return world
 
 
+def _hits(client, q, **params):
+    return ok(client.get("/api/plans/search", params={"q": q, **params}))
+
+
 def _search(client, q, **params):
-    return [p["kitting_no"] for p in ok(client.get("/api/plans/search", params={"q": q, **params}))]
+    return [h["plan"]["kitting_no"] for h in _hits(client, q, **params)]
 
 
-def test_partial_match_on_kitting_no_lot_and_name(client, plans):
+def test_partial_match_on_kitting_no_lot_and_board_name(client, plans):
     assert _search(client, "251018-03") == ["T458-1-T-251018-03"]
-    assert _search(client, "A01") == ["0722-2-S-251018-02", "0722-1-S-251018-01"]  # 計画開始が今に近い順
+    assert _search(client, "A01") == ["0722-2-S-251018-02", MULTI]  # 計画開始が今に近い順
     assert _search(client, "表示") == ["T458-1-T-251018-03"]
+
+
+def test_lot_match_returns_the_whole_kitting_group(client, plans):
+    [hit] = _hits(client, "LOT-A02")  # 2つ目のロットで当たっても、キッティングNo.のまとまりを返す
+    assert hit["plan"]["kitting_no"] == MULTI
+    assert [lot["lot_no"] for lot in hit["plan"]["lots"]] == ["LOT-A01", "LOT-A02"]
+    assert hit["plan"]["planned_qty"] == 200
+    assert hit["matched"] == ["ロットNo. LOT-A02"]  # 当たったところが分かる
+
+
+def test_matched_shows_board_names(client, plans):
+    hit = next(h for h in _hits(client, "xyz") if h["plan"]["kitting_no"] == MULTI)
+    assert hit["matched"] == ["基板名 制御基板ＸＹＺ"]
+    assert _hits(client, "251018-01")[0]["matched"] == ["キッティングNo."]
 
 
 def test_case_and_width_are_ignored(client, plans):
     assert _search(client, "t458") == ["T458-1-T-251018-03"]  # 小文字
     assert _search(client, "ＬＯＴ－Ｂ０２") == ["T458-1-T-251018-03"]  # 全角
-    assert _search(client, "abc") == ["0722-2-S-251018-02", "0722-1-S-251018-01"]  # 品名の全角英字
-    assert _search(client, "  0722-1-s-251018-01 ") == ["0722-1-S-251018-01"]  # 完全に一致する1件(前後の空白も無視)
+    assert _search(client, "abc") == ["0722-2-S-251018-02", MULTI]  # 基板名の全角英字
+    assert _search(client, "  0722-1-s-251018-01 ") == [MULTI]  # 完全に一致する1件(前後の空白も無視)
 
 
 def test_cancelled_plans_are_not_found(client, plans):

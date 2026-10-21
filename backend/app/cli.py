@@ -102,9 +102,11 @@ def _list_lines(s: Session, _args: argparse.Namespace) -> None:
 
 def _demo_seed(s: Session, args: argparse.Namespace) -> None:
     knos = seed_demo(s, args.line, args.date)
-    print(f"確認用のデータを入れました({args.date}、ライン {normalize_mounting_line(args.line)}): 計画 {len(knos)}件")
-    for kno in knos:
-        print(f"  {kno}")
+    unique = list(dict.fromkeys(knos))
+    print(f"確認用のデータを入れました({args.date}、ライン {normalize_mounting_line(args.line)}): "
+          f"計画 {len(knos)}件(キッティングNo. {len(unique)}件)")
+    for kno in unique:
+        print(f"  {kno}({knos.count(kno)}ロット)")
 
 
 _COMMANDS = {

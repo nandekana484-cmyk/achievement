@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -17,35 +18,12 @@ from app.db.models import (
     LineEvent,
     LineOperator,
     Operator,
-    Plan,
     Reason,
     RunCompletion,
     RunEvent,
     RunInput,
+    RunNgInput,
 )
-
-
-class PlanOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    kitting_no: str
-    lot_no: str
-    file_no: str
-    line_code: str
-    product_name: str
-    run_no: int
-    planned_qty: int
-    cumulative_qty: int | None
-    order_qty: int | None
-    planned_start: dt.datetime | None  # 検索や遅れの計画では、日程が空のこともある
-    planned_end: dt.datetime | None
-    deadline: dt.datetime | None
-    issue_date: dt.date
-    issue_seq: int
-    legacy_status: str | None
-    status: str
-    takt_sec: float | None  # 想定タクト。単位は要確認(今は1枚あたりの秒と仮定)
-    source_db: str | None  # 正とした既存アプリの月次DBのフォルダ名
 
 
 # --- マスタ ---
@@ -110,7 +88,6 @@ class CurrentOperatorOut(BaseModel):
 class RunEventOut(BaseModel):
     id: int
     kitting_no: str
-    lot_no: str
     step_type: str
     seq: int
     start_at: dt.datetime
@@ -127,15 +104,34 @@ class RunEventOut(BaseModel):
     equipment_name: str | None = None
 
 
+class LotOut(BaseModel):
+    """まとまり(キッティングNo.)の中のロット(確認用)。"""
+
+    lot_no: str
+    product_name: str  # 基板名
+    planned_qty: int
+
+
+class NgEntryOut(BaseModel):
+    """ロットと面ごとの、最新のNG数。"""
+
+    lot_no: str
+    side: int  # NGが出た面
+    side_kitting_no: str  # NGが出た面の計画のキッティングNo.
+    ng_qty: int
+    entered_by_name: str = ""
+    entered_at: dt.datetime | None = None
+
+
 class RunCompletionOut(BaseModel):
     id: int
     kitting_no: str
-    lot_no: str
     completed_at: dt.datetime
     produced_qty: int
-    ng_qty: int | None
-    plan_qty_snapshot: int
+    plan_qty_snapshot: int  # ロットの数量の合計
     takt_sec_snapshot: float | None
+    lots_snapshot: list[LotOut]
+    ng_snapshot: list[NgEntryOut]
     utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
 
 
@@ -147,11 +143,26 @@ class StepResultOut(BaseModel):
 
 
 class RunInputOut(BaseModel):
+    """備考(キッティングNo.の単位)。"""
+
     id: int
     kitting_no: str
-    lot_no: str
-    kind: str  # ng_qty / remark
+    kind: str  # remark
     value: str
+    entered_by: int
+    entered_by_name: str
+    entered_at: dt.datetime
+
+
+class NgInputOut(BaseModel):
+    """NG数の入力の結果。"""
+
+    id: int
+    kitting_no: str  # 入力した画面の計画
+    lot_no: str
+    side: int
+    side_kitting_no: str
+    ng_qty: int
     entered_by: int
     entered_by_name: str
     entered_at: dt.datetime
@@ -171,32 +182,6 @@ class LineEventOut(BaseModel):
     started_by_name: str
     ended_by: int | None
     ended_by_name: str | None
-
-
-class BoardPlanOut(BaseModel):
-    plan: PlanOut
-    events: list[RunEventOut]  # 工程の記録(開始の順)
-    produced_qty: int  # 生産の区切りの生産数の合計(終了したもの)
-    ng_qty: int | None  # 最新のNG数
-    completed: bool
-    completion: RunCompletionOut | None  # 最新の完了
-    progress: float | None  # 計画の進捗率 = 生産数の合計 ÷ 計画数(計画数が0なら null)
-
-
-class BoardOut(BaseModel):
-    line_code: str
-    date: dt.date  # 稼働日
-    workday_start: dt.datetime  # 稼働日の始まり(day_start)
-    workday_end: dt.datetime
-    display_start: dt.datetime  # 表示範囲(稼働日の前後12時間を足した48時間)
-    display_end: dt.datetime
-    server_time: dt.datetime  # タブレットの時計とのずれの補正に使う
-    current_operator: CurrentOperatorOut | None
-    plans: list[BoardPlanOut]
-    line_events: list[LineEventOut]  # 表示範囲に重なる付帯作業
-    # TODO(要確認): ラインの進捗率の定義(今は 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計)
-    line_progress: float | None
-    utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
 
 
 # --- 組み立て ---
@@ -220,7 +205,7 @@ def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
     reason = session.get(Reason, e.restart_reason_id) if e.restart_reason_id is not None else None
     equipment = session.get(Equipment, e.equipment_id) if e.equipment_id is not None else None
     return RunEventOut(
-        id=e.id, kitting_no=e.kitting_no, lot_no=e.lot_no, step_type=e.step_type, seq=e.seq,
+        id=e.id, kitting_no=e.kitting_no, step_type=e.step_type, seq=e.seq,
         start_at=e.start_at, end_at=e.end_at,
         started_by=e.started_by, started_by_name=_operator_name(session, e.started_by) or "",
         ended_by=e.ended_by, ended_by_name=_operator_name(session, e.ended_by),
@@ -232,17 +217,34 @@ def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
 
 def run_completion_out(c: RunCompletion) -> RunCompletionOut:
     return RunCompletionOut(
-        id=c.id, kitting_no=c.kitting_no, lot_no=c.lot_no, completed_at=c.completed_at,
-        produced_qty=c.produced_qty, ng_qty=c.ng_qty, plan_qty_snapshot=c.plan_qty_snapshot,
-        takt_sec_snapshot=c.takt_sec_snapshot, utilization=c.utilization,
+        id=c.id, kitting_no=c.kitting_no, completed_at=c.completed_at,
+        produced_qty=c.produced_qty, plan_qty_snapshot=c.plan_qty_snapshot, takt_sec_snapshot=c.takt_sec_snapshot,
+        lots_snapshot=[LotOut(**x) for x in json.loads(c.lots_snapshot or "[]")],
+        ng_snapshot=[NgEntryOut(**x) for x in json.loads(c.ng_snapshot or "[]")],
+        utilization=c.utilization,
     )
 
 
 def run_input_out(session: Session, i: RunInput) -> RunInputOut:
     return RunInputOut(
-        id=i.id, kitting_no=i.kitting_no, lot_no=i.lot_no, kind=i.kind, value=i.value,
+        id=i.id, kitting_no=i.kitting_no, kind=i.kind, value=i.value,
         entered_by=i.entered_by, entered_by_name=_operator_name(session, i.entered_by) or "",
         entered_at=i.entered_at,
+    )
+
+
+def ng_entry_out(session: Session, n: RunNgInput) -> NgEntryOut:
+    return NgEntryOut(
+        lot_no=n.lot_no, side=n.side, side_kitting_no=n.side_kitting_no, ng_qty=n.ng_qty,
+        entered_by_name=_operator_name(session, n.entered_by) or "", entered_at=n.entered_at,
+    )
+
+
+def ng_input_out(session: Session, n: RunNgInput) -> NgInputOut:
+    return NgInputOut(
+        id=n.id, kitting_no=n.kitting_no, lot_no=n.lot_no, side=n.side, side_kitting_no=n.side_kitting_no,
+        ng_qty=n.ng_qty, entered_by=n.entered_by, entered_by_name=_operator_name(session, n.entered_by) or "",
+        entered_at=n.entered_at,
     )
 
 
@@ -256,10 +258,6 @@ def line_event_out(session: Session, e: LineEvent) -> LineEventOut:
         started_by=e.started_by, started_by_name=_operator_name(session, e.started_by) or "",
         ended_by=e.ended_by, ended_by_name=_operator_name(session, e.ended_by),
     )
-
-
-def plan_out(p: Plan) -> PlanOut:
-    return PlanOut.model_validate(p)
 
 
 def line_out(line: Line) -> LineOut:
