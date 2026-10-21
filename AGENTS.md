@@ -24,7 +24,8 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
   (有効化していない場合は `.\.venv\Scripts\python.exe -m pytest`)
 - バックエンドの起動: `cd backend` → `python -m uvicorn app.main:app --reload --port 8000`
   (有効化していない場合は `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`)
-- DBの構造の変更: モデル(`app/db/models.py`)を変えたら、マイグレーションを `app/db/migrations/versions/` に追加する。起動時に自動で最新に更新される
+- マスタの追加と一覧(開発用): `cd backend` → `python -m app.cli operators add <名前>` / `operators list` / `equipment add <ライン> <名前>` / `equipment list` / `reasons list` / `lines list`(対象は config.toml の `paths.database`)
+- DBの構造の変更: モデル(`app/db/models.py`)を変えたら、マイグレーションを `app/db/migrations/versions/` に追加する。起動時に自動で最新に更新される(`tests/test_db.py` がモデルとマイグレーションの食い違いを検出する)
   - **Alembic を手で使う**(`python -m alembic ...`)**ときの対象は、config.toml(`GENBA_CONFIG`)の `paths.database`**。本番のDBを指していないか確認してから実行する
 - フロントエンドの依存の導入: `cd frontend` → `npm ci`(`package-lock.json` のとおりに入れる)
 - フロントエンドの開発: `cd frontend` → `npm run dev`(`/api` は8000番へ転送)
