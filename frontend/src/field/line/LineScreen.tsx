@@ -1,7 +1,9 @@
 // ライン画面(開発指針 7.1): 上部、左のメニュー(検索)、中央のタイムテーブル、右のパネル。
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { BoardPlan, LineEvent, Plan, Reason } from "../../shared/api";
+import { lineName as displayLineName } from "../../shared/lineName";
 import { Notice } from "../../shared/Notice";
 import { useMasters } from "../../shared/useMasters";
 import { useOperation } from "../../shared/useOperation";
@@ -19,10 +21,9 @@ import { useLineActions } from "./useLineActions";
 import { useNow } from "./useNow";
 import { useSelectedPlan } from "./useSelectedPlan";
 
-const PICK_OPERATOR_FIRST = "担当者が設定されていません。担当者を選んでから、もう一度ボタンを押してください。";
-
 export function LineScreen() {
   const { lineCode = "" } = useParams();
+  const { t } = useI18n();
   const { board, error: boardError, offsetMs, reload } = useBoard(lineCode);
   const { masters, error: mastersError } = useMasters(lineCode);
   const op = useOperation(reload);
@@ -40,13 +41,14 @@ export function LineScreen() {
   }, [selectedKno]);
 
   const selected = useSelectedPlan(board, selectedKno);
-  const lineName = masters?.lines.find((l) => l.line_code === board?.line_code)?.name ?? `${lineCode}ライン`;
+  const line = masters?.lines.find((l) => l.line_code === board?.line_code);
+  const lineName = line ? displayLineName(line, t) : t("lineScreen.lineFallback", { code: lineCode });
   const openOperator = () => setDialog({ kind: "operator" });
   const select = (p: Plan) => setSelectedKno(p.kitting_no);
 
   // 記録のボタンは、担当者が未設定ならサーバーに送らず、先に担当者を選ぶ画面を出す
   const withOperator = (action: () => void) => () => {
-    if (!board?.current_operator) setDialog({ kind: "operator", message: PICK_OPERATOR_FIRST });
+    if (!board?.current_operator) setDialog({ kind: "operator", message: t("lineScreen.pickOperatorFirst") });
     else action();
   };
   const onStep = (plan: BoardPlan, status: StepStatus) => withOperator(() => {
@@ -73,20 +75,20 @@ export function LineScreen() {
       />
       <section className="col-center">
         {board && selected && isOutsideDisplay(selected.plan, board) && (
-          <Notice kind="info">{outsideMessage(selected.plan)}</Notice>
+          <Notice kind="info">{outsideMessage(selected.plan, t)}</Notice>
         )}
         {board ? (
           <Timetable ref={timetable} board={board} nowMs={nowMs} selectedKey={selectedKno} onSelect={(p) => select(p.plan)} />
         ) : (
-          <p className="placeholder">{boardError ?? "読み込み中…"}</p>
+          <p className="placeholder">{boardError ?? t("common.loading")}</p>
         )}
       </section>
       <aside className="col-right" ref={rightPanel}>
         {op.error && <Notice kind="error" onClose={op.clearError}>{op.error}</Notice>}
         {(boardError || mastersError) && board && <Notice kind="error">{boardError ?? mastersError}</Notice>}
         {board && !board.current_operator && (
-          <Notice kind="info" action={<button type="button" className="btn btn-small" onClick={openOperator}>担当者を選ぶ</button>}>
-            担当者が設定されていません。ボタンを押す前に、担当者を選んでください。
+          <Notice kind="info" action={<button type="button" className="btn btn-small" onClick={openOperator}>{t("lineScreen.pickOperator")}</button>}>
+            {t("lineScreen.noOperator")}
           </Notice>
         )}
         {selected ? (
@@ -98,7 +100,7 @@ export function LineScreen() {
             onRemark={withOperator(() => setDialog({ kind: "remark", plan: selected }))}
           />
         ) : (
-          <p className="placeholder select-hint">タイムテーブルの計画を押すか、左の検索欄で探すと、ここに工程のボタンが表示されます。</p>
+          <p className="placeholder select-hint">{t("lineScreen.selectHint")}</p>
         )}
         {board && masters && (
           <LineEventPanel

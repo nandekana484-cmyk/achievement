@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Equipment, Line, Operator, Reason
+from app.db.models.masters import default_line_name
 from app.db.session import write_transaction
 from app.domain.normalize import normalize_mounting_line
 from app.domain.worker_id import MAX_LENGTH, worker_key
@@ -36,7 +37,7 @@ def register_lines(session: Session, line_codes: Iterable[str]) -> list[str]:
     added: list[str] = []
     order = _next_sort_order(session, Line)
     for code in sorted({c for c in line_codes if c} - known):
-        session.add(Line(line_code=code, name=f"{code}ライン", active=True, sort_order=order))
+        session.add(Line(line_code=code, name=default_line_name(code), active=True, sort_order=order))
         order += 10
         added.append(code)
     return added
@@ -100,7 +101,9 @@ def resolve_operator_ref(session: Session, operator_id: int | None, worker_id: s
     return operator_id
 
 
-def add_equipment(session: Session, line_code: str, name: str, sort_order: int | None = None) -> Equipment:
+def add_equipment(
+    session: Session, line_code: str, name: str, sort_order: int | None = None, name_vi: str | None = None,
+) -> Equipment:
     name = name.strip()
     if not name:
         raise RuleViolation("設備の名前が空です")
@@ -110,7 +113,7 @@ def add_equipment(session: Session, line_code: str, name: str, sort_order: int |
         except NotFound:
             session.rollback()
             raise RuleViolation(f"ライン「{line_code}」が登録されていません(ラインは計画の同期で自動登録されます)") from None
-        eq = Equipment(line_code=line.line_code, name=name, active=True,
+        eq = Equipment(line_code=line.line_code, name=name, name_vi=_vi(name_vi), active=True,
                        sort_order=sort_order if sort_order is not None else _next_sort_order(session, Equipment))
         session.add(eq)
         session.commit()
@@ -122,3 +125,20 @@ def get_active_operator(session: Session, operator_id: int) -> Operator:
     if op is None or not op.active:
         raise RuleViolation(f"作業者(内部の番号 {operator_id})が見つかりません")
     return op
+
+
+def _vi(name_vi: str | None) -> str | None:
+    """ベトナム語の名前。空なら None(画面は日本語の名前を出す)。"""
+    return (name_vi or "").strip() or None
+
+
+def set_name_vi(session: Session, model: type[Equipment] | type[Reason], row_id: int, name_vi: str | None) -> Equipment | Reason:
+    """設備か理由のベトナム語の名前を変える。空にすると消す。"""
+    with write_transaction(session):
+        row = session.get(model, row_id)
+        if row is None:
+            session.rollback()
+            raise NotFound(f"{'設備' if model is Equipment else '理由'}(ID {row_id})が見つかりません")
+        row.name_vi = _vi(name_vi)
+        session.commit()
+    return row

@@ -1,4 +1,4 @@
-// ライン画面を操作し、確認用のスクリーンショットを test-results/screens/ に撮る(①〜⑩)。
+// ライン画面を操作し、確認用のスクリーンショットを test-results/screens/ に撮る(①〜⑭)。
 // サーバーの時計は 2026-10-21 10:00 から進む(e2e/serve.mjs)。確認用の計画は app/services/demo_seed.py。
 import { expect, type Page, test } from "@playwright/test";
 
@@ -182,3 +182,29 @@ for (const width of [1024, 1366]) {
     }
   });
 }
+
+test("⑭ ベトナム語に切り替えたライン画面", async ({ page }) => {
+  const VI = "Tiếng Việt";
+  await page.goto("/field");
+  await expect(page.locator(".lang-switch").getByRole("button", { name: VI })).toBeVisible(); // ライン選択の画面でも切り替えられる
+  await openLine(page);
+  await page.locator(".lang-switch").getByRole("button", { name: VI }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "vi");
+  await expect(page.locator(".line-name")).toHaveText("Chuyền S"); // 自動で付けた名前(「Sライン」)は訳して出す
+  await expect(page.getByRole("button", { name: "Bảng thời gian" })).toBeVisible();
+  await page.locator(".tt-plan", { hasText: FIRST }).click();
+  await expect(step(page, "Chuẩn bị (setup)")).toContainText("Bấm để"); // 状態はほかのテストの操作による
+  // 計画の内容は訳さない。理由の名前はマスタのベトナム語の名前(初期データの理由には入れてある)
+  await expect(page.locator(".plan-kno")).toHaveText(FIRST);
+  await expect(page.locator(".reason-button", { hasText: "Tìm linh kiện" })).toBeVisible();
+  await shot(page, "14-line-screen-vi");
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  // その端末に記憶する(開き直してもベトナム語)。日本語に戻せる
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Bảng thời gian" })).toBeVisible();
+  await page.locator(".lang-switch").getByRole("button", { name: "日本語" }).click();
+  await expect(page.getByRole("button", { name: "タイムテーブル", exact: true })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+});

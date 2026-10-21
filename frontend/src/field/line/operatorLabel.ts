@@ -1,9 +1,10 @@
 // 作業者の表示。同じ名前の人がいても区別できるよう、名前の横に作業者IDを出す。
+import type { Translate } from "../../i18n/translate";
 import type { Operator } from "../../shared/api";
 
 /** 「山田(Y001)」。作業者IDが無ければ名前だけ。 */
-export function operatorLabel(name: string, workerId: string | null | undefined): string {
-  return workerId ? `${name}(${workerId})` : name;
+export function operatorLabel(name: string, workerId: string | null | undefined, t: Translate): string {
+  return workerId ? t("operator.label", { name, id: workerId }) : name;
 }
 
 /** 名前順、同じ名前は作業者IDの順。 */

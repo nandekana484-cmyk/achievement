@@ -110,6 +110,12 @@ def drop_workers_table(master: Path) -> None:
         c.execute("DROP TABLE workers")
 
 
+def drop_takt_table(master: Path) -> None:
+    """想定タクトの表が無い master.db(計画の同期はエラーになる)。"""
+    with _connect(master) as c:
+        c.execute("DROP TABLE production_side_master")
+
+
 def make_legacy_app(root: Path, takt: Mapping[tuple[str, str, str], str | None] = DEFAULT_TAKT) -> Path:
     """既存アプリのフォルダを作る(db フォルダと master.db だけ。月次DBは add_monthly_db で足す)。"""
     make_master_db(root / "db" / "master.db", takt)

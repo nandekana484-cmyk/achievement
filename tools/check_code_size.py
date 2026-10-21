@@ -146,7 +146,8 @@ def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     p.add_argument("--top", type=int, default=0, help="行数の多いファイルを上位 N 件表示する")
     args = p.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="replace")
+        # Windows のコンソールの文字コード(cp932)に関係なく UTF-8 で出す(パイプやファイルに出しても文字化けしないように)
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     stats = collect(root)
     flagged = [s for s in stats if s.findings()]

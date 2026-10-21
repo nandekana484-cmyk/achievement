@@ -1,5 +1,7 @@
 """tools/check_code_size.py のテスト。実行: backend の venv の Python で python -m pytest tools/tests(リポジトリ直下)。"""
 
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -118,3 +120,13 @@ def test_main_returns_0_without_split(tmp_path, capsys):
     assert c.main(["--top", "1"], root=tmp_path) == 0
     out = capsys.readouterr().out
     assert "要分割: なし" in out and "backend/app/ok.py" in out
+
+
+def test_output_is_utf8_even_if_console_is_cp932(tmp_path):
+    _write(tmp_path, "backend/app/ok.py", "x = 1\n")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING")}
+    env["PYTHONIOENCODING"] = "cp932"  # 日本語の Windows のコンソールと同じ
+    script = Path(c.__file__).resolve()
+    code = "import sys, pathlib; sys.path.insert(0, sys.argv[1]); import check_code_size as c; sys.exit(c.main([], root=pathlib.Path(sys.argv[2])))"
+    out = subprocess.run([sys.executable, "-c", code, str(script.parent), str(tmp_path)], capture_output=True, env=env, check=True).stdout
+    assert "要分割: なし" in out.decode("utf-8")

@@ -1,6 +1,7 @@
 // 数を入れる画面(大きなテンキー)。生産の終了の生産数に使う。
 // 送信が成功するまで閉じない。失敗したら理由を画面の中に出す(入力した数は消さない)。
 import { useState } from "react";
+import { useI18n } from "../../../i18n/I18nProvider";
 import { Dialog } from "../../../shared/Dialog";
 import { Keypad } from "./Keypad";
 import { useSubmit } from "./useSubmit";
@@ -18,6 +19,7 @@ type Props = {
 export function NumberPadDialog({ title, message, initial, submitLabel, onSubmit, onCancel }: Props) {
   const [text, setText] = useState(initial === null || initial === undefined ? "" : String(initial));
   const { sending, error, submit } = useSubmit();
+  const { t } = useI18n();
 
   return (
     <Dialog
@@ -25,12 +27,12 @@ export function NumberPadDialog({ title, message, initial, submitLabel, onSubmit
       onCancel={onCancel}
       actions={
         <button type="button" className="btn btn-primary" disabled={text === "" || sending} onClick={() => submit(() => onSubmit(Number(text)))}>
-          {sending ? "送信中…" : submitLabel}
+          {sending ? t("common.sending") : submitLabel}
         </button>
       }
     >
       {message && <p>{message}</p>}
-      {error && <p className="dialog-error" role="alert"><span className="notice-kind">エラー</span> {error}</p>}
+      {error && <p className="dialog-error" role="alert"><span className="notice-kind">{t("notice.error")}</span> {error}</p>}
       <Keypad text={text} onChange={setText} disabled={sending} />
     </Dialog>
   );

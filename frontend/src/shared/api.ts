@@ -15,6 +15,7 @@ export type SearchHit = Schemas["SearchHitOut"];
 export type RunEvent = Schemas["RunEventOut"];
 export type LineEvent = Schemas["LineEventOut"];
 export type Masters = Schemas["MastersOut"];
+export type Line = Schemas["LineOut"];
 export type Reason = Schemas["ReasonOut"];
 export type Equipment = Schemas["EquipmentOut"];
 export type Operator = Schemas["OperatorOut"];

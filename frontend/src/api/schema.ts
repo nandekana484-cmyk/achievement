@@ -407,6 +407,8 @@ export interface components {
             line_code: string;
             /** Name */
             name: string;
+            /** Name Vi */
+            name_vi?: string | null;
             /** Sort Order */
             sort_order: number;
         };
@@ -487,6 +489,10 @@ export interface components {
             equipment_name: string | null;
             /** Reason Text */
             reason_text: string | null;
+            /** Reason Name Vi */
+            reason_name_vi?: string | null;
+            /** Equipment Name Vi */
+            equipment_name_vi?: string | null;
             /**
              * Start At
              * Format: date-time
@@ -536,6 +542,11 @@ export interface components {
             name: string;
             /** Sort Order */
             sort_order: number;
+            /**
+             * Auto Named
+             * @default false
+             */
+            auto_named: boolean;
         };
         /**
          * LotOut
@@ -666,6 +677,8 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Name Vi */
+            name_vi?: string | null;
             /** Category */
             category: string;
             /** Counts In Utilization */
@@ -761,6 +774,10 @@ export interface components {
             equipment_id?: number | null;
             /** Equipment Name */
             equipment_name?: string | null;
+            /** Restart Reason Name Vi */
+            restart_reason_name_vi?: string | null;
+            /** Equipment Name Vi */
+            equipment_name_vi?: string | null;
         };
         /**
          * RunInputOut

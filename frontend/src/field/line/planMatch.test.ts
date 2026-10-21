@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { makeTranslate } from "../../i18n/translate";
 import type { Plan } from "../../shared/api";
-import { exactKittingMatch, foldForMatch, isOutsideDisplay, outsideMessage } from "./planMatch";
+import { exactKittingMatch, foldForMatch, isOutsideDisplay, outsideMessage, planSummary } from "./planMatch";
+
+const t = makeTranslate("ja");
 
 const plan = (kitting_no: string, lot_no = "L1", start: string | null = "2026-10-21T09:00:00+09:00", end: string | null = "2026-10-21T12:00:00+09:00"): Plan => ({
   kitting_no, file_no: "0722", line_code: "S", product_name: "基板", run_no: 1, planned_qty: 100,
@@ -38,7 +41,15 @@ describe("表示範囲の外", () => {
   });
 
   it("表示範囲外の文", () => {
-    expect(outsideMessage(plan("A", "L1", "2026-10-18T09:00:00+09:00"))).toBe("表示範囲外の計画です(計画: 10/18 9:00〜)");
-    expect(outsideMessage(plan("A", "L1", null, null))).toBe("表示範囲外の計画です(計画: 日程なし)");
+    expect(outsideMessage(plan("A", "L1", "2026-10-18T09:00:00+09:00"), t)).toBe("表示範囲外の計画です(計画: 10/18 9:00〜)");
+    expect(outsideMessage(plan("A", "L1", null, null), t)).toBe("表示範囲外の計画です(計画: 日程なし)");
+  });
+});
+
+describe("計画の短い説明", () => {
+  it("ロットが1つなら基板名、複数ならロットの数", () => {
+    expect(planSummary(plan("A"), t)).toBe("基板・計画数 100・1回目");
+    const multi = { ...plan("A"), planned_qty: 300, lots: [1, 2, 3].map((i) => ({ lot_no: `L${i}`, product_name: "基板", planned_qty: 100 })) };
+    expect(planSummary(multi, t)).toBe("3ロット・計画数 300・1回目");
   });
 });

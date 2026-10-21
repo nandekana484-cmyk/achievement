@@ -13,7 +13,7 @@
 | `backend/app/services/line_operators.py` | 今の担当者と、記録者の決め方 |
 | `backend/app/services/idempotency.py` | ボタン操作の冪等性 |
 | `backend/app/services/board.py` | ライン画面用の取得 |
-| `backend/app/services/views.py` | 応答の形(Pydantic)と、DBの行からの組み立て |
+| `backend/app/services/views/` | 応答の形(Pydantic)と、DBの行からの組み立て。masters.py(マスタ)、operators.py(記録した人と今の担当者)、runs.py(工程の記録・完了・備考・NG数)、line_events.py(付帯作業)に分け、`__init__.py` から同じ名前で使える |
 | `backend/app/db/models/records.py` | 実績のテーブル |
 
 ## キッティングNo.の単位(2026-10-21 に変更)
@@ -66,6 +66,7 @@
 - 正規化すると重なるIDは、表記の順で最初の1人だけ取り込み、ほかは取り込まずに警告を出す(どちらが正しいか本アプリでは決められないため)
 - 開発用コマンドで足した作業者(source=local)は、既存アプリの読み込みで無効にしない。同じIDの作業者が既存アプリに現れたら、上書きせずに警告を出す。legacy_app_dir が設定されている環境では、開発用コマンドでの追加を断る(本番の作業者は既存アプリが正)
 - master.db に workers 表が無いときは、警告を出して作業者は変えない(無効にもしない)
+- 作業者は計画とは切り離して読む(`read_master_workers`)。計画の同期がエラーになった回(想定タクトの表が無い、月次DBが無いなど)でも、workers が読めれば作業者は反映する(`sync_operators_alone`。別の書き込み)。その回は警告の記録を変えないので、作業者の警告はログにだけ出す。作業者を使う画面(担当者の交代)は、計画が読めない環境でも使えるようにするため
 - マイグレーション 0007 は operators 表を作り直さず、列とユニークインデックスを足す(工程の記録などが作業者を参照しているので、表を作り直すと外部キーで止まるため)
 - 並び順の列が無いので、画面の一覧は名前順(同じ名前は作業者IDの順)にする
 

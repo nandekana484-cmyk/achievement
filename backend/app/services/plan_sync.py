@@ -29,7 +29,14 @@ from app.db.models import (
 )
 from app.db.session import is_busy_error, write_transaction
 from app.integration.legacy.workers import LegacyWorker
-from app.integration.legacy_plans import LegacyPlan, LegacySourceRead, ReadWarning, read_legacy_source
+from app.integration.legacy_plans import (
+    LegacyPlan,
+    LegacySourceError,
+    LegacySourceRead,
+    ReadWarning,
+    read_legacy_source,
+    read_master_workers,
+)
 from app.services.kitting_plans import group_lots
 from app.services.masters import register_lines
 from app.services.plan_cancel import cancel_guard_reason, count_cancellable, plans_to_cancel
@@ -37,7 +44,7 @@ from app.services.plan_diff import CarryoverCandidate, PlanDiff, PlanKey, diff_p
 from app.services.plan_rows import apply_plan, apply_tracking, to_legacy
 from app.services.plan_source import SourceSelection, choose_sources
 from app.services.plan_sync_warnings import update_warnings
-from app.services.worker_sync import sync_operators
+from app.services.worker_sync import sync_operators, sync_operators_alone
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +88,26 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
     cfg = sync_config or SyncConfig()
     started_at = clock.now()
     legacy_dbs: str | None = None
+    workers, workers_note = _read_workers(legacy_app_dir)
     try:
         source = read_legacy_source(legacy_app_dir, cfg.legacy_db_max_age_days, started_at)
         sel = choose_sources(source.dbs)
         legacy_dbs = _legacy_dbs_json(source, sel)
         with write_transaction(session):
-            return _apply_selection(session, sel, cfg, started_at, legacy_dbs, source.workers)
+            return _apply_selection(session, sel, cfg, started_at, legacy_dbs, workers, workers_note)
     except Exception as e:  # noqa: BLE001  失敗を記録してアプリは止めない
         session.rollback()
         logger.exception("計画の同期に失敗しました")
+        sync_operators_alone(session, workers)  # 計画を読めなくても、作業者は読み込む
         return _record_error(session, started_at, f"{type(e).__name__}: {e}", legacy_dbs)
+
+
+def _read_workers(legacy_app_dir: Path) -> tuple[list[LegacyWorker] | None, str]:
+    """作業者を計画とは切り離して読む。読めないときは None と、警告に出す理由。"""
+    try:
+        return read_master_workers(legacy_app_dir), NO_WORKERS_TABLE
+    except LegacySourceError as e:
+        return None, str(e)
 
 
 def _record_error(session: Session, started_at: datetime, message: str, legacy_dbs: str | None) -> PlanSyncResult:
@@ -107,7 +124,7 @@ def _record_error(session: Session, started_at: datetime, message: str, legacy_d
 
 def _apply_selection(
     session: Session, sel: SourceSelection, cfg: SyncConfig, started_at: datetime, legacy_dbs: str,
-    workers: list[LegacyWorker] | None = None,
+    workers: list[LegacyWorker] | None = None, workers_note: str = NO_WORKERS_TABLE,
 ) -> PlanSyncResult:
     """正とするDBの計画を本アプリの plans に反映し、コミットまで行う(write_transaction の中で呼ぶ)。"""
     changes = _plan_changes(session, sel, cfg)
@@ -125,7 +142,7 @@ def _apply_selection(
     if new_lines:
         logger.info("新しいラインを登録しました: %s", ", ".join(new_lines))
     if workers is None:
-        changes.warnings.append(ReadWarning(None, None, NO_WORKERS_TABLE))
+        changes.warnings.append(ReadWarning(None, None, workers_note))
     else:
         changes.warnings.extend(sync_operators(session, workers))
     update_warnings(session, changes.warnings, now)

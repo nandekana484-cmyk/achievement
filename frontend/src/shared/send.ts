@@ -1,19 +1,23 @@
 // ボタン操作の送り方(開発指針 0-5)。画面から切り離した処理なので、vitest でテストする。
+import type { Translate } from "../i18n/translate";
 import { uuidv4 } from "./uuid";
 
 /** openapi-fetch の応答のうち、ここで使う部分。 */
 export type ApiResult<T> = { data?: T; error?: unknown; response: Response };
 
-export type SendOutcome<T> =
-  | { ok: true; data: T }
-  | { ok: false; status: number | null; message: string; retryable: boolean };
+/** 失敗。detail はサーバーが返した理由の文(503・409・404。訳さずにそのまま出す)。 */
+export type SendFailure = { ok: false; status: number | null; detail: string | null; retryable: boolean };
 
-export const MESSAGES = {
-  network: "通信できませんでした。電波の状態を確かめて、もう一度押してください",
-  busy: "他の処理と重なったため、記録できませんでした。もう一度押してください",
-  invalid: "入力の内容が正しくありません。入力し直してください",
-  server: (status: number) => `サーバーでエラーが起きました(${status})。もう一度押してください`,
-};
+export type SendOutcome<T> = { ok: true; data: T } | SendFailure;
+
+/** 失敗を画面に出す文。サーバーの理由の文があればそのまま、無ければ選んだ言語の決まった文。 */
+export function failureMessage(f: Pick<SendFailure, "status" | "detail">, t: Translate): string {
+  if (f.detail) return f.detail;
+  if (f.status === null) return t("error.network");
+  if (f.status === 503) return t("error.busy");
+  if (f.status === 422) return t("error.invalid");
+  return t("error.server", { status: f.status });
+}
 
 function detailOf(error: unknown): string | null {
   if (error && typeof error === "object" && "detail" in error) {
@@ -23,14 +27,9 @@ function detailOf(error: unknown): string | null {
   return null;
 }
 
-function failure<T>(status: number | null, error: unknown): SendOutcome<T> {
-  if (status === null) return { ok: false, status, message: MESSAGES.network, retryable: true };
-  if (status === 503) return { ok: false, status, message: detailOf(error) ?? MESSAGES.busy, retryable: true };
-  if (status === 409 || status === 404) {
-    return { ok: false, status, message: detailOf(error) ?? MESSAGES.server(status), retryable: false };
-  }
-  if (status === 422) return { ok: false, status, message: MESSAGES.invalid, retryable: false };
-  return { ok: false, status, message: MESSAGES.server(status), retryable: false };
+function failure(status: number | null, error: unknown): SendFailure {
+  const withDetail = status === 503 || status === 409 || status === 404;
+  return { ok: false, status, detail: withDetail ? detailOf(error) : null, retryable: status === null || status === 503 };
 }
 
 /**

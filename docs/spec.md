@@ -233,7 +233,7 @@ API:
 | トラブル停止 | ロス | | | ○ |
 | 計画切替 | ロス以外 | | | ○ |
 
-- 理由の列: name、category(loss=ロス / non_loss=ロス以外)、counts_in_utilization(稼働率に含めるか)、requires_equipment、requires_text、usable_as_line_event、usable_as_restart、active、sort_order
+- 理由の列: name、name_vi(ベトナム語の名前。空を許す。7.5)、category(loss=ロス / non_loss=ロス以外)、counts_in_utilization(稼働率に含めるか)、requires_equipment、requires_text、usable_as_line_event、usable_as_restart、active、sort_order
 - 開始・終了と、開始した人・終了した人を記録する
 - **稼働率の計算からは外すのが既定**。理由ごとに「稼働率に含めるか」の設定を持ち(初期値はすべて含めない)、定義が決まったら切り替えられるようにする
 - 種類はマスタで追加・変更できるようにする(今は開発用のコマンド `python -m app.cli` で一覧だけ。管理画面で作る)
@@ -258,7 +258,7 @@ API:
 - ラインごとに「今の担当者」を設定し、ボタン操作の記録に自動で付ける。担当者は始業時と人員交代時に切り替える。1回の操作だけ別の人にすることもできる
 - 実装(`services/line_operators.py`): 表 line_operators に履歴を持つ。交代すると前の行に end_at を入れ、新しい行を足す(今の担当者はラインに1人。すでに同じ人なら何も変えない)
 - 記録者 = 本文の operator_id(本アプリの中の番号)か worker_id(作業者ID)のどちらか。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」
-- **作業者は既存アプリの master.db の workers から読み込む**(計画の同期のたびに。読み取り専用)。名前・役割(admin / operator)・有効/無効を既存アプリに合わせ、既存アプリから見えなくなった作業者は消さずに無効にする(過去の記録が参照しているため)。作業者IDは既存アプリの表記のまま持ち、全角・半角と大文字・小文字の違いを無視して比べる(`domain/worker_id.py`)。正規化すると重なるIDは、片方を取り込まずに警告を出す
+- **作業者は既存アプリの master.db の workers から読み込む**(計画の同期のたびに。読み取り専用。計画の表が無いなどで計画の同期がエラーになっても、workers が読めれば作業者は読み込む)。名前・役割(admin / operator)・有効/無効を既存アプリに合わせ、既存アプリから見えなくなった作業者は消さずに無効にする(過去の記録が参照しているため)。作業者IDは既存アプリの表記のまま持ち、全角・半角と大文字・小文字の違いを無視して比べる(`domain/worker_id.py`)。正規化すると重なるIDは、片方を取り込まずに警告を出す
 - legacy_app_dir が設定されていない環境(開発用)だけ、開発用コマンドで作業者を足せる(`python -m app.cli operators add <名前> --id <作業者ID>`。source=local)
 - 担当者は**作業者IDで呼び出す**(PIN は付けない。11. 未確定事項)。画面では作業者IDの入力欄を一番上に置き、Enter(または「呼び出し」)でIDと名前を表示して確かめてから決める。入力欄はタブレットの文字キーボードが出る形で、将来の社員証のバーコードリーダー(文字の入力 + Enter)でも動く。名前の一覧(名前順。IDも並べる)から選ぶ方法も補助として残す
 - 同じ名前の人がいても区別できるよう、画面の上部や記録の表示では名前の横に作業者IDも出す
@@ -420,6 +420,18 @@ API:
 
 フェーズ1では作らない(タイムテーブルから選べるため)。選び間違いが目立った場合に、ハンディのバーコードリーダーでの読取を検討する。
 
+### 7.5 表示言語の切り替え
+
+- 現場画面は、日本語とベトナム語を切り替えられる。切り替えのボタン(「日本語 / Tiếng Việt」)は、ライン選択の画面と、ライン画面の上部に置く
+- 選んだ言語は、その端末に記憶する(最初は日本語)
+- 画面の文言は辞書(`frontend/src/i18n/ja.ts`。ベトナム語は `vi.ts`)に集め、画面のファイルに直接書かない。用語は日本語の辞書で「2. 用語集」に従う
+- 訳さないもの: サーバーが返すエラーの文(409 / 404 / 503 の理由。日本語のまま出す)、計画の内容(キッティングNo.、ロットNo.、基板名など)、作業者の名前
+- 理由と設備の名前は、マスタのベトナム語の名前(name_vi)を出す。空なら日本語の名前を出す。初期データの理由には、ベトナム語の名前を入れてある(マイグレーション 0009)
+- ラインの名前は、計画の同期で自動で付けた形(「<記号>ライン」)のままなら選んだ言語の形で出す(ベトナム語は「Chuyền S」)。人が名前を変えていたら、その名前をそのまま出す
+- 日付と時刻は、どちらの言語でも同じ形(24時間表記、日本時間)
+- ベトナム語の訳はレビュー役が用意する(初版は 2026-10-21 に取り込み済み)。新しく足した文言で訳がまだのものは「(未翻訳)」と日本語の文を出す
+- 詳細: docs/design/i18n.md(仕組み、キーの付け方、文言を足すときの手順)
+
 ---
 
 ## 8. データモデル(案)
@@ -440,7 +452,7 @@ API:
 | result_exports / result_export_items | 出力ID、ファイル名、日時 / 製品、完成数、回ごとのNG数、区分(新規・訂正) | 既存への反映の記録 |
 | print_logs | 製品、印刷日時、印刷時の計画の値のハッシュ | 再印刷の判定 |
 | audit_log | 対象、項目、訂正前、訂正後、訂正者、日時、理由 | 訂正履歴 |
-| マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name)、reasons(name、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
+| マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name、name_vi)、reasons(name、name_vi、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
 
 - 時刻はサーバーが記録し、タイムゾーン付き(日本時間)で保存する
 - 削除はしない。取り消しは状態で表す

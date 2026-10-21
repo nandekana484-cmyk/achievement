@@ -5,8 +5,10 @@ backend フォルダで、venv の中で実行する。対象は config.toml(GEN
     python -m app.cli operators list
     python -m app.cli operators add 山田
     python -m app.cli equipment list [--line S]
-    python -m app.cli equipment add S マウンター1
+    python -m app.cli equipment add S マウンター1 [--vi "Máy gắn 1"]
+    python -m app.cli equipment set-vi <ID> "Máy gắn 1"     # 空の文字列 "" で消す
     python -m app.cli reasons list
+    python -m app.cli reasons set-vi <ID> "Tìm linh kiện"
     python -m app.cli lines list
     python -m app.cli demo-seed --line S --date 2026-10-21
 """
@@ -57,14 +59,24 @@ def _parser() -> argparse.ArgumentParser:
     eq_add.add_argument("line")
     eq_add.add_argument("name")
     eq_add.add_argument("--sort", type=int, default=None, help="表示順(省略すると最後)")
+    eq_add.add_argument("--vi", default=None, help="ベトナム語の名前(省略すると、画面は日本語の名前を出す)")
+    _add_set_vi(eq)
 
-    sub.add_parser("reasons", help="理由").add_subparsers(dest="action", required=True).add_parser("list", help="一覧")
+    rs = sub.add_parser("reasons", help="理由").add_subparsers(dest="action", required=True)
+    rs.add_parser("list", help="一覧")
+    _add_set_vi(rs)
     sub.add_parser("lines", help="ライン").add_subparsers(dest="action", required=True).add_parser("list", help="一覧")
 
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
     demo.add_argument("--date", required=True, type=dt.date.fromisoformat, help="YYYY-MM-DD")
     return p
+
+
+def _add_set_vi(actions) -> None:  # noqa: ANN001
+    p = actions.add_parser("set-vi", help="ベトナム語の名前を登録する(空の文字列で消す)")
+    p.add_argument("id", type=int)
+    p.add_argument("name_vi")
 
 
 def _list_operators(s: Session, _args: argparse.Namespace) -> None:
@@ -83,18 +95,25 @@ def _list_equipment(s: Session, args: argparse.Namespace) -> None:
     if args.line:
         stmt = stmt.where(Equipment.line_code == normalize_mounting_line(args.line))
     for e in s.scalars(stmt):
-        print(f"{e.id}\t{e.line_code}\t{e.name}\t表示順 {e.sort_order}\t{'' if e.active else '(無効)'}")
+        print(f"{e.id}\t{e.line_code}\t{e.name}\tベトナム語 {e.name_vi or '-'}\t表示順 {e.sort_order}\t{'' if e.active else '(無効)'}")
 
 
 def _add_equipment(s: Session, args: argparse.Namespace) -> None:
-    e = masters.add_equipment(s, args.line, args.name, args.sort)
-    print(f"設備を追加しました: ID {e.id} {e.line_code} {e.name}")
+    e = masters.add_equipment(s, args.line, args.name, args.sort, name_vi=args.vi)
+    print(f"設備を追加しました: ID {e.id} {e.line_code} {e.name}(ベトナム語 {e.name_vi or 'なし'})")
+
+
+def _set_vi(model):  # noqa: ANN001, ANN202
+    def run(s: Session, args: argparse.Namespace) -> None:
+        row = masters.set_name_vi(s, model, args.id, args.name_vi)
+        print(f"ベトナム語の名前を登録しました: ID {row.id} {row.name} → {row.name_vi or '(なし。日本語の名前を出す)'}")
+    return run
 
 
 def _list_reasons(s: Session, _args: argparse.Namespace) -> None:
-    print("ID\t名前\t区分\t稼働率に含める\t設備必須\t記入必須\t付帯作業\t再開理由")
+    print("ID\t名前\tベトナム語\t区分\t稼働率に含める\t設備必須\t記入必須\t付帯作業\t再開理由")
     for r in s.scalars(select(Reason).order_by(Reason.sort_order, Reason.id)):
-        print(f"{r.id}\t{r.name}\t{'ロス' if r.category == 'loss' else 'ロス以外'}\t"
+        print(f"{r.id}\t{r.name}\t{r.name_vi or '-'}\t{'ロス' if r.category == 'loss' else 'ロス以外'}\t"
               f"{_yes(r.counts_in_utilization)}\t{_yes(r.requires_equipment)}\t{_yes(r.requires_text)}\t"
               f"{_yes(r.usable_as_line_event)}\t{_yes(r.usable_as_restart)}")
 
@@ -118,7 +137,9 @@ _COMMANDS = {
     ("operators", "add"): _add_operator,
     ("equipment", "list"): _list_equipment,
     ("equipment", "add"): _add_equipment,
+    ("equipment", "set-vi"): _set_vi(Equipment),
     ("reasons", "list"): _list_reasons,
+    ("reasons", "set-vi"): _set_vi(Reason),
     ("lines", "list"): _list_lines,
     ("demo-seed", None): _demo_seed,
 }

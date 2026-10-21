@@ -8,6 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
+def default_line_name(line_code: str) -> str:
+    """計画の同期で自動で登録したラインに付ける名前(「<記号>ライン」)。"""
+    return f"{line_code}ライン"
+
+
 class Line(Base):
     """ライン。計画の同期で新しいラインの記号を見つけたら自動で登録する。"""
 
@@ -17,6 +22,11 @@ class Line(Base):
     name: Mapped[str] = mapped_column(String)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    @property
+    def auto_named(self) -> bool:
+        """名前が、自動で付けた形のままか(画面はそのとき、選んだ言語の形で出す。人が変えた名前はそのまま出す)。"""
+        return self.name == default_line_name(self.line_code)
 
 
 class Operator(Base):
@@ -47,6 +57,7 @@ class Equipment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     line_code: Mapped[str] = mapped_column(String, ForeignKey("lines.line_code"))
     name: Mapped[str] = mapped_column(String)
+    name_vi: Mapped[str | None] = mapped_column(String)  # ベトナム語の名前。空なら画面は日本語の名前を出す
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -58,6 +69,7 @@ class Reason(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String)
+    name_vi: Mapped[str | None] = mapped_column(String)  # ベトナム語の名前。空なら画面は日本語の名前を出す
     category: Mapped[str] = mapped_column(String)  # loss=ロス / non_loss=ロス以外
     # TODO(要確認): 付帯作業を稼働率に含めるか(今はすべて含めない)
     counts_in_utilization: Mapped[bool] = mapped_column(Boolean, default=False)

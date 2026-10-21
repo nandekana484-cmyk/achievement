@@ -1,6 +1,7 @@
 // 今の担当者を選ぶ画面。作業者IDを入れて呼び出し、IDと名前を確かめてから決める。名前の一覧から選ぶ方法は補助。
 // 入力欄はバーコードリーダー(文字の入力 + Enter)でも動く。
 import { useState } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import { api, type Operator } from "../../shared/api";
 import { Dialog } from "../../shared/Dialog";
 import { operatorLabel, sortOperators } from "./operatorLabel";
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function OperatorPicker({ operators, currentId, message, onPick, onCancel }: Props) {
+  const { t } = useI18n();
   const [workerId, setWorkerId] = useState("");
   const [found, setFound] = useState<Operator | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,23 +27,23 @@ export function OperatorPicker({ operators, currentId, message, onPick, onCancel
     try {
       const { data, error: e } = await api.GET("/api/operators/lookup", { params: { query: { worker_id: workerId } } });
       if (data) setFound(data);
-      else setError(typeof e?.detail === "string" ? e.detail : "作業者IDが見つかりません");
+      else setError(typeof e?.detail === "string" ? e.detail : t("operator.notFound"));
     } catch {
-      setError("通信できませんでした。電波の状態を確かめてください");
+      setError(t("error.connection"));
     }
   };
 
   return (
     <Dialog
-      title="担当者の交代"
+      title={t("operator.title")}
       wide
       onCancel={onCancel}
       actions={found && (
-        <button type="button" className="btn btn-primary" onClick={() => onPick(found.id)}>この人にする</button>
+        <button type="button" className="btn btn-primary" onClick={() => onPick(found.id)}>{t("operator.confirm")}</button>
       )}
     >
       {message && <p className="dialog-error" role="status">{message}</p>}
-      <label className="field-label" htmlFor="worker-id">作業者ID</label>
+      <label className="field-label" htmlFor="worker-id">{t("operator.workerId")}</label>
       <div className="worker-id-row">
         <input
           id="worker-id"
@@ -54,7 +56,7 @@ export function OperatorPicker({ operators, currentId, message, onPick, onCancel
           spellCheck={false}
           maxLength={64}
           autoFocus
-          placeholder="IDを入れて Enter"
+          placeholder={t("operator.workerIdPlaceholder")}
           value={workerId}
           onChange={(e) => {
             setWorkerId(e.target.value);
@@ -63,28 +65,28 @@ export function OperatorPicker({ operators, currentId, message, onPick, onCancel
           }}
           onKeyDown={(e) => e.key === "Enter" && void lookup()}
         />
-        <button type="button" className="btn" onClick={() => void lookup()} disabled={!workerId.trim()}>呼び出し</button>
+        <button type="button" className="btn" onClick={() => void lookup()} disabled={!workerId.trim()}>{t("operator.lookup")}</button>
       </div>
-      {error && <p className="dialog-error" role="alert"><span className="notice-kind">エラー</span> {error}</p>}
+      {error && <p className="dialog-error" role="alert"><span className="notice-kind">{t("notice.error")}</span> {error}</p>}
       {found && (
-        <div className="worker-found" role="status" aria-label="呼び出した作業者">
-          <span className="worker-found-label">この人でよいですか?</span>
-          <span className="worker-found-id">ID {found.worker_id}</span>
+        <div className="worker-found" role="status" aria-label={t("operator.foundAria")}>
+          <span className="worker-found-label">{t("operator.foundQuestion")}</span>
+          <span className="worker-found-id">{t("operator.foundId", { id: found.worker_id ?? "" })}</span>
           <span className="worker-found-name">{found.name}</span>
-          {found.id === currentId && <span className="choice-note">今の担当者</span>}
+          {found.id === currentId && <span className="choice-note">{t("operator.current")}</span>}
         </div>
       )}
 
-      <p className="picker-sub">名前の一覧から選ぶ(名前順)</p>
+      <p className="picker-sub">{t("operator.byName")}</p>
       <div className="choice-grid">
         {sortOperators(operators).map((o) => (
           <button key={o.id} type="button" className={`btn choice${o.id === currentId ? " choice-selected" : ""}`} onClick={() => onPick(o.id)}>
-            {operatorLabel(o.name, o.worker_id)}
-            {o.id === currentId && <span className="choice-note">今の担当者</span>}
+            {operatorLabel(o.name, o.worker_id, t)}
+            {o.id === currentId && <span className="choice-note">{t("operator.current")}</span>}
           </button>
         ))}
       </div>
-      {operators.length === 0 && <p>作業者が登録されていません。</p>}
+      {operators.length === 0 && <p>{t("operator.none")}</p>}
     </Dialog>
   );
 }

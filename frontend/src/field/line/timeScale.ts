@@ -1,5 +1,6 @@
 // タイムテーブルの時刻と位置の変換。基準は表示範囲の始まり(稼働日の始まりの12時間前)。
-// 時刻は +09:00 付きの ISO 文字列かミリ秒。端末の時間帯に関係なく日本時間で表示する。
+// 時刻は +09:00 付きの ISO 文字列かミリ秒。端末の時間帯と表示言語に関係なく、日本時間の24時間表記で表示する。
+import type { Translate } from "../../i18n/translate";
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
@@ -66,12 +67,12 @@ export function formatMD(date: string): string {
   return `${m}/${d}`;
 }
 
-/** 経過時間を「1時間05分」「12分」の形にする。 */
-export function formatElapsed(fromMs: number, nowMs: number): string {
+/** 経過時間を「1時間05分」「12分」の形にする(単位は選んだ言語)。 */
+export function formatElapsed(fromMs: number, nowMs: number, t: Translate): string {
   const total = Math.max(0, Math.floor((nowMs - fromMs) / 60000));
   const h = Math.floor(total / 60);
   const m = total % 60;
-  return h > 0 ? `${h}時間${String(m).padStart(2, "0")}分` : `${m}分`;
+  return h > 0 ? t("time.elapsedHours", { h, m: String(m).padStart(2, "0") }) : t("time.elapsedMinutes", { m });
 }
 
 /**
