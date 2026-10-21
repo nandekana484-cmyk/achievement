@@ -2,7 +2,7 @@
 
 Revision ID: 0010
 Revises: 0009
-Create Date: 2026-10-22
+Create Date: 2026-10-21
 
 詳細: docs/design/admin.md
 """

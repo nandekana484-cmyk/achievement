@@ -20,6 +20,10 @@ def check_new_password(password: str) -> str | None:
         return f"パスワードは{MIN_LENGTH}文字以上にしてください"
     if len(password) > MAX_LENGTH:
         return f"パスワードは{MAX_LENGTH}文字以内にしてください"
+    try:
+        password.encode("utf-8")
+    except UnicodeEncodeError:
+        return "パスワードに使えない文字が含まれています"
     return None
 
 
@@ -39,7 +43,7 @@ def verify_password(password: str, stored: str) -> bool:
         if kind != "scrypt" or len(password) > MAX_LENGTH:
             return False
         actual = _scrypt(password, bytes.fromhex(salt), int(n), int(r), int(p))
-    except ValueError:
+    except ValueError:  # 保存した値の形の誤りと、UTF-8 にできない文字(UnicodeEncodeError)
         return False
     return hmac.compare_digest(actual, bytes.fromhex(digest))
 

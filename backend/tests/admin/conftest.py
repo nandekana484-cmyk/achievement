@@ -3,10 +3,11 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from admin_helpers import PASSWORD, login
 from app.db.models import Line
 from app.db.session import get_sessionmaker
-from admin_helpers import PASSWORD, login
 from app.services import admin_auth, masters
+
 
 @pytest.fixture
 def client(tmp_path, monkeypatch, fake_clock):

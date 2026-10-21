@@ -98,10 +98,20 @@ def _add_operator(s: Session, args: argparse.Namespace) -> None:
     print(f"作業者を追加しました: 番号 {o.id} {o.name}(作業者ID {o.worker_id or 'なし'})")
 
 
+def _read_stdin_line() -> str:
+    """標準入力の1行目。PowerShell 5.1 から渡すと先頭に BOM が付くので、BOM 付きの UTF-8 として読む。"""
+    raw = sys.stdin.buffer.readline()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode(sys.stdin.encoding or "utf-8", errors="replace")
+    return text.rstrip("\r\n")
+
+
 def _set_password(s: Session, args: argparse.Namespace) -> None:
     admin_auth.admin_for_password(s, args.worker_id)  # 管理者でなければ、パスワードを聞く前に断る
     if args.stdin:
-        password = sys.stdin.readline().rstrip("\r\n")
+        password = _read_stdin_line()
     else:
         password = getpass.getpass("新しいパスワード(8文字以上。入力した文字は画面に出ません): ")
         if getpass.getpass("確認のため、もう一度: ") != password:

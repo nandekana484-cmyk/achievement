@@ -1,5 +1,7 @@
 """管理画面のログイン・セッション・パスワード。"""
 
+import io
+
 import pytest
 from sqlalchemy import select
 
@@ -173,6 +175,12 @@ def test_cli_set_password(client, people, monkeypatch, capsys):
     assert "2回の入力が違います" in capsys.readouterr().err
     assert cli.main(["admin", "set-password", "--worker-id", "Y001"]) == 1  # 管理者ではない
 
-    monkeypatch.setattr("sys.stdin", __import__("io").StringIO("stdin-pass-12\n"))
+    # PowerShell 5.1 から渡すと、先頭に BOM が付く
+    monkeypatch.setattr("sys.stdin", io.TextIOWrapper(io.BytesIO("\ufeffstdin-pass-12\r\n".encode("utf-8"))))
     assert cli.main(["admin", "set-password", "--worker-id", "K0042", "--stdin"]) == 0
     assert login(client, password="stdin-pass-12").status_code == 200
+
+
+def test_unencodable_password_is_refused(people):
+    with get_sessionmaker()() as s, pytest.raises(RuleViolation, match="使えない文字"):
+        admin_auth.set_password(s, "K0042", "\udcefbroken-pass")
