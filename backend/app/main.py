@@ -11,15 +11,16 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import health, plans
+from app.api import health, lines, plans, runs
 from app.core.config import get_config
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
+from app.services.errors import NotFound, RuleViolation
 from app.services.plan_sync_scheduler import PlanSyncScheduler
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,19 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="現場実績入力", version=__version__, lifespan=lifespan)
 app.include_router(health.router)
 app.include_router(plans.router)
+app.include_router(runs.router)
+app.include_router(lines.router)
+
+
+@app.exception_handler(RuleViolation)
+def _rule_violation(_request: Request, exc: RuleViolation) -> JSONResponse:
+    """業務ルールの違反は 409。detail は画面にそのまま出せる日本語の文。"""
+    return JSONResponse(status_code=409, content={"detail": exc.message})
+
+
+@app.exception_handler(NotFound)
+def _not_found(_request: Request, exc: NotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": exc.message})
 
 if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")

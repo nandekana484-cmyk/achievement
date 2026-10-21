@@ -11,33 +11,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import clock
-from app.db.models import PLAN_ACTIVE, Plan, PlanSyncRun, PlanSyncWarning
+from app.db.models import Plan, PlanSyncRun, PlanSyncWarning
 from app.db.session import get_session
+from app.services.board import plans_for_day
+from app.services.views import PlanOut
 
 router = APIRouter(prefix="/api", tags=["plans"])
-
-
-class PlanOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    kitting_no: str
-    lot_no: str
-    file_no: str
-    line_code: str
-    product_name: str
-    run_no: int
-    planned_qty: int
-    cumulative_qty: int | None
-    order_qty: int | None
-    planned_start: dt.datetime
-    planned_end: dt.datetime
-    deadline: dt.datetime | None
-    issue_date: dt.date
-    issue_seq: int
-    legacy_status: str | None
-    status: str
-    takt_sec: float | None  # 想定タクト。単位は要確認(今は1枚あたりの秒と仮定)
-    source_db: str | None  # 正とした既存アプリの月次DBのフォルダ名
 
 
 class SyncRunOut(BaseModel):
@@ -74,22 +53,7 @@ def list_line_plans(
     session: Session = Depends(get_session),
 ) -> list[Plan]:
     """その日に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。"""
-    day = date or clock.now().date()
-    day_start = dt.datetime.combine(day, dt.time(), tzinfo=clock.JST)
-    day_end = day_start + dt.timedelta(days=1)
-    stmt = (
-        select(Plan)
-        .where(
-            Plan.line_code == line_code,
-            Plan.status == PLAN_ACTIVE,
-            Plan.planned_start.is_not(None),
-            Plan.planned_end.is_not(None),
-            Plan.planned_start < day_end,
-            Plan.planned_end > day_start,
-        )
-        .order_by(Plan.planned_start, Plan.kitting_no, Plan.lot_no)
-    )
-    return list(session.scalars(stmt))
+    return plans_for_day(session, line_code, date or clock.now().date())
 
 
 @router.get("/sync/status", response_model=SyncStatusOut)

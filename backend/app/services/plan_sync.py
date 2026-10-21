@@ -39,6 +39,7 @@ from app.db.models import (
 )
 from app.domain.kitting_no import parse_kitting_no
 from app.integration.legacy_plans import LegacyPlan, LegacySourceRead, ReadWarning, read_legacy_source
+from app.services.masters import register_lines
 from app.services.plan_diff import PlanKey, diff_plans
 from app.services.plan_source import SourceSelection, choose_sources
 
@@ -131,6 +132,10 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
         if carryovers:
             # TODO(実績テーブル作成後): 引き継ぎ(候補が1つなら自動で移す、複数なら管理画面で選ぶ)
             logger.info("引き継ぎの候補: %d件(未対応)", len(carryovers))
+
+        new_lines = register_lines(session, {p.line_code for p in sel.plans})
+        if new_lines:
+            logger.info("新しいラインを登録しました: %s", ", ".join(new_lines))
 
         _update_warnings(session, warnings, now)
         run = PlanSyncRun(

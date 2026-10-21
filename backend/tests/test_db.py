@@ -13,7 +13,36 @@ def test_upgrade_creates_tables_and_is_repeatable(engine):
     names = set(inspect(engine).get_table_names())
     assert {"plans", "plan_sync_runs", "plan_sync_warnings", "alembic_version"} <= names
     with engine.connect() as c:
-        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
+        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
+
+
+def test_models_match_migrations(engine):
+    # モデル(app/db/models.py)を変えたのにマイグレーションを足し忘れていないか
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from app.db.session import Base
+
+    with engine.connect() as c:
+        diff = compare_metadata(MigrationContext.configure(c), Base.metadata)
+    assert diff == []
+
+
+def test_reasons_are_seeded(engine):
+    with engine.connect() as c:
+        rows = c.execute(text(
+            "SELECT name, category, requires_equipment, requires_text, usable_as_line_event, usable_as_restart,"
+            " counts_in_utilization FROM reasons ORDER BY sort_order"
+        )).all()
+    assert [r[0] for r in rows] == [
+        "部品探し", "欠品", "マシントラブル", "立上立会", "応援・その他", "その他トラブル", "人員交代", "トラブル停止", "計画切替",
+    ]
+    by_name = {r[0]: r[1:] for r in rows}
+    assert by_name["マシントラブル"] == ("loss", 1, 0, 1, 1, 0)
+    assert by_name["その他トラブル"] == ("loss", 0, 1, 1, 1, 0)
+    assert by_name["立上立会"] == ("non_loss", 0, 0, 1, 0, 0)
+    assert by_name["人員交代"] == ("non_loss", 0, 0, 0, 1, 0)
+    assert all(r[6] == 0 for r in rows)  # 稼働率に含めるかは要確認。今はすべて含めない
 
 
 def test_migrations_dir_does_not_depend_on_cwd(tmp_path, monkeypatch):
@@ -86,4 +115,6 @@ def test_upgrade_from_0002_keeps_plans(tmp_path):
     with e.connect() as c:
         assert c.execute(text("SELECT planned_qty, takt_sec, source_db FROM plans")).one() == (300, None, None)
         assert c.execute(text("SELECT legacy_dbs FROM plan_sync_runs")).all() == []
+        # 0004: それまでに取り込んだ計画のラインが登録される
+        assert c.execute(text("SELECT line_code, name FROM lines")).all() == [("S", "Sライン")]
     e.dispose()
