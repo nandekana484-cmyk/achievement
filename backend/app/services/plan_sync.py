@@ -22,6 +22,7 @@ from datetime import datetime, time
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.core import clock
@@ -37,8 +38,10 @@ from app.db.models import (
     PlanSyncRun,
     PlanSyncWarning,
 )
+from app.db.session import is_busy_error, write_transaction
 from app.domain.kitting_no import parse_kitting_no
 from app.integration.legacy_plans import LegacyPlan, LegacySourceRead, ReadWarning, read_legacy_source
+from app.services.masters import register_lines
 from app.services.plan_diff import PlanKey, diff_plans
 from app.services.plan_source import SourceSelection, choose_sources
 
@@ -49,7 +52,7 @@ logger = logging.getLogger(__name__)
 class PlanSyncResult:
     """同期1回分の結果。"""
 
-    sync_run_id: int
+    sync_run_id: int | None  # 書き込みが重なって記録できなかったときだけ None
     result: str  # ok / error / skipped / guarded
     added: int = 0
     revived: int = 0  # 取消から復活した計画
@@ -66,6 +69,9 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
 
     既存DBが無い・読めないなどの失敗は例外にせず、result=error として記録して返す。
     取消になる計画が多すぎるときは、何も反映せず result=guarded として記録して返す。
+
+    既存DBの読み取りと、正とするDBの決定は、書き込みのロックの外で行う(時間がかかっても、ボタン操作を待たせない)。
+    本アプリのDBを読んで差分を反映する部分だけを write_transaction の中で行う。
     """
     cfg = sync_config or SyncConfig()
     started_at = clock.now()
@@ -74,82 +80,102 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
         source = read_legacy_source(legacy_app_dir, cfg.legacy_db_max_age_days, started_at)
         sel = choose_sources(source.dbs)
         legacy_dbs = _legacy_dbs_json(source, sel)
-
-        rows = {(p.kitting_no, p.lot_no): p for p in session.scalars(select(Plan))}
-        current = {key: _to_legacy(p) for key, p in rows.items() if p.status == PLAN_ACTIVE}
-        # TODO(実績テーブル作成後): 実績のある計画のキーを渡す
-        keys_with_actuals: set[PlanKey] = set()
-        diff = diff_plans(current, sel.plans, keys_with_actuals)
-        incoming = {p.key: p for p in sel.plans}
-
-        today_start = datetime.combine(clock.now().date(), time(), tzinfo=clock.JST)
-        removed, warnings = _plans_to_cancel(
-            diff.removed_without_actuals + diff.removed_with_actuals, rows, incoming, sel, today_start,
-        )
-        removed_set = set(removed)
-        carryovers = [c for c in diff.carryovers if c.old_key in removed_set]
-
-        # 安全装置の分母は、取消の対象になりうる計画だけ(計画終了が今日の 0:00 より前の計画は取消にしないので除く)
-        cancellable = sum(1 for p in current.values() if not _ended_before(p.planned_end, today_start))
-        guard = _cancel_guard_reason(len(removed), cancellable, cfg)
-        if guard is not None:
-            session.rollback()
-            logger.warning("計画の同期を反映しませんでした: %s", guard)
-            return record_sync_run(session, started_at, SYNC_GUARDED, guard, legacy_dbs)
-
-        now = clock.now()
-        added = revived = 0
-        for plan in diff.added:
-            row = rows.get(plan.key)
-            if row is None:
-                row = Plan(kitting_no=plan.kitting_no, lot_no=plan.lot_no, first_seen_at=now)
-                session.add(row)
-                added += 1
-            else:
-                logger.info("取消になっていた計画が既存DBに戻りました: %s", plan.key)
-                revived += 1
-            _apply(row, plan, sel.plan_sources[plan.key])
-            row.status = PLAN_ACTIVE
-            row.cancelled_at = None
-            row.updated_at = now
-
-        for plan in diff.changed:
-            row = rows[plan.key]
-            _apply(row, plan, sel.plan_sources[plan.key])
-            row.updated_at = now
-
-        for key in diff.unchanged:
-            # 内容は同じでも、既存側の行番号・版・正とするDBは変わることがあるので、追跡用に合わせておく
-            _apply_tracking(rows[key], incoming[key], sel.plan_sources[key])
-
-        for key in removed:
-            row = rows[key]
-            row.status = PLAN_CANCELLED
-            row.cancelled_at = now
-            row.updated_at = now
-
-        if carryovers:
-            # TODO(実績テーブル作成後): 引き継ぎ(候補が1つなら自動で移す、複数なら管理画面で選ぶ)
-            logger.info("引き継ぎの候補: %d件(未対応)", len(carryovers))
-
-        _update_warnings(session, warnings, now)
-        run = PlanSyncRun(
-            started_at=started_at,
-            finished_at=clock.now(),
-            result=SYNC_OK,
-            added=added,
-            revived=revived,
-            changed=len(diff.changed),
-            unchanged=len(diff.unchanged),
-            cancelled=len(removed),
-            legacy_dbs=legacy_dbs,
-        )
-        session.add(run)
-        session.commit()
+        with write_transaction(session):
+            return _apply_selection(session, sel, cfg, started_at, legacy_dbs)
     except Exception as e:  # noqa: BLE001  失敗を記録してアプリは止めない
         session.rollback()
         logger.exception("計画の同期に失敗しました")
-        return record_sync_run(session, started_at, SYNC_ERROR, f"{type(e).__name__}: {e}", legacy_dbs)
+        message = f"{type(e).__name__}: {e}"
+        try:
+            return record_sync_run(session, started_at, SYNC_ERROR, message, legacy_dbs)
+        except OperationalError as busy:
+            if not is_busy_error(busy):
+                raise
+            # 本アプリのDBがほかの処理で使われていて、失敗の記録もできなかった。次の回にやり直す
+            session.rollback()
+            logger.warning("計画の同期の失敗を記録できませんでした(書き込みが重なったため): %s", busy)
+            return PlanSyncResult(sync_run_id=None, result=SYNC_ERROR, error_message=message)
+
+
+def _apply_selection(
+    session: Session, sel: SourceSelection, cfg: SyncConfig, started_at: datetime, legacy_dbs: str,
+) -> PlanSyncResult:
+    """正とするDBの計画を、本アプリの plans に反映する(write_transaction の中で呼ぶ。コミットまで行う)。"""
+    rows = {(p.kitting_no, p.lot_no): p for p in session.scalars(select(Plan))}
+    current = {key: _to_legacy(p) for key, p in rows.items() if p.status == PLAN_ACTIVE}
+    # TODO(実績テーブル作成後): 実績のある計画のキーを渡す
+    keys_with_actuals: set[PlanKey] = set()
+    diff = diff_plans(current, sel.plans, keys_with_actuals)
+    incoming = {p.key: p for p in sel.plans}
+
+    today_start = datetime.combine(clock.now().date(), time(), tzinfo=clock.JST)
+    removed, warnings = _plans_to_cancel(
+        diff.removed_without_actuals + diff.removed_with_actuals, rows, incoming, sel, today_start,
+    )
+    removed_set = set(removed)
+    carryovers = [c for c in diff.carryovers if c.old_key in removed_set]
+
+    # 安全装置の分母は、取消の対象になりうる計画だけ(計画終了が今日の 0:00 より前の計画は取消にしないので除く)
+    cancellable = sum(1 for p in current.values() if not _ended_before(p.planned_end, today_start))
+    guard = _cancel_guard_reason(len(removed), cancellable, cfg)
+    if guard is not None:
+        session.rollback()
+        logger.warning("計画の同期を反映しませんでした: %s", guard)
+        return record_sync_run(session, started_at, SYNC_GUARDED, guard, legacy_dbs)
+
+    now = clock.now()
+    added = revived = 0
+    for plan in diff.added:
+        row = rows.get(plan.key)
+        if row is None:
+            row = Plan(kitting_no=plan.kitting_no, lot_no=plan.lot_no, first_seen_at=now)
+            session.add(row)
+            added += 1
+        else:
+            logger.info("取消になっていた計画が既存DBに戻りました: %s", plan.key)
+            revived += 1
+        _apply(row, plan, sel.plan_sources[plan.key])
+        row.status = PLAN_ACTIVE
+        row.cancelled_at = None
+        row.updated_at = now
+
+    for plan in diff.changed:
+        row = rows[plan.key]
+        _apply(row, plan, sel.plan_sources[plan.key])
+        row.updated_at = now
+
+    for key in diff.unchanged:
+        # 内容は同じでも、既存側の行番号・版・正とするDBは変わることがあるので、追跡用に合わせておく
+        _apply_tracking(rows[key], incoming[key], sel.plan_sources[key])
+
+    for key in removed:
+        row = rows[key]
+        row.status = PLAN_CANCELLED
+        row.cancelled_at = now
+        row.updated_at = now
+
+    if carryovers:
+        # TODO(実績テーブル作成後): 引き継ぎ(候補が1つなら自動で移す、複数なら管理画面で選ぶ)
+        logger.info("引き継ぎの候補: %d件(未対応)", len(carryovers))
+
+    new_lines = register_lines(session, {p.line_code for p in sel.plans})
+    if new_lines:
+        logger.info("新しいラインを登録しました: %s", ", ".join(new_lines))
+
+    _update_warnings(session, warnings, now)
+    run = PlanSyncRun(
+        started_at=started_at,
+        finished_at=clock.now(),
+        result=SYNC_OK,
+        added=added,
+        revived=revived,
+        changed=len(diff.changed),
+        unchanged=len(diff.unchanged),
+        cancelled=len(removed),
+        legacy_dbs=legacy_dbs,
+    )
+    session.add(run)
+    session.commit()
 
     result = PlanSyncResult(
         sync_run_id=run.id,
@@ -246,13 +272,14 @@ def record_sync_run(
     session: Session, started_at: datetime, result: str, message: str, legacy_dbs: str | None = None,
 ) -> PlanSyncResult:
     """計画を反映しなかった同期(error / skipped / guarded)を記録する。"""
-    run = PlanSyncRun(
-        started_at=started_at, finished_at=clock.now(), result=result,
-        added=0, revived=0, changed=0, unchanged=0, cancelled=0, error_message=message,
-        legacy_dbs=legacy_dbs,
-    )
-    session.add(run)
-    session.commit()
+    with write_transaction(session):
+        run = PlanSyncRun(
+            started_at=started_at, finished_at=clock.now(), result=result,
+            added=0, revived=0, changed=0, unchanged=0, cancelled=0, error_message=message,
+            legacy_dbs=legacy_dbs,
+        )
+        session.add(run)
+        session.commit()
     return PlanSyncResult(sync_run_id=run.id, result=result, error_message=message)
 
 

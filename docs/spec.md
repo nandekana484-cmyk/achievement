@@ -169,48 +169,93 @@ genba-app/
 
 各回で、次の工程の開始・終了を記録する。段取りと片付けは回ごと(表と裏で別々)に行う。
 
-| 工程 | 入力 | 必須 |
-| --- | --- | --- |
-| 段取り | 開始・終了 | ○ |
-| N1チェック | 開始・終了 | ○ |
-| 生産 | 開始・終了・生産数(区切りごと) | ○ |
-| 初品チェック | 開始・終了 | ○ |
-| X線検査 | 開始・終了 | 省略あり |
-| 片付け | 開始・終了 | ○ |
-| NG数 | 数値(回ごと) | |
-| 備考 | 自由記入 | |
+| 工程 | step_type | 入力 | 必須 |
+| --- | --- | --- | --- |
+| 段取り | setup | 開始・終了 | ○ |
+| N1チェック | n1_check | 開始・終了 | ○ |
+| 生産 | production | 開始・終了・生産数(区切りごと) | ○ |
+| 初品チェック | first_article | 開始・終了 | ○ |
+| X線検査 | xray | 開始・終了 | 省略あり |
+| 片付け | cleanup | 開始・終了 | ○ |
+| NG数 | (run_inputs: ng_qty) | 数値(回ごと) | |
+| 備考 | (run_inputs: remark) | 自由記入 | |
 
-ルール:
+ルール(`services/run_records.py`。違反は 409 と、画面にそのまま出せる日本語の理由):
 
-- **生産の区切り**: 画面は「生産開始」「生産終了(生産数)」を繰り返し押す形にし、区切り番号は自動で振る。2回目以降の区切りを開始するときは、再開理由(人員交代、トラブル停止、計画切替など。停止理由マスタから選ぶ)を記録する
+- **生産の区切り**: 画面は「生産開始」「生産終了(生産数)」を繰り返し押す形にし、区切り番号(seq)は計画×工程ごとに1から自動で振る。2回目以降の区切りを開始するときは、再開理由(理由マスタのうち「生産の再開理由として使える」もの)が必須。1回目の生産とほかの工程では再開理由を受け付けない
+- **再開理由の設備**: 2回目以降の生産の開始で、設備が必要な再開理由(マシントラブルなど)を選んだときは、設備(equipment_id)を任意で受け付ける(計画のラインの有効な設備であること)。それ以外の場合は受け付けない。ライン画面用の取得(board)でも返す
+- 生産の終了は生産数(0以上の整数)が必須。ほかの工程の終了では生産数を受け付けない
 - 区切りは記録用紙の欄が3つなので、画面上の目安は3回。**データ上は上限を設けない**
-- **工程は繰り返し記録できる**(例: トラブルで別の計画に切り替え、戻ってから段取りをやり直す)
+- **工程は繰り返し記録できる**(例: トラブルで別の計画に切り替え、戻ってから段取りをやり直す。seq が2になる)
 - 異なる工程どうしは時間が重なってよい(例: 生産中に初品チェック)
-- 同じ回の生産の区切りどうしは重ならない。同じ工程の二重開始と、開始していない工程の終了はサーバーで拒否する
+- 同じ計画の同じ工程で、終了していないものがあるのに開始はできない(生産の区切りどうしも重ならない)。終了していないものが無いのに終了はできない。DBにも「終了していない記録は計画×工程で1件まで」の一意制約を持たせ、同時の操作でも二重に記録しない
+- 計画が無ければ 404。取消の計画は開始できない(終了はできる)
+- 時刻はサーバーの時計で記録する。記録者の決め方は 5.6
+- NG数は行を追加し、最新の値を有効とする(上書きしない)。備考は追加する
 - 計画をまたぐ重なりは基本的にないが、トラブルで今の計画を止めて別の計画を生産することはある。計画の順番の入れ替えもある(最終的に生産がそろえばよい)
+
+API:
+
+| メソッド | パス | 本文 |
+| --- | --- | --- |
+| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/start` | request_id、restart_reason_id?、equipment_id?、operator_id? |
+| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/end` | request_id、produced_qty?、operator_id? |
+| PUT | `/api/runs/{kitting_no}/{lot_no}/ng-qty` | request_id、ng_qty、operator_id? |
+| POST | `/api/runs/{kitting_no}/{lot_no}/remarks` | request_id、text、operator_id? |
+
+**冪等性**(0-5): すべての操作で request_id を送る。同じ request_id の再送には、最初の応答をそのまま返す(200)。同じ request_id で内容が違えば 409。ルール違反で失敗した操作は記録しないので、同じ request_id で送り直せる(`services/idempotency.py`、表 api_requests)。
 
 ### 5.5 付帯作業(ライン単位)
 
 計画の合間に起きる、ラインを止める出来事。**計画には結びつけず、ラインに記録する。**
 
-| 種類 | 追加の入力 |
-| --- | --- |
-| 部品探し | |
-| 欠品 | |
-| マシントラブル | 設備を選ぶ(設備マスタ) |
-| 立上立会 | |
-| 応援・その他 | |
-| その他トラブル | 理由の記入(必須) |
+生産の区切りの再開理由と、付帯作業の種類は、共通の理由マスタ(reasons)で持つ(マシントラブルの合計時間を、計画の中か合間かに関係なく集計できるように)。初期データ(マイグレーション 0004):
 
+| 理由 | 区分 | 追加の入力 | 付帯作業 | 再開理由 |
+| --- | --- | --- | --- | --- |
+| 部品探し | ロス | | ○ | ○ |
+| 欠品 | ロス | | ○ | ○ |
+| マシントラブル | ロス | 設備を選ぶ(そのラインの設備。必須) | ○ | ○ |
+| 立上立会 | ロス以外 | | ○ | |
+| 応援・その他 | ロス以外 | | ○ | |
+| その他トラブル | ロス | 理由の記入(必須) | ○ | ○ |
+| 人員交代 | ロス以外 | | | ○ |
+| トラブル停止 | ロス | | | ○ |
+| 計画切替 | ロス以外 | | | ○ |
+
+- 理由の列: name、category(loss=ロス / non_loss=ロス以外)、counts_in_utilization(稼働率に含めるか)、requires_equipment、requires_text、usable_as_line_event、usable_as_restart、active、sort_order
 - 開始・終了と、開始した人・終了した人を記録する
-- **稼働率の計算からは外すのが既定**。ただし種類ごとに「稼働率に含めるか」の設定を持ち、定義が決まったら切り替えられるようにする
-- 種類はマスタで追加・変更できるようにする
-- 生産の区切りの再開理由と、付帯作業の種類は、共通の理由マスタで持つ(マシントラブルの合計時間を、計画の中か合間かに関係なく集計できるように)
+- **稼働率の計算からは外すのが既定**。理由ごとに「稼働率に含めるか」の設定を持ち(初期値はすべて含めない)、定義が決まったら切り替えられるようにする
+- 種類はマスタで追加・変更できるようにする(今は開発用のコマンド `python -m app.cli` で一覧だけ。管理画面で作る)
+- 生産の再開理由として使うときは、理由の記入は求めない。設備が必要な理由でも、設備は任意(5.4)
+
+ルール(`services/line_events.py`。違反は 409):
+
+- 「付帯作業として使える」理由だけ選べる。設備が必須の理由ならそのラインの設備が必須、記入が必須の理由なら記入が必須
+- 同じラインで同じ理由の付帯作業が終了していないのに開始はできない。異なる理由どうしは重なってよい
+- 計画を選んでいなくても開始できる。記録者の決め方と冪等性は工程と同じ
+
+API:
+
+| メソッド | パス | 本文 |
+| --- | --- | --- |
+| POST | `/api/lines/{line_code}/events/start` | request_id、reason_id、equipment_id?、reason_text?、operator_id? |
+| POST | `/api/lines/{line_code}/events/{event_id}/end` | request_id、operator_id? |
 
 ### 5.6 誰がやったか
 
 - すべての記録に、開始した人と終了した人を別々に持つ(人員交代で変わるため)
 - ラインごとに「今の担当者」を設定し、ボタン操作の記録に自動で付ける。担当者は始業時と人員交代時に切り替える。1回の操作だけ別の人にすることもできる
+- 実装(`services/line_operators.py`): 表 line_operators に履歴を持つ。交代すると前の行に end_at を入れ、新しい行を足す(今の担当者はラインに1人。すでに同じ人なら何も変えない)
+- 記録者 = 本文の operator_id。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」
+- 作業者は作業者マスタ(operators)から選ぶ。PIN は付けない(11. 未確定事項)
+
+| メソッド | パス | 説明 |
+| --- | --- | --- |
+| GET | `/api/lines/{line_code}/operator` | 今の担当者(未設定なら null) |
+| PUT | `/api/lines/{line_code}/operator` | 交代する(本文: request_id、operator_id) |
+
+ラインの記号は、既存アプリと同じ規則で正規化してから探す(`s` → `S`)。ラインは計画の同期で新しい記号を見つけたら自動で登録する(名前は「<記号>ライン」)。
 
 ### 5.7 完了と実績の反映
 
@@ -221,6 +266,8 @@ genba-app/
   - 製品の完成数 = 最終の回の生産数(区切りの合計)。1回目と2回目を足さない
   - NG数は回ごとに分けて返す(既存アプリが回ごとに持っている)
 - 完了後の誤りは、管理者が訂正し(訂正履歴を残す)、区分「訂正」で再出力する
+- 実装済み(run_completions): 片付けの終了で1件作る(生産数=区切りの合計、NG数=その時点の最新、計画数と想定タクトの写し。稼働率は定義が決まるまで空)。片付けをやり直して終了したらもう1件作り、最新のものを有効とする。完了後も工程の記録は受け付ける
+- ライン画面用の取得: `GET /api/lines/{line_code}/board?date=YYYY-MM-DD`(計画ごとの工程の記録・生産数の合計・最新のNG数・完了・計画の進捗率と、その日の付帯作業、今の担当者、ラインの進捗率)、`GET /api/masters?line_code=`(有効なマスタ)
 
 ### 5.8 進捗率と稼働率
 
@@ -356,15 +403,16 @@ genba-app/
 | plan_pairs | pair_id、lot_no、file_no、qty、run1_kitting_no、run2_kitting_no | 組 |
 | plan_sync_runs | 実行日時、件数(追加・変更・取消・引き継ぎ)、エラー、読んだ月次DBの一覧とDBごとの計画の件数(legacy_dbs) | 同期の記録 |
 | plan_carryovers | old_kitting_no、new_kitting_no、方法(自動・手動)、日時、実行者 | 引き継ぎの履歴 |
-| run_events | id、kitting_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、request_id | 工程と生産の区切りの記録 |
-| run_inputs | kitting_no、種類(NG数・備考)、値、入力者、日時 | 時刻を持たない入力 |
-| run_completions | kitting_no、completed_at、produced_qty、ng_qty、plan_qty_snapshot、takt_snapshot、稼働率の計算結果 | 完了時点の確定値 |
-| line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、request_id | 付帯作業 |
-| line_operators | line_code、operator_id、開始日時、終了日時 | 今の担当者とその履歴 |
+| run_events | id、kitting_no、lot_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at。(計画×工程×seq)は一意、終了していない記録は計画×工程で1件まで | 工程と生産の区切りの記録 |
+| run_inputs | id、kitting_no、lot_no、kind(ng_qty / remark)、value、entered_by、entered_at、request_id(一意) | 時刻を持たない入力(NG数は最新の値を有効とする) |
+| run_completions | id、kitting_no、lot_no、cleanup_event_id(完了にした片付けの記録。一意)、completed_at、produced_qty、ng_qty、plan_qty_snapshot、takt_sec_snapshot、utilization(稼働率。今は空) | 完了時点の確定値(最新のものを有効とする) |
+| line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、start_request_id(一意)、end_request_id(一意)。終了していない記録はライン×理由で1件まで | 付帯作業 |
+| line_operators | id、line_code、operator_id、start_at、end_at、request_id。今の担当者(end_at が空)はラインに1人 | 今の担当者とその履歴 |
+| api_requests | request_id(主キー)、operation、payload、response、created_at | ボタン操作の冪等性(再送に最初の応答を返す) |
 | result_exports / result_export_items | 出力ID、ファイル名、日時 / 製品、完成数、回ごとのNG数、区分(新規・訂正) | 既存への反映の記録 |
 | print_logs | 製品、印刷日時、印刷時の計画の値のハッシュ | 再印刷の判定 |
 | audit_log | 対象、項目、訂正前、訂正後、訂正者、日時、理由 | 訂正履歴 |
-| マスタ | lines、equipment(ラインごと)、reasons(区分、稼働率に含めるか、設備の選択が必要か、理由の記入が必要か)、operators、admins | 選択肢と利用者 |
+| マスタ | lines(line_code=正規化した記号、name)、operators(name)、equipment(line_code、name)、reasons(name、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
 
 - 時刻はサーバーが記録し、タイムゾーン付き(日本時間)で保存する
 - 削除はしない。取り消しは状態で表す
@@ -376,6 +424,7 @@ genba-app/
 | 項目 | 方針 |
 | --- | --- |
 | 同時アクセス | uvicornは1プロセス。SQLiteはWAL。端末数台を想定 |
+| 書き込みのロック | SQLite は古い読み取りにもとづく書き込みを拒否する(busy_timeout があっても即座に database is locked になる)ため、本アプリのDBに書き込む処理(ボタン操作、計画の同期、開発用コマンド)は、処理の最初に書き込みのロックを取る(BEGIN IMMEDIATE)。あわせて、同じプロセス内の書き込みは1つのロックで1つずつ行う(`app/db/session.py` の `write_transaction`)。計画の同期は、既存DBの読み取りと正とするDBの決定をロックの外で行い、本アプリのDBに反映する部分だけをロックする。それでもロックが取れなかったとき(ほかのプロセスが書き込み中など)は 503「他の処理と重なったため、記録できませんでした。もう一度押してください」を返し、冪等性の記録(api_requests)には残さない(同じ request_id で送り直せば記録される) |
 | 認証(現場) | 現場端末はライン単位で使い、記録者は「今の担当者」で特定する(PINの要否は未確定) |
 | 認証(管理) | 個人アカウントとパスワード(ハッシュで保存) |
 | HTTPS | フェーズ1は不要(カメラもPWAも使わないため)。必要になったら社内用の証明書を導入する |
@@ -418,7 +467,7 @@ C:\GenbaApp\
 | ラインの進捗率の定義 | 上部の表示 | 当日の計画の生産数合計 ÷ 数量合計 |
 | 付帯作業を稼働率に含めるか(種類ごと) | 稼働率の計算 | すべて含めない |
 | 記録用紙のうち、手書きで残す項目 | 印刷ページ | 要確認 |
-| 現場の担当者選択にPINを付けるか | 認証 | 付けない |
+| 現場の担当者選択にPINを付けるか | 認証 | 付けない(今回は作業者の選択のみ) |
 | 担当者の勤務時間外にラインが動くか | 自動起動、日付の区切り | 日中のみ |
 | 担当者PCで管理者権限を使えるか | 自動起動、ファイアウォール | 使える |
 | タブレットのWi-Fiが担当者PCと同じ社内LANか | 接続 | 同じLAN |
