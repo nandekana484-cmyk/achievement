@@ -1,5 +1,5 @@
 // 画面の文言(ベトナム語)。ja.ts と同じキーをすべて持つ(抜けや余分なキーがあると型のエラー)。
-// 訳はレビュー役が入れた初版(2026-10-21)。現場の用語は、使いながら直す。{name} の差し込みは ja.ts と同じ名前を使う。
+// 訳はレビュー役が入れた(2026-10-21 初版、同日に用語を見直し)。現場の用語は、使いながら直す。{name} の差し込みは ja.ts と同じ名前を使う。
 // 詳細: docs/design/i18n.md
 import type { Messages } from "./ja";
 
@@ -73,7 +73,7 @@ export const vi: Messages = {
 
   "sideMenu.aria": "Menu",
   "sideMenu.timetable": "Bảng thời gian",
-  "sideMenu.lineEvents": "Công việc phụ",
+  "sideMenu.lineEvents": "Việc ngoài sản xuất",
   "sideMenu.changeOperator": "Đổi người phụ trách",
   "sideMenu.backToLines": "Quay lại chọn chuyền",
 
@@ -87,7 +87,7 @@ export const vi: Messages = {
   "timetable.time": "Giờ",
   "timetable.plans": "Kế hoạch",
   "timetable.actuals": "Thực tế",
-  "timetable.lineEvents": "Công việc phụ",
+  "timetable.lineEvents": "Việc ngoài sản xuất",
   "timetable.workdayStart": "{date} Bắt đầu ngày làm việc ({time})",
   "timetable.nextWorkdayStart": "{date} Bắt đầu ngày làm việc tiếp theo ({time})",
   "timetable.nowAria": "Giờ hiện tại",
@@ -96,7 +96,7 @@ export const vi: Messages = {
   "timetable.clippedEnd": "▼ Tiếp tục sau phạm vi hiển thị",
 
   "stepPanel.aria": "Kế hoạch đã chọn",
-  "stepPanel.run": "Lần",
+  "stepPanel.run": "Thứ tự",
   "stepPanel.plannedQty": "Số kế hoạch (tổng)",
   "stepPanel.producedQty": "Tổng số đã sản xuất",
   "stepPanel.progress": "Tiến độ",
@@ -114,11 +114,11 @@ export const vi: Messages = {
   "lotTable.qty": "Số lượng",
   "lotTable.ngSide": "NG mặt {side}",
 
-  "lineEvent.title": "Công việc phụ",
+  "lineEvent.title": "Việc ngoài sản xuất",
   "lineEvent.since": "Từ {time} (đã qua {elapsed})",
   "lineEvent.withEquipment": " ({name})",
   "lineEvent.withText": ": {text}",
-  "lineEvent.startTitle": "Bắt đầu: {reason}",
+  "lineEvent.startTitle": "{reason}: bắt đầu",
   "lineEvent.pickEquipment": "Hãy chọn thiết bị (bắt buộc).",
   "lineEvent.reasonText": "Lý do (bắt buộc)",
 
@@ -140,11 +140,11 @@ export const vi: Messages = {
   "keypad.backspace": "Xóa 1 ký tự",
   "keypad.clear": "Xóa hết",
 
-  "productionEnd.title": "Kết thúc {step}",
+  "productionEnd.title": "{step}: kết thúc",
   "productionEnd.message": "Hãy nhập số lượng đã sản xuất trong lần này.",
   "productionEnd.submit": "Kết thúc sản xuất",
 
-  "restart.title": "Bắt đầu {step}",
+  "restart.title": "{step}: bắt đầu",
   "restart.message": "Hãy chọn lý do sản xuất lại.",
   "restart.submit": "Bắt đầu sản xuất",
   "restart.pickEquipment": "Có thể chọn thiết bị (không chọn vẫn bắt đầu được).",
