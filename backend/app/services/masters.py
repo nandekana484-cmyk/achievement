@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Equipment, Line, Operator, Reason
+from app.db.models.masters import default_line_name
 from app.db.session import write_transaction
 from app.domain.normalize import normalize_mounting_line
 from app.domain.worker_id import MAX_LENGTH, worker_key
@@ -36,7 +37,7 @@ def register_lines(session: Session, line_codes: Iterable[str]) -> list[str]:
     added: list[str] = []
     order = _next_sort_order(session, Line)
     for code in sorted({c for c in line_codes if c} - known):
-        session.add(Line(line_code=code, name=f"{code}ライン", active=True, sort_order=order))
+        session.add(Line(line_code=code, name=default_line_name(code), active=True, sort_order=order))
         order += 10
         added.append(code)
     return added

@@ -542,6 +542,11 @@ export interface components {
             name: string;
             /** Sort Order */
             sort_order: number;
+            /**
+             * Auto Named
+             * @default false
+             */
+            auto_named: boolean;
         };
         /**
          * LotOut

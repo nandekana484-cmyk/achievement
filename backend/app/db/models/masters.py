@@ -8,6 +8,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
+def default_line_name(line_code: str) -> str:
+    """計画の同期で自動で登録したラインに付ける名前(「<記号>ライン」)。"""
+    return f"{line_code}ライン"
+
+
 class Line(Base):
     """ライン。計画の同期で新しいラインの記号を見つけたら自動で登録する。"""
 
@@ -17,6 +22,11 @@ class Line(Base):
     name: Mapped[str] = mapped_column(String)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    @property
+    def auto_named(self) -> bool:
+        """名前が、自動で付けた形のままか(画面はそのとき、選んだ言語の形で出す。人が変えた名前はそのまま出す)。"""
+        return self.name == default_line_name(self.line_code)
 
 
 class Operator(Base):

@@ -190,12 +190,13 @@ test("⑭ ベトナム語に切り替えたライン画面", async ({ page }) =>
   await openLine(page);
   await page.locator(".lang-switch").getByRole("button", { name: VI }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "vi");
+  await expect(page.locator(".line-name")).toHaveText("Chuyền S"); // 自動で付けた名前(「Sライン」)は訳して出す
   await expect(page.getByRole("button", { name: "Bảng thời gian" })).toBeVisible();
   await page.locator(".tt-plan", { hasText: FIRST }).click();
   await expect(step(page, "Chuẩn bị (setup)")).toContainText("Bấm để"); // 状態はほかのテストの操作による
-  // 計画の内容と、ベトナム語の名前が無いマスタの名前は、日本語のまま
+  // 計画の内容は訳さない。理由の名前はマスタのベトナム語の名前(初期データの理由には入れてある)
   await expect(page.locator(".plan-kno")).toHaveText(FIRST);
-  await expect(page.locator(".reason-button", { hasText: "部品探し" })).toBeVisible();
+  await expect(page.locator(".reason-button", { hasText: "Tìm linh kiện" })).toBeVisible();
   await shot(page, "14-line-screen-vi");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);

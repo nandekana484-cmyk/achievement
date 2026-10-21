@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { BoardPlan, LineEvent, Plan, Reason } from "../../shared/api";
+import { lineName as displayLineName } from "../../shared/lineName";
 import { Notice } from "../../shared/Notice";
 import { useMasters } from "../../shared/useMasters";
 import { useOperation } from "../../shared/useOperation";
@@ -40,7 +41,8 @@ export function LineScreen() {
   }, [selectedKno]);
 
   const selected = useSelectedPlan(board, selectedKno);
-  const lineName = masters?.lines.find((l) => l.line_code === board?.line_code)?.name ?? t("lineScreen.lineFallback", { code: lineCode });
+  const line = masters?.lines.find((l) => l.line_code === board?.line_code);
+  const lineName = line ? displayLineName(line, t) : t("lineScreen.lineFallback", { code: lineCode });
   const openOperator = () => setDialog({ kind: "operator" });
   const select = (p: Plan) => setSelectedKno(p.kitting_no);
 

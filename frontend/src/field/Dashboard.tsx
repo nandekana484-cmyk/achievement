@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import { LanguageSwitch } from "../i18n/LanguageSwitch";
+import { lineName } from "../shared/lineName";
 import { Notice } from "../shared/Notice";
 import { useMasters } from "../shared/useMasters";
 
@@ -21,7 +22,7 @@ export function Dashboard() {
         {masters?.lines.map((l) => (
           <li key={l.line_code}>
             <Link to={`/field/lines/${encodeURIComponent(l.line_code)}`} className="line-card">
-              {l.name}
+              {lineName(l, t)}
             </Link>
           </li>
         ))}

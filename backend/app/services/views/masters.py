@@ -13,6 +13,7 @@ class LineOut(BaseModel):
     line_code: str
     name: str
     sort_order: int
+    auto_named: bool = False  # 名前が自動で付けた形(「<記号>ライン」)のままなら、画面は選んだ言語の形で出す
 
 
 class OperatorOut(BaseModel):

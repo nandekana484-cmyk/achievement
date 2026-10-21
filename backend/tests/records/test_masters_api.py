@@ -25,6 +25,14 @@ def test_masters(client, staffed, equipment):
     assert client.get("/api/masters", params={"line_code": "X"}).status_code == 404
 
 
+def test_auto_named_lines_are_marked(client, world):
+    assert [(x["name"], x["auto_named"]) for x in ok(client.get("/api/masters"))["lines"]] == [("Sライン", True)]
+    with new_session() as s:
+        s.get(Line, "S").name = "第1実装ライン"  # 人が名前を変えた
+        s.commit()
+    assert [(x["name"], x["auto_named"]) for x in ok(client.get("/api/masters"))["lines"]] == [("第1実装ライン", False)]
+
+
 def test_sync_registers_new_lines(client, world):
     insert_plan(world["db"], kitting_no="0722-1-T-251014-09", line="t")
     sync_plans(world["app"])
