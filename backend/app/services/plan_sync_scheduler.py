@@ -25,7 +25,7 @@ _lock = threading.Lock()
 
 
 def run_plan_sync_exclusive(
-    session_factory: sessionmaker[Session], legacy_db_path: Path, sync_config: SyncConfig | None = None
+    session_factory: sessionmaker[Session], legacy_app_dir: Path, sync_config: SyncConfig | None = None
 ) -> PlanSyncResult:
     """同期を1回行う。ほかの同期が実行中なら、実行せずに skipped を記録する。"""
     if not _lock.acquire(blocking=False):
@@ -33,15 +33,15 @@ def run_plan_sync_exclusive(
             return record_skipped(session, "前回の同期が実行中のため、今回は実行しませんでした")
     try:
         with session_factory() as session:
-            return run_plan_sync(session, legacy_db_path, sync_config)
+            return run_plan_sync(session, legacy_app_dir, sync_config)
     finally:
         _lock.release()
 
 
 class PlanSyncScheduler:
-    def __init__(self, session_factory: sessionmaker[Session], legacy_db_path: Path, sync_config: SyncConfig) -> None:
+    def __init__(self, session_factory: sessionmaker[Session], legacy_app_dir: Path, sync_config: SyncConfig) -> None:
         self._session_factory = session_factory
-        self._legacy_db_path = legacy_db_path
+        self._legacy_app_dir = legacy_app_dir
         self._sync_config = sync_config
         self._interval_sec = sync_config.plan_interval_sec
         self._task: asyncio.Task | None = None
@@ -49,7 +49,7 @@ class PlanSyncScheduler:
     def start(self) -> None:
         if self._task is None:
             self._task = asyncio.create_task(self._loop(), name="plan-sync")
-            logger.info("計画の同期を開始します(%s 秒ごと、既存DB: %s)", self._interval_sec, self._legacy_db_path)
+            logger.info("計画の同期を開始します(%s 秒ごと、既存アプリのフォルダ: %s)", self._interval_sec, self._legacy_app_dir)
 
     async def stop(self) -> None:
         if self._task is None:
@@ -63,7 +63,7 @@ class PlanSyncScheduler:
         while True:
             try:
                 await asyncio.to_thread(
-                    run_plan_sync_exclusive, self._session_factory, self._legacy_db_path, self._sync_config
+                    run_plan_sync_exclusive, self._session_factory, self._legacy_app_dir, self._sync_config
                 )
             except Exception:  # noqa: BLE001  次の回は実行する
                 logger.exception("計画の同期で想定外のエラーが起きました")

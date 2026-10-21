@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -35,6 +36,8 @@ class PlanOut(BaseModel):
     issue_seq: int
     legacy_status: str | None
     status: str
+    takt_sec: float | None  # 想定タクト。単位は要確認(今は1枚あたりの秒と仮定)
+    source_db: str | None  # 正とした既存アプリの月次DBのフォルダ名
 
 
 class SyncRunOut(BaseModel):
@@ -50,6 +53,13 @@ class SyncRunOut(BaseModel):
     unchanged: int
     cancelled: int
     error_message: str | None
+    # その回に読んだ月次DBの一覧と、DBごとの計画の件数({"read": [...], "skipped": [...]})
+    legacy_dbs: dict | None
+
+    @field_validator("legacy_dbs", mode="before")
+    @classmethod
+    def _parse_legacy_dbs(cls, v):  # noqa: ANN001, ANN206
+        return json.loads(v) if isinstance(v, str) else v
 
 
 class SyncStatusOut(BaseModel):

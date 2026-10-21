@@ -42,9 +42,10 @@ def diff_plans(
 ) -> PlanDiff:
     """current: 本アプリが今持っている計画、incoming: 既存DBから読んだ有効な計画。
 
-    delete_flag が立った計画は、既存側で消えたものと同じに扱う。
+    削除フラグ(delete_flag)は考慮しない(業務上の意味が分からず、実データでもすべて0のため)。
+    removed_* は「incoming に無い」というだけで、取消にするかどうかは呼び出し側(plan_sync)が決める。
     """
-    live = {p.key: p for p in incoming if not p.delete_flag}
+    live = {p.key: p for p in incoming}
     d = PlanDiff()
 
     for key, plan in live.items():

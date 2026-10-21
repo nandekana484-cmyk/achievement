@@ -37,10 +37,10 @@ async def lifespan(_app: FastAPI):
     upgrade_to_head(engine)
 
     scheduler: PlanSyncScheduler | None = None
-    if config.paths.legacy_database is None:
-        logger.info("paths.legacy_database が未設定のため、計画の同期はしません")
+    if config.paths.legacy_app_dir is None:
+        logger.info("paths.legacy_app_dir が未設定のため、計画の同期はしません")
     else:
-        scheduler = PlanSyncScheduler(get_sessionmaker(), config.paths.legacy_database, config.sync)
+        scheduler = PlanSyncScheduler(get_sessionmaker(), config.paths.legacy_app_dir, config.sync)
         scheduler.start()
     try:
         yield

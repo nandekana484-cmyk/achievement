@@ -14,11 +14,11 @@ K2 = "0722-2-S-251014-02"
 
 
 @pytest.fixture
-def sync(session_factory, legacy_db, fake_clock):
+def sync(session_factory, legacy_app, fake_clock):
     def _sync():
         fake_clock.advance(minutes=1)
         with session_factory() as s:
-            return run_plan_sync(s, legacy_db)
+            return run_plan_sync(s, legacy_app)
 
     return _sync
 
@@ -96,15 +96,17 @@ def test_deactivated_becomes_cancelled(sync, session_factory, legacy_db, fake_cl
     assert p.cancelled_at == fake_clock.current
 
 
-def test_delete_flag_becomes_cancelled(sync, session_factory, legacy_db):
+def test_delete_flag_is_ignored(sync, session_factory, legacy_db):
     insert_plan(legacy_db, kitting_no=K1)
     sync()
 
     insert_plan(legacy_db, kitting_no=K1, delete_flag=1)
     r = sync()
 
-    assert r.cancelled == 1
-    assert _plans(session_factory)[(K1, "L001")].status == "cancelled"
+    # 削除フラグは考慮しない(取消にも、内容の変更にもしない)。保存だけする
+    assert (r.cancelled, r.changed, r.unchanged) == (0, 0, 1)
+    p = _plans(session_factory)[(K1, "L001")]
+    assert p.status == "active" and p.delete_flag is True
 
 
 def test_cancelled_plan_comes_back(sync, session_factory, legacy_db):
@@ -125,12 +127,12 @@ def test_cancelled_plan_comes_back(sync, session_factory, legacy_db):
     assert p.status == "active" and p.cancelled_at is None and p.planned_qty == 250
 
 
-def test_missing_legacy_db_records_error(session_factory, tmp_path, fake_clock):
+def test_missing_legacy_app_records_error(session_factory, tmp_path, fake_clock):
     with session_factory() as s:
-        r = run_plan_sync(s, tmp_path / "nothing.db")
+        r = run_plan_sync(s, tmp_path / "nothing")
 
     assert r.result == "error"
-    assert "既存DBが見つかりません" in r.error_message
+    assert "master.db を読めません" in r.error_message
     with session_factory() as s:
         run = s.get(PlanSyncRun, r.sync_run_id)
         assert run.result == "error" and run.error_message == r.error_message
@@ -142,8 +144,8 @@ def test_error_keeps_existing_plans(sync, session_factory, legacy_db, tmp_path):
     sync()
     before = _snapshot(session_factory)
 
-    with session_factory() as s:  # 既存DBが読めなくなった(ファイルが無い)
-        r = run_plan_sync(s, tmp_path / "moved.db")
+    with session_factory() as s:  # 既存DBが読めなくなった(フォルダが無い)
+        r = run_plan_sync(s, tmp_path / "moved")
 
     assert r.result == "error"
     assert _snapshot(session_factory) == before  # 読めないときに取消にしない
@@ -176,15 +178,21 @@ def test_read_warnings_are_recorded(sync, session_factory, legacy_db):
         assert w.resolved_at is None
 
 
-def test_legacy_db_files_are_not_changed(sync, legacy_db):
+def test_legacy_db_files_are_not_changed(sync, legacy_app, legacy_db):
     insert_plan(legacy_db, kitting_no=K1)
-    folder = legacy_db.parent
-    before = {f.name: f.read_bytes() for f in folder.iterdir()}
+
+    def files():
+        return {
+            f.relative_to(legacy_app): (f.read_bytes(), f.stat().st_mtime_ns)
+            for f in legacy_app.rglob("*") if f.is_file()
+        }
+
+    before = files()
 
     sync()
     sync()
 
-    assert {f.name: f.read_bytes() for f in folder.iterdir()} == before
+    assert files() == before  # 既存アプリのフォルダのファイルは、増えも変わりもしない
 
 
 def test_times_are_read_back_with_jst(sync, session_factory, legacy_db):
@@ -250,7 +258,7 @@ def test_warnings_unchanged_when_sync_fails(sync, session_factory, legacy_db, tm
     insert_plan(legacy_db, kitting_no="BROKEN")
     sync()
     with session_factory() as s:
-        run_plan_sync(s, tmp_path / "moved.db")
+        run_plan_sync(s, tmp_path / "moved")
     [w] = _warnings(session_factory)
     assert w.resolved_at is None
 
@@ -297,12 +305,12 @@ def test_cancel_below_ratio_is_applied(sync, session_factory, legacy_db):
     assert r.result == "ok" and r.cancelled == 10
 
 
-def test_guard_uses_config(session_factory, legacy_db, fake_clock):
+def test_guard_uses_config(session_factory, legacy_app, legacy_db, fake_clock):
     keys = _many(legacy_db, 3)
     with session_factory() as s:
-        run_plan_sync(s, legacy_db)
+        run_plan_sync(s, legacy_app)
     for k in keys[:2]:
         deactivate(legacy_db, k)
     with session_factory() as s:
-        r = run_plan_sync(s, legacy_db, SyncConfig(cancel_guard_min=2, cancel_guard_ratio=0.5))
+        r = run_plan_sync(s, legacy_app, SyncConfig(cancel_guard_min=2, cancel_guard_ratio=0.5))
     assert r.result == "guarded"
