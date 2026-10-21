@@ -1,8 +1,9 @@
 ﻿# 本番に置く版(exe のフォルダと zip)を作る。開発者PCで、リポジトリ直下から実行する:
-#   powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1 [-SkipTests]
+#   powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1 [-SkipTests] [-Console]
 # 手順: 画面のビルド → テスト → PyInstaller → packaging\dist\v<版>\ と packaging\dist\GenbaApp-v<版>.zip
+# 標準はウィンドウを出さない形。-Console を付けると、コンソールを出す形を v<版>-console に作る(困ったときの確認用)。
 # 版は backend\app\__init__.py の __version__。詳細: docs/design/packaging.md
-param([switch]$SkipTests)
+param([switch]$SkipTests, [switch]$Console)
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
@@ -24,7 +25,7 @@ function Invoke-Native([string]$Name, [string]$Dir, [scriptblock]$Command) {
 
 if (-not (Test-Path $Python)) { throw "backend\.venv が見つかりません(README の「開発環境の準備」)" }
 $Version = (& $Python -c "import sys; sys.path.insert(0, r'$Root\backend'); from app import __version__; print(__version__)").Trim()
-$Name = "v$Version"
+$Name = if ($Console) { "v$Version-console" } else { "v$Version" }
 Write-Host "版: $Name"
 
 Invoke-Native "画面のビルド" (Join-Path $Root "frontend") { npm run build }
@@ -32,9 +33,14 @@ if (-not $SkipTests) {
     Invoke-Native "バックエンドのテスト" (Join-Path $Root "backend") { & $Python -m pytest -q }
     Invoke-Native "画面のテスト(vitest)" (Join-Path $Root "frontend") { npm test }
 }
-Invoke-Native "PyInstaller" $Root {
-    & $Python -m PyInstaller --noconfirm --clean --log-level WARN `
-        --distpath $Dist --workpath (Join-Path $PSScriptRoot "build") (Join-Path $PSScriptRoot "genba.spec")
+$env:GENBA_CONSOLE = if ($Console) { "1" } else { "0" }  # packaging\genba.spec が読む
+try {
+    Invoke-Native "PyInstaller" $Root {
+        & $Python -m PyInstaller --noconfirm --clean --log-level WARN `
+            --distpath $Dist --workpath (Join-Path $PSScriptRoot "build") (Join-Path $PSScriptRoot "genba.spec")
+    }
+} finally {
+    Remove-Item Env:GENBA_CONSOLE -ErrorAction SilentlyContinue
 }
 
 $Folder = Join-Path $Dist $Name

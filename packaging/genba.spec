@@ -1,5 +1,6 @@
 # PyInstaller の設定(packaging/build.ps1 から使う)。フォルダ形式(onedir)で packaging/dist/v<版>/ にまとめる。
 # 同梱するもの: 画面のビルド結果(frontend/dist)、マイグレーション、時刻帯のデータ(tzdata)。詳細: docs/design/packaging.md
+import os
 import re
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 ROOT = Path(SPECPATH).parent  # noqa: F821  SPECPATH は PyInstaller が渡す
 BACKEND = ROOT / "backend"
 VERSION = re.search(r'__version__ = "([^"]+)"', (BACKEND / "app" / "__init__.py").read_text(encoding="utf-8")).group(1)
+# 標準はウィンドウを出さない形。build.ps1 -Console(GENBA_CONSOLE=1)のときだけ、コンソールを出す形(困ったときの確認用)
+CONSOLE = os.environ.get("GENBA_CONSOLE") == "1"
 
 datas = [
     (str(ROOT / "frontend" / "dist"), "frontend_dist"),  # app/main.py の STATIC_DIR
@@ -36,7 +39,7 @@ exe = EXE(  # noqa: F821
     [],
     exclude_binaries=True,
     name="GenbaApp",
-    console=True,  # コンソールを出す形(ログを画面でも確かめられる)。ログは logs\genba.log にも出る
+    console=CONSOLE,  # どちらの形でも、ログは <基準>\logs\genba.log に出る
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, name=f"v{VERSION}", upx=False)  # noqa: F821
+coll = COLLECT(exe, a.binaries, a.datas, name=f"v{VERSION}-console" if CONSOLE else f"v{VERSION}", upx=False)  # noqa: F821
