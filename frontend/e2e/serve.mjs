@@ -23,7 +23,11 @@ mkdirSync(dataDir, { recursive: true });
 const config = join(dataDir, "config.toml");
 writeFileSync(config, `[paths]\ndatabase = "${join(dataDir, "genba.db").replaceAll("\\", "/")}"\n`, "utf-8");
 
-const env = { ...process.env, GENBA_CONFIG: config, GENBA_STATIC_DIR: join(frontend, "dist"), GENBA_CLOCK_START: CLOCK_START };
+// テスト用の時計は GENBA_TEST_MODE=1 と組でだけ有効になる(app/core/clock.py)
+const env = {
+  ...process.env, GENBA_CONFIG: config, GENBA_STATIC_DIR: join(frontend, "dist"),
+  GENBA_CLOCK_START: CLOCK_START, GENBA_TEST_MODE: "1",
+};
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 
 const server = spawn(python, ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", port], {
