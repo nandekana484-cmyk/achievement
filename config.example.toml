@@ -27,6 +27,14 @@ daily_at = "12:30"
 # 残す数。超えたら古い順に消す(消すのは本アプリが作った genba_*.db だけ)
 keep = 30
 
+[admin]
+# 管理画面のログイン。操作が無い時間(分)と、ログインからの最長の時間(時間)で切る
+idle_minutes = 30
+max_hours = 12
+# 同じ作業者IDで続けて lockout_failures 回間違えたら、lockout_minutes 分ログインできない
+lockout_failures = 5
+lockout_minutes = 5
+
 [schedule]
 # 稼働日の始まり。稼働日 = この時刻から翌日のこの時刻まで(これより前は前日の稼働日)
 day_start = "08:15"

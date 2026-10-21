@@ -118,3 +118,14 @@ def test_broken_config_tells_where(tmp_path):
     p.write_text("[server\nport = 1\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="config.toml の書き方に誤りがあります"):
         load_config(p)
+
+
+def test_admin_settings(tmp_path):
+    cfg = load_config(tmp_path / "none.toml").admin
+    assert (cfg.idle_minutes, cfg.max_hours, cfg.lockout_failures, cfg.lockout_minutes) == (30, 12, 5, 5)
+    p = tmp_path / "config.toml"
+    p.write_text("[admin]\nidle_minutes = 10\nlockout_failures = 3\n", encoding="utf-8")
+    cfg = load_config(p).admin
+    assert (cfg.idle_minutes, cfg.max_hours, cfg.lockout_failures, cfg.lockout_minutes) == (10, 12, 3, 5)
+    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").admin
+    assert (example.idle_minutes, example.max_hours) == (30, 12)

@@ -17,6 +17,30 @@ class Busy(Exception):
     message = "他の処理と重なったため、記録できませんでした。もう一度押してください"
 
 
+class Unauthorized(Exception):
+    """ログインしていない・ログインが切れた・管理者ではない(401)。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class Forbidden(Exception):
+    """決まったヘッダーの無いデータの変更など、受け付けない要求(403)。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
+class TooManyAttempts(Exception):
+    """続けて間違えたため、しばらくログインできない(429)。"""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
+
+
 class NotFound(Exception):
     """対象が見つからない(404)。"""
 

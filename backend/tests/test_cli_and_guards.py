@@ -123,7 +123,10 @@ def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys, fak
     from app.services.board import get_board
 
     with get_sessionmaker()() as s:
-        assert [(o.name, o.worker_id) for o in s.scalars(select(Operator))] == [("山田", "Y001"), ("佐藤", "S002"), ("山田", "Y015")]
+        assert [(o.name, o.worker_id, o.role) for o in s.scalars(select(Operator))] == [
+            ("山田", "Y001", "operator"), ("佐藤", "S002", "operator"), ("山田", "Y015", "operator"),
+            ("管理 花子", "A001", "admin"),  # 管理画面の確認用(パスワードは入れない)
+        ]
         assert s.scalar(select(func.count()).select_from(Line)) == 1
         b = get_board(s, "S", date(2026, 10, 21), time(8, 15))
     plans = {p.plan.kitting_no: p.plan for p in b.plans}
