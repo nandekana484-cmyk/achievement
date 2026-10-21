@@ -40,22 +40,41 @@ def default_log_dir() -> Path:
     return (app_home() or Path()) / "logs"
 
 
+EXIT_ALREADY_RUNNING = 2  # 同じDBで、ほかのプロセスが動いている
+EXIT_PORT_IN_USE = 4  # 使うポートが、ほかのプログラムに使われている(uvicorn の起動の失敗は 3)
+
+
 def main() -> int:
-    """起動し、止まるまで動かす。起動できなければ理由をログに出して 1 を返す。"""
+    """起動し、止まるまで動かす。起動できなければ理由をログに出して 0 以外を返す。"""
     setup_logging(default_log_dir())  # 設定の誤りで止まるときも、理由をファイルに残すため
+    lock = None
     try:
         import uvicorn
 
         from app import __version__
         from app.core.config import get_config
+        from app.core.single_instance import AlreadyRunning, InstanceLock, port_available
 
         config = get_config()
         if config.paths.log_dir.resolve() != default_log_dir().resolve():
             setup_logging(config.paths.log_dir)
+
+        # 起動処理(バックアップとマイグレーション)の前に確かめる。古い版を止め忘れたまま新しい版を起動しても、
+        # 動いている古い版の下でDBの形を変えないように
+        lock = InstanceLock(config.paths.database.parent / "genba.lock")
+        try:
+            lock.acquire()
+        except AlreadyRunning as e:
+            logger.error("起動しません: %s。同じフォルダの GenbaApp を止めてから起動してください", e)
+            return EXIT_ALREADY_RUNNING
+        if not port_available(config.server.host, config.server.port):
+            logger.error("起動しません: ポート %s はほかのプログラムが使っています(config.toml の server.port)", config.server.port)
+            return EXIT_PORT_IN_USE
+
         from app.main import app  # ログを整えてから読み込む(読み込み時の警告もファイルに残すため)
 
         logger.info("起動します(版 %s、%s:%s)", __version__, config.server.host, config.server.port)
-        # uvicorn のログも、上で整えた出力に流す(log_config=None)。ポートの使用中などは uvicorn がログに出して終了する
+        # uvicorn のログも、上で整えた出力に流す(log_config=None)
         uvicorn.run(app, host=config.server.host, port=config.server.port, log_config=None)
     except SystemExit as e:
         if e.code not in (0, None):
@@ -64,6 +83,9 @@ def main() -> int:
     except Exception:
         logger.exception("起動できませんでした")
         return 1
+    finally:
+        if lock is not None:
+            lock.release()
     logger.info("停止しました")
     return 0
 
