@@ -93,3 +93,5 @@ h1 { font-size: 26px; }
   background: var(--surface); border: 2px solid var(--border); border-radius: 10px;
   font-size: 26px; font-weight: 700; color: var(--text); text-decoration: none;
 }
+
+.dialog-error { padding: 10px 12px; border-radius: 8px; border: 2px solid var(--danger); background: var(--danger-bg); font-size: 16px; }

@@ -2,11 +2,18 @@
 import type { Operator } from "../../shared/api";
 import { Dialog } from "../../shared/Dialog";
 
-type Props = { operators: Operator[]; currentId: number | null; onPick: (id: number) => void; onCancel: () => void };
+type Props = {
+  operators: Operator[];
+  currentId: number | null;
+  message?: string; // 担当者が未設定のままボタンを押したときの案内など
+  onPick: (id: number) => void;
+  onCancel: () => void;
+};
 
-export function OperatorPicker({ operators, currentId, onPick, onCancel }: Props) {
+export function OperatorPicker({ operators, currentId, message, onPick, onCancel }: Props) {
   return (
     <Dialog title="担当者の交代" onCancel={onCancel}>
+      {message && <p className="dialog-error" role="status">{message}</p>}
       <p>このラインの今の担当者を選んでください。ボタン操作の記録に自動で付きます。</p>
       <div className="choice-grid">
         {operators.map((o) => (

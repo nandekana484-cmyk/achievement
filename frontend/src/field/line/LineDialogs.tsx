@@ -1,5 +1,6 @@
 // ライン画面のダイアログの出し分け。どのダイアログを出すかは LineScreen が DialogState で決める。
 import type { Board, BoardPlan, Masters, Reason } from "../../shared/api";
+import type { RunResult } from "../../shared/useOperation";
 import { ConfirmDialog } from "./dialogs/ConfirmDialog";
 import { LineEventStartDialog } from "./dialogs/LineEventStartDialog";
 import { NumberPadDialog } from "./dialogs/NumberPadDialog";
@@ -10,7 +11,7 @@ import type { StepStatus } from "./steps";
 import type { LineActions } from "./useLineActions";
 
 export type DialogState =
-  | { kind: "operator" }
+  | { kind: "operator"; message?: string }
   | { kind: "qty"; plan: BoardPlan; status: StepStatus }
   | { kind: "reason"; plan: BoardPlan; status: StepStatus }
   | { kind: "confirm"; plan: BoardPlan; status: StepStatus }
@@ -21,15 +22,22 @@ export type DialogState =
 type Props = { dialog: DialogState; board: Board; masters: Masters; actions: LineActions; close: () => void };
 
 export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
-  // ダイアログはすぐ閉じ、結果(成功・失敗)は画面のお知らせと board の読み直しで分かるようにする
+  // 選ぶだけのダイアログはすぐ閉じ、結果は画面のお知らせと board の読み直しで分かるようにする
   const then = (send: () => void) => () => {
     close();
     send();
+  };
+  // テンキーは送信が成功するまで閉じない(失敗の理由はダイアログの中に出す)
+  const untilSuccess = async (send: Promise<RunResult<unknown>>): Promise<string | null> => {
+    const r = await send;
+    if (r.ok) close();
+    return r.ok ? null : r.message;
   };
   switch (dialog.kind) {
     case "operator":
       return (
         <OperatorPicker
+          message={dialog.message}
           operators={masters.operators}
           currentId={board.current_operator?.operator_id ?? null}
           onPick={(id) => then(() => actions.changeOperator(id))()}
@@ -42,7 +50,7 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
           title={`${dialog.status.label}の終了`}
           message="この区切りで生産した数を入れてください。"
           submitLabel="生産を終了"
-          onSubmit={(n) => then(() => actions.endStep(dialog.plan, "production", n))()}
+          onSubmit={(n) => untilSuccess(actions.endStep(dialog.plan, "production", n, { showError: false }))}
           onCancel={close}
         />
       );
@@ -72,7 +80,7 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
           title="NG数の入力"
           initial={dialog.plan.ng_qty}
           submitLabel="NG数を記録"
-          onSubmit={(n) => then(() => actions.setNg(dialog.plan, n))()}
+          onSubmit={(n) => untilSuccess(actions.setNg(dialog.plan, n, { showError: false }))}
           onCancel={close}
         />
       );

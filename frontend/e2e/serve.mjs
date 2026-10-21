@@ -1,10 +1,14 @@
 // 画面の確認用のバックエンドを起動する(playwright.config.ts の webServer から呼ぶ)。
-// test-results/e2e-data/ に確認用のDBを作り直し、今日の確認用のデータを入れてから、ビルドした画面ごと配信する。
+// test-results/e2e-data/ に確認用のDBを作り直し、決まった稼働日の確認用のデータを入れてから、ビルドした画面ごと配信する。
+// 撮る時刻によって画面が変わらないよう、サーバーの時計は GENBA_CLOCK_START(確認用の稼働日の 10:00)から進める。
 // 既存アプリのDBは設定しない(legacy_app_dir なし)。
 import { execFileSync, spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+const E2E_DATE = "2026-10-21"; // e2e/screens.spec.ts の日付と合わせる
+const CLOCK_START = `${E2E_DATE}T10:00:00+09:00`;
 
 const port = process.argv[2] ?? "8765";
 const frontend = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,9 +23,8 @@ mkdirSync(dataDir, { recursive: true });
 const config = join(dataDir, "config.toml");
 writeFileSync(config, `[paths]\ndatabase = "${join(dataDir, "genba.db").replaceAll("\\", "/")}"\n`, "utf-8");
 
-const env = { ...process.env, GENBA_CONFIG: config, GENBA_STATIC_DIR: join(frontend, "dist") };
-const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // 日本時間の今日
-execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", today], { cwd: backend, env, stdio: "inherit" });
+const env = { ...process.env, GENBA_CONFIG: config, GENBA_STATIC_DIR: join(frontend, "dist"), GENBA_CLOCK_START: CLOCK_START };
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 
 const server = spawn(python, ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", port], {
   cwd: backend, env, stdio: "inherit",

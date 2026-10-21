@@ -1,6 +1,6 @@
 // ライン画面のボタン操作(APIの呼び出し)。送り方は shared/useOperation.ts にまとめてある。
 import { api, type BoardPlan, type LineEvent, type StepType } from "../../shared/api";
-import type { Operation } from "../../shared/useOperation";
+import type { Operation, RunOptions } from "../../shared/useOperation";
 import { stepKey } from "./StepPanel";
 
 const planPath = (p: BoardPlan) => ({ kitting_no: p.plan.kitting_no, lot_no: p.plan.lot_no });
@@ -21,16 +21,17 @@ export function useLineActions(lineCode: string, op: Operation) {
           body: { request_id, restart_reason_id: restartReasonId, equipment_id: equipmentId },
         })),
 
-    endStep: (p: BoardPlan, step: StepType, producedQty: number | null = null) =>
+    endStep: (p: BoardPlan, step: StepType, producedQty: number | null = null, options?: RunOptions) =>
       op.run(stepKey(p, step), { action: "end", producedQty }, (request_id) =>
         api.POST("/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/end", {
           params: { path: { ...planPath(p), step_type: step } },
           body: { request_id, produced_qty: producedQty },
-        })),
+        }), options),
 
-    setNg: (p: BoardPlan, ngQty: number) =>
+    setNg: (p: BoardPlan, ngQty: number, options?: RunOptions) =>
       op.run(`ng:${planId(p)}`, { ngQty }, (request_id) =>
-        api.PUT("/api/runs/{kitting_no}/{lot_no}/ng-qty", { params: { path: planPath(p) }, body: { request_id, ng_qty: ngQty } })),
+        api.PUT("/api/runs/{kitting_no}/{lot_no}/ng-qty", { params: { path: planPath(p) }, body: { request_id, ng_qty: ngQty } }),
+      options),
 
     addRemark: (p: BoardPlan, text: string) =>
       op.run(`remark:${planId(p)}`, { text }, (request_id) =>

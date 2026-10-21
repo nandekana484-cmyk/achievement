@@ -1,51 +1,69 @@
-// タイムテーブルの時刻と位置の変換。日付は日本時間の YYYY-MM-DD、時刻は +09:00 付きの ISO 文字列。
-// 端末の時間帯に関係なく日本時間で計算する。
+// タイムテーブルの時刻と位置の変換。基準は表示範囲の始まり(稼働日の始まりの12時間前)。
+// 時刻は +09:00 付きの ISO 文字列かミリ秒。端末の時間帯に関係なく日本時間で表示する。
 
-export const DAY_MINUTES = 24 * 60;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
-/** その日の 0:00(日本時間)のミリ秒。 */
-export function dayStartMs(date: string): number {
-  return Date.parse(`${date}T00:00:00+09:00`);
-}
+const toMs = (time: string | number) => (typeof time === "number" ? time : Date.parse(time));
 
-/** その日の 0:00 からの分(範囲外の値もそのまま返す)。 */
-export function minutesInDay(time: string | number, date: string): number {
-  const ms = typeof time === "number" ? time : Date.parse(time);
-  return (ms - dayStartMs(date)) / 60000;
+/** 基準からの分(範囲外の値もそのまま返す)。 */
+export function minutesFrom(time: string | number, originMs: number): number {
+  return (toMs(time) - originMs) / 60000;
 }
 
 export function minutesToY(minutes: number, pxPerHour: number): number {
   return (minutes / 60) * pxPerHour;
 }
 
-export function clampMinutes(m: number): number {
-  return Math.min(Math.max(m, 0), DAY_MINUTES);
-}
-
-export type Span = { top: number; height: number; startMin: number; endMin: number };
+export type Span = { top: number; height: number; startMin: number; endMin: number; clippedStart: boolean; clippedEnd: boolean };
 
 /**
- * 開始〜終了をその日の位置にする。終了が空(作業中)なら nowMs まで伸ばす。
- * その日に重ならなければ(0:00 ちょうどに終わるものも含む)null。高さは最低 minHeight にする(短い記録も見えるように)。
+ * 開始〜終了を、基準から totalMinutes 分の範囲の位置にする。終了が空(作業中)なら nowMs まで伸ばす。
+ * 範囲に重ならなければ(範囲の始まりちょうどに終わるものも含む)null。範囲からはみ出す分は切り、印のための旗を立てる。
+ * 高さは最低 minHeight にする(短い記録も見えるように)。
  */
 export function spanFor(
-  start: string, end: string | null | undefined, date: string, nowMs: number, pxPerHour: number, minHeight = 0,
+  start: string | null | undefined, end: string | null | undefined,
+  originMs: number, totalMinutes: number, nowMs: number, pxPerHour: number, minHeight = 0,
 ): Span | null {
-  const s = minutesInDay(start, date);
-  const e = end ? minutesInDay(end, date) : Math.max(s, minutesInDay(nowMs, date));
-  if (e <= 0 || s >= DAY_MINUTES) return null;
-  const startMin = clampMinutes(s);
-  const endMin = clampMinutes(e);
-  const top = minutesToY(startMin, pxPerHour);
-  return { top, height: Math.max(minutesToY(endMin - startMin, pxPerHour), minHeight), startMin, endMin };
+  if (!start) return null;
+  const s = minutesFrom(start, originMs);
+  const e = end ? minutesFrom(end, originMs) : Math.max(s, minutesFrom(nowMs, originMs));
+  if (e <= 0 || s >= totalMinutes) return null;
+  const startMin = Math.max(s, 0);
+  const endMin = Math.min(e, totalMinutes);
+  return {
+    top: minutesToY(startMin, pxPerHour),
+    height: Math.max(minutesToY(endMin - startMin, pxPerHour), minHeight),
+    startMin, endMin, clippedStart: s < 0, clippedEnd: e > totalMinutes,
+  };
+}
+
+/** 範囲の中のちょうどの時刻(日本時間の毎正時)と、その表示(「21:00」)。 */
+export function hourTicks(originMs: number, endMs: number): { ms: number; label: string }[] {
+  const ticks = [];
+  for (let ms = Math.ceil((originMs + JST_OFFSET_MS) / HOUR_MS) * HOUR_MS - JST_OFFSET_MS; ms <= endMs; ms += HOUR_MS) {
+    ticks.push({ ms, label: formatHM(ms) });
+  }
+  return ticks;
 }
 
 /** 時刻を「HH:MM」(日本時間)にする。 */
 export function formatHM(time: string | number): string {
-  const ms = (typeof time === "number" ? time : Date.parse(time)) + JST_OFFSET_MS;
-  const d = new Date(ms);
+  const d = new Date(toMs(time) + JST_OFFSET_MS);
   return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+/** 時刻を「10/18 9:00」(日本時間)にする。 */
+export function formatMDHM(time: string | number): string {
+  const d = new Date(toMs(time) + JST_OFFSET_MS);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+/** 日付を「10/21」にする(YYYY-MM-DD から)。 */
+export function formatMD(date: string): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}/${d}`;
 }
 
 /** 経過時間を「1時間05分」「12分」の形にする。 */
@@ -56,9 +74,11 @@ export function formatElapsed(fromMs: number, nowMs: number): string {
   return h > 0 ? `${h}時間${String(m).padStart(2, "0")}分` : `${m}分`;
 }
 
-/** 今日(日本時間)の YYYY-MM-DD。 */
-export function todayJst(nowMs: number): string {
-  return new Date(nowMs + JST_OFFSET_MS).toISOString().slice(0, 10);
+/**
+ * サーバーの時計とタブレットの時計の差(サーバー − タブレット)。往復の真ん中でサーバーが時刻を付けたとみなす。
+ */
+export function clockOffset(serverTime: string, sentMs: number, receivedMs: number): number {
+  return Date.parse(serverTime) - (sentMs + receivedMs) / 2;
 }
 
 /**

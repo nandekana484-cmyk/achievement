@@ -28,9 +28,29 @@ export interface paths {
         };
         /**
          * List Line Plans
-         * @description その日に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。
+         * @description 稼働日(day_start〜翌日の day_start)に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。
          */
         get: operations["list_line_plans_api_lines__line_code__plans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plans/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Plans
+         * @description 有効な計画を一部一致で探す(大文字・小文字、全角・半角の違いは無視)。計画開始が今に近い順に最大20件。
+         */
+        get: operations["search_plans_api_plans_search_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -51,6 +71,26 @@ export interface paths {
          * @description 直近の計画の同期の結果と、解決していない警告の件数。
          */
         get: operations["sync_status_api_sync_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/{lot_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Run
+         * @description 計画1件の工程の記録・生産数・NG数・完了・進捗率(表示範囲の外の計画を選んだときに使う)。
+         */
+        get: operations["get_run_api_runs__kitting_no___lot_no__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -212,7 +252,7 @@ export interface paths {
         };
         /**
          * Get Board
-         * @description ライン画面用: その日の計画ごとの工程の記録・生産数・NG数・完了・進捗率と、付帯作業、今の担当者。
+         * @description ライン画面用: 表示範囲の計画ごとの工程の記録・生産数・NG数・完了・進捗率と、付帯作業、今の担当者。
          */
         get: operations["get_board_api_lines__line_code__board_get"];
         put?: never;
@@ -256,6 +296,31 @@ export interface components {
              * Format: date
              */
             date: string;
+            /**
+             * Workday Start
+             * Format: date-time
+             */
+            workday_start: string;
+            /**
+             * Workday End
+             * Format: date-time
+             */
+            workday_end: string;
+            /**
+             * Display Start
+             * Format: date-time
+             */
+            display_start: string;
+            /**
+             * Display End
+             * Format: date-time
+             */
+            display_end: string;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
             current_operator: components["schemas"]["CurrentOperatorOut"] | null;
             /** Plans */
             plans: components["schemas"]["BoardPlanOut"][];
@@ -440,16 +505,10 @@ export interface components {
             cumulative_qty: number | null;
             /** Order Qty */
             order_qty: number | null;
-            /**
-             * Planned Start
-             * Format: date-time
-             */
-            planned_start: string;
-            /**
-             * Planned End
-             * Format: date-time
-             */
-            planned_end: string;
+            /** Planned Start */
+            planned_start: string | null;
+            /** Planned End */
+            planned_end: string | null;
             /** Deadline */
             deadline: string | null;
             /**
@@ -710,13 +769,47 @@ export interface operations {
     list_line_plans_api_lines__line_code__plans_get: {
         parameters: {
             query?: {
-                /** @description YYYY-MM-DD。省略すると今日 */
+                /** @description 稼働日(YYYY-MM-DD)。省略すると今の稼働日 */
                 date?: string | null;
             };
             header?: never;
             path: {
                 line_code: string;
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_plans_api_plans_search_get: {
+        parameters: {
+            query: {
+                /** @description キッティングNo.・ロットNo.・品名の一部 */
+                q: string;
+                /** @description 指定すると、そのラインの計画だけ */
+                line_code?: string | null;
+            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -757,6 +850,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncStatusOut"];
+                };
+            };
+        };
+    };
+    get_run_api_runs__kitting_no___lot_no__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+                lot_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BoardPlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1047,7 +1172,7 @@ export interface operations {
     get_board_api_lines__line_code__board_get: {
         parameters: {
             query?: {
-                /** @description YYYY-MM-DD。省略すると今日 */
+                /** @description 稼働日(YYYY-MM-DD)。省略すると今の稼働日 */
                 date?: string | null;
             };
             header?: never;

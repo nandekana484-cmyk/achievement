@@ -69,7 +69,7 @@
 .tt-sub { font-size: 16px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
 .tt-now { position: absolute; left: 0; right: 0; z-index: 2; border-top: 3px solid var(--danger); pointer-events: none; }
 .tt-now span {
-  position: absolute; left: 4px; top: -14px; padding: 0 6px; border-radius: 4px;
+  position: absolute; right: 4px; top: -14px; padding: 0 6px; border-radius: 4px;
   background: var(--danger); color: #fff; font-size: 16px; font-weight: 700;
 }
 
@@ -121,3 +121,36 @@
 .reason-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .reason-button { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .reason-note { font-size: 16px; color: var(--warn); }
+
+/* 計画の検索(左のカラムの上)。結果はカラムより広く重ねて出す */
+.plan-search { position: relative; margin-bottom: 4px; }
+.search-input {
+  width: 100%; min-height: var(--touch); padding: 8px 10px; font: inherit; font-size: 18px;
+  border: 2px solid var(--border); border-radius: 8px;
+}
+.search-results {
+  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; width: 400px; max-height: 60vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: var(--surface); border: 2px solid var(--accent); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.search-empty { margin: 8px; font-size: 16px; color: var(--muted); }
+.search-hit {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: var(--touch); padding: 8px 10px;
+  font: inherit; font-size: 16px; text-align: left; color: var(--text); cursor: pointer;
+  background: #f6f8fa; border: 2px solid var(--border); border-radius: 8px;
+}
+.hit-kno { font-size: 18px; font-weight: 700; }
+.hit-time { color: var(--muted); }
+
+/* 稼働日の境目と、表示範囲の端で切れた計画の印 */
+.tt-boundary { position: absolute; left: 0; right: 0; z-index: 2; border-top: 3px double var(--text); pointer-events: none; }
+.tt-boundary span {
+  position: absolute; left: 60px; top: 2px; padding: 0 8px; border-radius: 4px;
+  background: var(--text); color: #fff; font-size: 16px; font-weight: 700;
+}
+.tt-clip-start { border-top: 4px dashed var(--accent); }
+.tt-clip-end { border-bottom: 4px dashed var(--accent); }
+.tt-clip-mark { font-size: 16px; font-weight: 700; color: var(--accent); }
+.tt-clip-mark-end { margin-top: auto; }
+
+.col-center > .notice { margin: 8px; }
