@@ -9,7 +9,7 @@ from app.db.models import AuditLog, Reason
 from app.db.session import get_sessionmaker
 from app.services import admin_masters, line_events
 from app.services.errors import RuleViolation
-from conftest import H
+from admin_helpers import H
 
 
 def _audit(table):

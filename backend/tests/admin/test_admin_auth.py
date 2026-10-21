@@ -8,7 +8,7 @@ from app.db.session import get_sessionmaker
 from app.domain.passwords import verify_password
 from app.services import admin_auth
 from app.services.errors import RuleViolation
-from conftest import H, PASSWORD, login
+from admin_helpers import H, PASSWORD, login
 
 
 def _op(operator_id):

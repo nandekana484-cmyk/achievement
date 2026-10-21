@@ -5,11 +5,8 @@ from fastapi.testclient import TestClient
 
 from app.db.models import Line
 from app.db.session import get_sessionmaker
+from admin_helpers import PASSWORD, login
 from app.services import admin_auth, masters
-
-PASSWORD = "right-pass-1"
-H = {"X-Genba-Admin": "1"}
-
 
 @pytest.fixture
 def client(tmp_path, monkeypatch, fake_clock):
@@ -35,10 +32,6 @@ def people(client):
         worker = masters.add_operator(s, "山田", worker_id="Y001")
         admin_auth.set_password(s, "K0042", PASSWORD)
     return {"admin": admin.id, "worker": worker.id}
-
-
-def login(client, worker_id="K0042", password=PASSWORD):
-    return client.post("/api/admin/login", json={"worker_id": worker_id, "password": password}, headers=H)
 
 
 @pytest.fixture
