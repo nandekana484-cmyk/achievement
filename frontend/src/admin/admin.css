@@ -1,0 +1,49 @@
+/* 管理画面(PC。幅 1280px 以上)。現場の画面のようなタブレット向けの大きさにはしない。 */
+.admin { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; font-size: 15px; }
+.admin-menu { display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; background: var(--surface); border-right: 1px solid var(--border); }
+.admin-title { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+.admin-user { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+.admin-menu-item {
+  display: block; padding: 8px 10px; border-radius: 6px; color: var(--text); text-decoration: none;
+  font: inherit; text-align: left; background: none; border: 0; cursor: pointer;
+}
+.admin-menu-item:hover { background: #eaeef2; }
+.admin-menu-current { background: #dbe9fb; font-weight: 700; }
+.admin-logout { margin-top: auto; color: var(--danger); }
+.admin-main { padding: 20px 28px; min-width: 0; }
+.admin-main h1 { font-size: 22px; margin: 0 0 8px; }
+.admin-main h2 { font-size: 15px; margin: 0 8px 0 0; }
+.admin-note { color: var(--muted); margin: 0 0 12px; }
+.admin-loading { padding: 24px; }
+
+.admin-table { border-collapse: collapse; width: 100%; background: var(--surface); }
+.admin-table th, .admin-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: middle; }
+.admin-table th { background: #f6f8fa; font-weight: 600; white-space: nowrap; }
+.admin-table input:not([type="checkbox"]) { width: 100%; min-width: 80px; padding: 4px 6px; font: inherit; }
+.admin-table .admin-num, .admin-num { width: 80px; min-width: 0; }
+.admin-flag { text-align: center !important; }
+.admin-inactive td { color: var(--muted); background: #f3f4f6; }
+.admin-editing td { background: #fff8e1; }
+
+.admin-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; padding: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.admin-add input:not([type="checkbox"]), .admin-add select { padding: 5px 8px; font: inherit; }
+.admin-check { display: inline-flex; align-items: center; gap: 4px; }
+
+.admin-btn { padding: 5px 12px; margin-right: 6px; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: #f6f8fa; cursor: pointer; }
+.admin-btn:disabled { opacity: 0.5; }
+.admin-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.admin-info { padding: 8px 12px; border: 1px solid var(--accent); border-radius: 6px; background: #ddf4ff; }
+.admin-error { padding: 8px 12px; border: 1px solid var(--danger); border-radius: 6px; background: var(--danger-bg); }
+
+.admin-login { display: flex; justify-content: center; padding-top: 80px; }
+.admin-card { display: flex; flex-direction: column; gap: 12px; width: 360px; padding: 24px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.admin-card h1 { font-size: 20px; margin: 0; }
+.admin-card label { display: flex; flex-direction: column; gap: 4px; }
+.admin-card input { padding: 8px; font: inherit; }
+.admin-password { width: 420px; }
+.admin-sub-link { font-size: 13px; color: var(--muted); }
+
+/* ライン選択の画面の隅の、管理画面への小さなリンク */
+.admin-entry { position: fixed; right: 16px; bottom: 12px; font-size: 14px; color: var(--muted); }

@@ -56,6 +56,7 @@ export const ja = {
 
   "dashboard.title": "生産ラインを選択",
   "dashboard.noLines": "ラインが登録されていません(計画の同期で自動登録されます)。",
+  "dashboard.adminLink": "管理画面",
 
   "lineScreen.lineFallback": "{code}ライン",
   "lineScreen.pickOperatorFirst": "担当者が設定されていません。担当者を選んでから、もう一度ボタンを押してください。",
