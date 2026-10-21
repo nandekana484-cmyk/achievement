@@ -1,5 +1,7 @@
 """開発用のコマンド(python -m app.cli)と、DB側の二重記録の防止。"""
 
+from datetime import date
+
 import pytest
 from sqlalchemy import func, select
 
@@ -56,6 +58,44 @@ def test_cli_reasons_list(cli_config, capsys):
     out = capsys.readouterr().out
     assert "マシントラブル\tロス\t-\t○\t-\t○\t○" in out
     assert "人員交代\tロス以外\t-\t-\t-\t-\t○" in out
+
+
+def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys):
+    assert cli.main(["demo-seed", "--line", "s", "--date", "2026-10-21"]) == 0
+    assert cli.main(["demo-seed", "--line", "S", "--date", "2026-10-21"]) == 0  # 何度実行しても同じ
+    out = capsys.readouterr().out
+    assert "計画 5件" in out and "0722-1-S-261014-01" in out
+
+    from app.db.session import get_sessionmaker
+    from app.services.board import get_board
+
+    with get_sessionmaker()() as s:
+        assert [o.name for o in s.scalars(select(Operator))] == ["山田", "佐藤"]
+        assert s.scalar(select(func.count()).select_from(Line)) == 1
+        b = get_board(s, "S", date(2026, 10, 21))
+    plans = [p.plan for p in b.plans]
+    assert len(plans) == 5
+    assert {(p.lot_no, p.run_no) for p in plans if p.lot_no == "DEMO-001"} == {("DEMO-001", 1), ("DEMO-001", 2)}  # 組
+    assert any(p.takt_sec is None for p in plans)  # タクトなし
+    by_kno = {p.kitting_no: p for p in plans}
+    a, c = by_kno["0722-1-S-261014-01"], by_kno["0800-1-S-261014-03"]
+    assert a.planned_start < c.planned_end and c.planned_start < a.planned_end  # 時間の重なり
+
+
+def test_demo_seed_refuses_when_legacy_app_dir_is_set(tmp_path, monkeypatch, capsys):
+    cfg = tmp_path / "config.toml"
+    db = tmp_path / "real.db"
+    cfg.write_text(f'[paths]\ndatabase = "{db.as_posix()}"\nlegacy_app_dir = "C:/work/inventory/dist"\n', encoding="utf-8")
+    monkeypatch.setenv("GENBA_CONFIG", str(cfg))
+    from app.core.config import get_config
+
+    get_config.cache_clear()
+    try:
+        assert cli.main(["demo-seed", "--line", "S", "--date", "2026-10-21"]) == 1
+    finally:
+        get_config.cache_clear()
+    assert "legacy_app_dir が設定されている" in capsys.readouterr().err
+    assert not db.exists()  # DBに触らない
 
 
 def test_db_prevents_second_open_event(session_factory, legacy_app, legacy_db, fake_clock, monkeypatch):
