@@ -5,6 +5,8 @@ import { expect, type Page, test } from "@playwright/test";
 const KNO = (fileNo: string, seq: number) => `${fileNo}-1-S-261014-${String(seq).padStart(2, "0")}`;
 const FIRST = KNO("0722", 1); // 10/21 8:30〜11:30
 const PAST = KNO("0950", 7); // 10/18 9:00〜12:00(過ぎて未着手。検索で選ぶ)
+const MULTI1 = KNO("1000", 9); // 3ロット(DEMO-101〜103)の面1
+const MULTI2 = "1000-2-S-261014-10"; // 同じ3ロットの面2
 
 const shot = (page: Page, name: string) => page.screenshot({ path: `test-results/screens/${name}.png` });
 const step = (page: Page, name: string) => page.locator(".step-button", { hasText: name });
@@ -39,7 +41,7 @@ test("ライン画面の操作", async ({ page }) => {
   await expect(step(page, "段取り")).toContainText("未着手"); // 送っていない
 
   // ⑦ 409 のエラー表示: ほかの端末で先に段取りが開始され、この画面の表示がまだ古いまま押した
-  const res = await page.request.post(`/api/runs/${FIRST}/DEMO-001/steps/setup/start`, { data: { request_id: "e2e-other-tablet", operator_id: 1 } });
+  const res = await page.request.post(`/api/runs/${FIRST}/steps/setup/start`, { data: { request_id: "e2e-other-tablet", operator_id: 1 } });
   expect(res.status()).toBe(200);
   await step(page, "段取り").click();
   await expect(page.getByRole("alert")).toContainText("段取りは開始されたまま終了していません");
@@ -85,6 +87,33 @@ test("ライン画面の操作", async ({ page }) => {
   await expect(open.getByRole("button", { name: "終了" })).toBeVisible();
   await open.scrollIntoViewIfNeeded();
   await shot(page, "06-line-event-doing");
+
+  // ⑪ 複数ロットの計画を選んだ状態(枠はキッティングNo.ごとに1つ。右のパネルにロットの一覧)
+  await page.locator(".tt-plan", { hasText: MULTI1 }).click();
+  await expect(page.locator(".tt-plan", { hasText: MULTI1 })).toContainText("3ロット・計画数 300");
+  const lotTable = page.getByRole("table", { name: "ロットの一覧" });
+  await expect(lotTable.getByRole("row")).toHaveCount(4); // 見出し + 3ロット
+  await shot(page, "11-multi-lot-plan");
+
+  // 面1の計画では、面2のNGは選べない
+  await page.getByRole("button", { name: "NG数を入力" }).click();
+  let ngDialog = page.getByRole("dialog", { name: "NG数の入力" });
+  await ngDialog.getByRole("group", { name: "ロット" }).getByRole("button", { name: /DEMO-101/ }).click();
+  await expect(ngDialog.getByRole("group", { name: "面" }).getByRole("button", { name: /面2/ })).toBeDisabled();
+  await ngDialog.getByRole("button", { name: "やめる" }).click();
+
+  // ⑫ NGの入力: 面2の計画で、ロットを選び、面1(同じロットの面1の計画がある)を選んでテンキーで入れる
+  await page.locator(".tt-plan", { hasText: MULTI2 }).click();
+  await page.getByRole("button", { name: "NG数を入力" }).click();
+  ngDialog = page.getByRole("dialog", { name: "NG数の入力" });
+  await ngDialog.getByRole("group", { name: "ロット" }).getByRole("button", { name: /DEMO-102/ }).click();
+  await ngDialog.getByRole("group", { name: "面" }).getByRole("button", { name: /面1/ }).click();
+  for (const k of ["3"]) await ngDialog.getByRole("button", { name: k, exact: true }).click();
+  await expect(ngDialog.getByLabel("入力した数")).toHaveText("3");
+  await shot(page, "12-ng-input");
+  await ngDialog.getByRole("button", { name: "NG数を記録" }).click();
+  await expect(ngDialog).toBeHidden();
+  await expect(page.getByRole("table", { name: "ロットの一覧" }).getByRole("row", { name: /DEMO-102/ })).toContainText("3");
 
   // ⑧ 検索の結果
   await page.getByRole("searchbox", { name: /計画を検索/ }).fill("基板");

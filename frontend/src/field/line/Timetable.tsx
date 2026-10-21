@@ -12,7 +12,7 @@ export type TimetableHandle = { scrollToNow: () => void };
 
 type Props = { board: Board; nowMs: number; selectedKey: string | null; onSelect: (plan: BoardPlan) => void };
 
-export const planKey = (p: BoardPlan) => `${p.plan.kitting_no}|${p.plan.lot_no}`;
+export const planKey = (p: BoardPlan) => p.plan.kitting_no;
 
 type Block = { key: string; span: Span; label: string; sub: string; color?: string; className: string; onClick?: () => void };
 
@@ -39,8 +39,11 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     const selected = planKey(p) === selectedKey;
     const state = p.completed ? "完了" : selected ? "選択中" : `${Math.round((p.progress ?? 0) * 100)}%`;
     const clip = `${s.clippedStart ? " tt-clip-start" : ""}${s.clippedEnd ? " tt-clip-end" : ""}`;
+    // 枠はキッティングNo.ごとに1つ。ロットの数と計画数の合計を出す
+    const lots = p.plan.lots.length > 1 ? `${p.plan.lots.length}ロット` : p.plan.product_name;
     return [{
-      key: planKey(p), span: s, label: p.plan.product_name, sub: `${p.plan.kitting_no}・${p.plan.run_no}回目・${state}`,
+      key: planKey(p), span: s, label: p.plan.kitting_no,
+      sub: `${lots}・計画数 ${p.plan.planned_qty}・${p.plan.run_no}回目・${state}`,
       className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${clip}`, onClick: () => onSelect(p),
     }];
   });

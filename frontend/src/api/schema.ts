@@ -28,7 +28,7 @@ export interface paths {
         };
         /**
          * List Line Plans
-         * @description 稼働日(day_start〜翌日の day_start)に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。
+         * @description 稼働日(day_start〜翌日の day_start)に重なる計画のまとまり(キッティングNo.ごと)を、計画開始の順で返す。
          */
         get: operations["list_line_plans_api_lines__line_code__plans_get"];
         put?: never;
@@ -48,7 +48,7 @@ export interface paths {
         };
         /**
          * Search Plans
-         * @description 有効な計画を一部一致で探す(大文字・小文字、全角・半角の違いは無視)。計画開始が今に近い順に最大20件。
+         * @description 一部一致で探し、当たったキッティングNo.のまとまりを返す(大文字・小文字、全角・半角は無視。最大20件)。
          */
         get: operations["search_plans_api_plans_search_get"];
         put?: never;
@@ -79,7 +79,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/runs/{kitting_no}/{lot_no}": {
+    "/api/runs/{kitting_no}": {
         parameters: {
             query?: never;
             header?: never;
@@ -88,9 +88,9 @@ export interface paths {
         };
         /**
          * Get Run
-         * @description 計画1件の工程の記録・生産数・NG数・完了・進捗率(表示範囲の外の計画を選んだときに使う)。
+         * @description 計画のまとまり1件の工程の記録・生産数・NG数・完了・進捗率(表示範囲の外の計画を選んだときに使う)。
          */
-        get: operations["get_run_api_runs__kitting_no___lot_no__get"];
+        get: operations["get_run_api_runs__kitting_no__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -99,7 +99,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/start": {
+    "/api/runs/{kitting_no}/steps/{step_type}/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -112,14 +112,14 @@ export interface paths {
          * Start Step
          * @description 工程を開始する。
          */
-        post: operations["start_step_api_runs__kitting_no___lot_no__steps__step_type__start_post"];
+        post: operations["start_step_api_runs__kitting_no__steps__step_type__start_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/end": {
+    "/api/runs/{kitting_no}/steps/{step_type}/end": {
         parameters: {
             query?: never;
             header?: never;
@@ -132,14 +132,14 @@ export interface paths {
          * End Step
          * @description 工程を終了する。片付けの終了では完了の記録も作る。
          */
-        post: operations["end_step_api_runs__kitting_no___lot_no__steps__step_type__end_post"];
+        post: operations["end_step_api_runs__kitting_no__steps__step_type__end_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/runs/{kitting_no}/{lot_no}/ng-qty": {
+    "/api/runs/{kitting_no}/ng-qty": {
         parameters: {
             query?: never;
             header?: never;
@@ -149,9 +149,9 @@ export interface paths {
         get?: never;
         /**
          * Set Ng Qty
-         * @description NG数を入力する(行を追加し、最新の値を有効とする)。
+         * @description NG数を、ロットとNGが出た面を選んで入力する(同じロット・面では最新の値を有効とする)。
          */
-        put: operations["set_ng_qty_api_runs__kitting_no___lot_no__ng_qty_put"];
+        put: operations["set_ng_qty_api_runs__kitting_no__ng_qty_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -159,7 +159,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/runs/{kitting_no}/{lot_no}/remarks": {
+    "/api/runs/{kitting_no}/remarks": {
         parameters: {
             query?: never;
             header?: never;
@@ -172,7 +172,7 @@ export interface paths {
          * Add Remark
          * @description 備考を追加する。
          */
-        post: operations["add_remark_api_runs__kitting_no___lot_no__remarks_post"];
+        post: operations["add_remark_api_runs__kitting_no__remarks_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -333,13 +333,15 @@ export interface components {
         };
         /** BoardPlanOut */
         BoardPlanOut: {
-            plan: components["schemas"]["PlanOut"];
+            plan: components["schemas"]["KittingPlanOut"];
             /** Events */
             events: components["schemas"]["RunEventOut"][];
             /** Produced Qty */
             produced_qty: number;
-            /** Ng Qty */
-            ng_qty: number | null;
+            /** Ng Entries */
+            ng_entries: components["schemas"]["NgEntryOut"][];
+            /** Ng Choices */
+            ng_choices: components["schemas"]["NgChoiceOut"][];
             /** Completed */
             completed: boolean;
             completion: components["schemas"]["RunCompletionOut"] | null;
@@ -385,6 +387,47 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * KittingPlanOut
+         * @description 計画のまとまり(キッティングNo.ごと)。計画数はロットの数量の合計。
+         */
+        KittingPlanOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** File No */
+            file_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Run No */
+            run_no: number;
+            /** Product Name */
+            product_name: string;
+            /** Planned Qty */
+            planned_qty: number;
+            /** Planned Start */
+            planned_start: string | null;
+            /** Planned End */
+            planned_end: string | null;
+            /** Deadline */
+            deadline: string | null;
+            /**
+             * Issue Date
+             * Format: date
+             */
+            issue_date: string;
+            /** Issue Seq */
+            issue_seq: number;
+            /** Status */
+            status: string;
+            /** Takt Sec */
+            takt_sec: number | null;
+            /** Source Db */
+            source_db: string | null;
+            /** Lots */
+            lots: components["schemas"]["LotOut"][];
+            /** Warnings */
+            warnings: string[];
         };
         /** LineEventEndIn */
         LineEventEndIn: {
@@ -453,6 +496,18 @@ export interface components {
             /** Sort Order */
             sort_order: number;
         };
+        /**
+         * LotOut
+         * @description まとまり(キッティングNo.)の中のロット(確認用)。
+         */
+        LotOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Product Name */
+            product_name: string;
+            /** Planned Qty */
+            planned_qty: number;
+        };
         /** MastersOut */
         MastersOut: {
             /** Lines */
@@ -464,6 +519,68 @@ export interface components {
             /** Reasons */
             reasons: components["schemas"]["ReasonOut"][];
         };
+        /**
+         * NgChoiceOut
+         * @description ロットごとの、NGを入力できる面。
+         */
+        NgChoiceOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Sides */
+            sides: number[];
+            /** Side1 Kitting No */
+            side1_kitting_no: string | null;
+            /** Note */
+            note: string | null;
+        };
+        /**
+         * NgEntryOut
+         * @description ロットと面ごとの、最新のNG数。
+         */
+        NgEntryOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Side */
+            side: number;
+            /** Side Kitting No */
+            side_kitting_no: string;
+            /** Ng Qty */
+            ng_qty: number;
+            /**
+             * Entered By Name
+             * @default
+             */
+            entered_by_name: string;
+            /** Entered At */
+            entered_at?: string | null;
+        };
+        /**
+         * NgInputOut
+         * @description NG数の入力の結果。
+         */
+        NgInputOut: {
+            /** Id */
+            id: number;
+            /** Kitting No */
+            kitting_no: string;
+            /** Lot No */
+            lot_no: string;
+            /** Side */
+            side: number;
+            /** Side Kitting No */
+            side_kitting_no: string;
+            /** Ng Qty */
+            ng_qty: number;
+            /** Entered By */
+            entered_by: number;
+            /** Entered By Name */
+            entered_by_name: string;
+            /**
+             * Entered At
+             * Format: date-time
+             */
+            entered_at: string;
+        };
         /** NgQtyIn */
         NgQtyIn: {
             /**
@@ -471,6 +588,10 @@ export interface components {
              * @description 操作ごとに一意のID。再送には同じIDを使う
              */
             request_id: string;
+            /** Lot No */
+            lot_no: string;
+            /** Side */
+            side: number;
             /** Ng Qty */
             ng_qty: number;
             /** Operator Id */
@@ -484,48 +605,6 @@ export interface components {
             name: string;
             /** Sort Order */
             sort_order: number;
-        };
-        /** PlanOut */
-        PlanOut: {
-            /** Kitting No */
-            kitting_no: string;
-            /** Lot No */
-            lot_no: string;
-            /** File No */
-            file_no: string;
-            /** Line Code */
-            line_code: string;
-            /** Product Name */
-            product_name: string;
-            /** Run No */
-            run_no: number;
-            /** Planned Qty */
-            planned_qty: number;
-            /** Cumulative Qty */
-            cumulative_qty: number | null;
-            /** Order Qty */
-            order_qty: number | null;
-            /** Planned Start */
-            planned_start: string | null;
-            /** Planned End */
-            planned_end: string | null;
-            /** Deadline */
-            deadline: string | null;
-            /**
-             * Issue Date
-             * Format: date
-             */
-            issue_date: string;
-            /** Issue Seq */
-            issue_seq: number;
-            /** Legacy Status */
-            legacy_status: string | null;
-            /** Status */
-            status: string;
-            /** Takt Sec */
-            takt_sec: number | null;
-            /** Source Db */
-            source_db: string | null;
         };
         /** ReasonOut */
         ReasonOut: {
@@ -566,8 +645,6 @@ export interface components {
             id: number;
             /** Kitting No */
             kitting_no: string;
-            /** Lot No */
-            lot_no: string;
             /**
              * Completed At
              * Format: date-time
@@ -575,12 +652,14 @@ export interface components {
             completed_at: string;
             /** Produced Qty */
             produced_qty: number;
-            /** Ng Qty */
-            ng_qty: number | null;
             /** Plan Qty Snapshot */
             plan_qty_snapshot: number;
             /** Takt Sec Snapshot */
             takt_sec_snapshot: number | null;
+            /** Lots Snapshot */
+            lots_snapshot: components["schemas"]["LotOut"][];
+            /** Ng Snapshot */
+            ng_snapshot: components["schemas"]["NgEntryOut"][];
             /** Utilization */
             utilization: number | null;
         };
@@ -590,8 +669,6 @@ export interface components {
             id: number;
             /** Kitting No */
             kitting_no: string;
-            /** Lot No */
-            lot_no: string;
             /** Step Type */
             step_type: string;
             /** Seq */
@@ -622,14 +699,15 @@ export interface components {
             /** Equipment Name */
             equipment_name?: string | null;
         };
-        /** RunInputOut */
+        /**
+         * RunInputOut
+         * @description 備考(キッティングNo.の単位)。
+         */
         RunInputOut: {
             /** Id */
             id: number;
             /** Kitting No */
             kitting_no: string;
-            /** Lot No */
-            lot_no: string;
             /** Kind */
             kind: string;
             /** Value */
@@ -643,6 +721,12 @@ export interface components {
              * Format: date-time
              */
             entered_at: string;
+        };
+        /** SearchHitOut */
+        SearchHitOut: {
+            plan: components["schemas"]["KittingPlanOut"];
+            /** Matched */
+            matched: string[];
         };
         /** StepEndIn */
         StepEndIn: {
@@ -786,7 +870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlanOut"][];
+                    "application/json": components["schemas"]["KittingPlanOut"][];
                 };
             };
             /** @description Validation Error */
@@ -803,7 +887,7 @@ export interface operations {
     search_plans_api_plans_search_get: {
         parameters: {
             query: {
-                /** @description キッティングNo.・ロットNo.・品名の一部 */
+                /** @description キッティングNo.・ロットNo.・基板名の一部 */
                 q: string;
                 /** @description 指定すると、そのラインの計画だけ */
                 line_code?: string | null;
@@ -820,7 +904,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlanOut"][];
+                    "application/json": components["schemas"]["SearchHitOut"][];
                 };
             };
             /** @description Validation Error */
@@ -854,13 +938,12 @@ export interface operations {
             };
         };
     };
-    get_run_api_runs__kitting_no___lot_no__get: {
+    get_run_api_runs__kitting_no__get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 kitting_no: string;
-                lot_no: string;
             };
             cookie?: never;
         };
@@ -886,13 +969,12 @@ export interface operations {
             };
         };
     };
-    start_step_api_runs__kitting_no___lot_no__steps__step_type__start_post: {
+    start_step_api_runs__kitting_no__steps__step_type__start_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 kitting_no: string;
-                lot_no: string;
                 step_type: components["schemas"]["StepType"];
             };
             cookie?: never;
@@ -923,13 +1005,12 @@ export interface operations {
             };
         };
     };
-    end_step_api_runs__kitting_no___lot_no__steps__step_type__end_post: {
+    end_step_api_runs__kitting_no__steps__step_type__end_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 kitting_no: string;
-                lot_no: string;
                 step_type: components["schemas"]["StepType"];
             };
             cookie?: never;
@@ -960,13 +1041,12 @@ export interface operations {
             };
         };
     };
-    set_ng_qty_api_runs__kitting_no___lot_no__ng_qty_put: {
+    set_ng_qty_api_runs__kitting_no__ng_qty_put: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 kitting_no: string;
-                lot_no: string;
             };
             cookie?: never;
         };
@@ -982,7 +1062,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunInputOut"];
+                    "application/json": components["schemas"]["NgInputOut"];
                 };
             };
             /** @description Validation Error */
@@ -996,13 +1076,12 @@ export interface operations {
             };
         };
     };
-    add_remark_api_runs__kitting_no___lot_no__remarks_post: {
+    add_remark_api_runs__kitting_no__remarks_post: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 kitting_no: string;
-                lot_no: string;
             };
             cookie?: never;
         };

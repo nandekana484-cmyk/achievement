@@ -1,5 +1,5 @@
 // ライン画面(開発指針 7.1): 上部、左のメニュー(検索)、中央のタイムテーブル、右のパネル。
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import type { BoardPlan, LineEvent, Plan, Reason } from "../../shared/api";
 import { Notice } from "../../shared/Notice";
@@ -17,7 +17,7 @@ import { TopBar } from "./TopBar";
 import { useBoard } from "./useBoard";
 import { useLineActions } from "./useLineActions";
 import { useNow } from "./useNow";
-import { type PlanRef, refKey, useSelectedPlan } from "./useSelectedPlan";
+import { useSelectedPlan } from "./useSelectedPlan";
 
 const PICK_OPERATOR_FIRST = "担当者が設定されていません。担当者を選んでから、もう一度ボタンを押してください。";
 
@@ -28,15 +28,21 @@ export function LineScreen() {
   const op = useOperation(reload);
   const actions = useLineActions(lineCode, op);
   const nowMs = useNow(5_000, offsetMs);
-  const [selectedRef, setSelectedRef] = useState<PlanRef | null>(null);
+  const [selectedKno, setSelectedKno] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const timetable = useRef<TimetableHandle>(null);
   const lineEvents = useRef<HTMLElement>(null);
+  const rightPanel = useRef<HTMLElement>(null);
 
-  const selected = useSelectedPlan(board, selectedRef);
+  // 計画を選び直したら、右のパネルを先頭(選んだ計画の見出しとロットの一覧)に戻す
+  useEffect(() => {
+    if (rightPanel.current) rightPanel.current.scrollTop = 0;
+  }, [selectedKno]);
+
+  const selected = useSelectedPlan(board, selectedKno);
   const lineName = masters?.lines.find((l) => l.line_code === board?.line_code)?.name ?? `${lineCode}ライン`;
   const openOperator = () => setDialog({ kind: "operator" });
-  const select = (p: Plan) => setSelectedRef({ kitting_no: p.kitting_no, lot_no: p.lot_no });
+  const select = (p: Plan) => setSelectedKno(p.kitting_no);
 
   // 記録のボタンは、担当者が未設定ならサーバーに送らず、先に担当者を選ぶ画面を出す
   const withOperator = (action: () => void) => () => {
@@ -70,12 +76,12 @@ export function LineScreen() {
           <Notice kind="info">{outsideMessage(selected.plan)}</Notice>
         )}
         {board ? (
-          <Timetable ref={timetable} board={board} nowMs={nowMs} selectedKey={selectedRef && refKey(selectedRef)} onSelect={(p) => select(p.plan)} />
+          <Timetable ref={timetable} board={board} nowMs={nowMs} selectedKey={selectedKno} onSelect={(p) => select(p.plan)} />
         ) : (
           <p className="placeholder">{boardError ?? "読み込み中…"}</p>
         )}
       </section>
-      <aside className="col-right">
+      <aside className="col-right" ref={rightPanel}>
         {op.error && <Notice kind="error" onClose={op.clearError}>{op.error}</Notice>}
         {(boardError || mastersError) && board && <Notice kind="error">{boardError ?? mastersError}</Notice>}
         {board && !board.current_operator && (
