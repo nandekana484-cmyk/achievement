@@ -20,7 +20,7 @@ from app.api import health, lines, plans, runs
 from app.core.config import get_config
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
-from app.services.errors import NotFound, RuleViolation
+from app.services.errors import Busy, NotFound, RuleViolation
 from app.services.plan_sync_scheduler import PlanSyncScheduler
 
 logger = logging.getLogger(__name__)
@@ -67,6 +67,12 @@ def _rule_violation(_request: Request, exc: RuleViolation) -> JSONResponse:
 @app.exception_handler(NotFound)
 def _not_found(_request: Request, exc: NotFound) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": exc.message})
+
+
+@app.exception_handler(Busy)
+def _busy(_request: Request, exc: Busy) -> JSONResponse:
+    """書き込みが重なって記録できなかった。同じ request_id で送り直せば記録される。"""
+    return JSONResponse(status_code=503, content={"detail": exc.message})
 
 if STATIC_DIR.exists():
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")

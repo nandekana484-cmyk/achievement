@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import Equipment, Line, Operator, Reason
+from app.db.session import write_transaction
 from app.domain.normalize import normalize_mounting_line
 from app.services.errors import NotFound, RuleViolation
 from app.services.views import EquipmentOut, LineOut, MastersOut, OperatorOut, ReasonOut
@@ -63,9 +64,11 @@ def add_operator(session: Session, name: str, sort_order: int | None = None) -> 
     name = name.strip()
     if not name:
         raise RuleViolation("作業者の名前が空です")
-    op = Operator(name=name, active=True, sort_order=sort_order if sort_order is not None else _next_sort_order(session, Operator))
-    session.add(op)
-    session.commit()
+    with write_transaction(session):
+        op = Operator(name=name, active=True,
+                      sort_order=sort_order if sort_order is not None else _next_sort_order(session, Operator))
+        session.add(op)
+        session.commit()
     return op
 
 
@@ -73,14 +76,16 @@ def add_equipment(session: Session, line_code: str, name: str, sort_order: int |
     name = name.strip()
     if not name:
         raise RuleViolation("設備の名前が空です")
-    try:
-        line = get_line(session, line_code)
-    except NotFound:
-        raise RuleViolation(f"ライン「{line_code}」が登録されていません(ラインは計画の同期で自動登録されます)") from None
-    eq = Equipment(line_code=line.line_code, name=name, active=True,
-                   sort_order=sort_order if sort_order is not None else _next_sort_order(session, Equipment))
-    session.add(eq)
-    session.commit()
+    with write_transaction(session):
+        try:
+            line = get_line(session, line_code)
+        except NotFound:
+            session.rollback()
+            raise RuleViolation(f"ライン「{line_code}」が登録されていません(ラインは計画の同期で自動登録されます)") from None
+        eq = Equipment(line_code=line.line_code, name=name, active=True,
+                       sort_order=sort_order if sort_order is not None else _next_sort_order(session, Equipment))
+        session.add(eq)
+        session.commit()
     return eq
 
 
