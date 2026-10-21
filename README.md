@@ -97,6 +97,14 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 http://localhost:8000 で画面とAPIが1つのプロセスから配信される。
 
+## 本番の版(exe)を作る
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1
+```
+
+画面のビルド → テスト → PyInstaller で `packaging\dist\v<版>\`(GenbaApp.exe)と `GenbaApp-v<版>.zip` を作る。担当者PCへの置き方、自動起動、ファイアウォール、バックアップは [docs/design/packaging.md](docs/design/packaging.md)。
+
 ## コードの大きさの確認
 
 リポジトリ直下で `py -3.14 tools/check_code_size.py --top 10`(標準ライブラリだけで動く。ルールは [AGENTS.md](AGENTS.md) の「コードの大きさとコメントのルール」)。スクリプト自体のテストは `backend\.venv\Scripts\python.exe -m pytest tools/tests`。

@@ -1,13 +1,14 @@
 """アプリの入口。
 
 1プロセスで、APIとビルド済みの画面(frontend/dist)をまとめて配信する。
-起動: uvicorn app.main:app --port 8000(backend フォルダで実行)
+起動: uvicorn app.main:app --port 8000(backend フォルダで実行)。exe の入口は app/server.py
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -17,25 +18,33 @@ from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api import health, lines, plans, runs
-from app.core.config import get_config
+from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
+from app.services.backup import DailyBackup, make_backup
 from app.services.errors import Busy, NotFound, RuleViolation
 from app.services.plan_sync_scheduler import PlanSyncScheduler
 
 logger = logging.getLogger(__name__)
 
-# 画面のビルド成果物。exe化したときは packaging 側で同梱先を GENBA_STATIC_DIR に渡す。
+# 画面のビルド成果物。exe では同梱したもの(packaging/genba.spec の frontend_dist)。GENBA_STATIC_DIR で変えられる
+_BUNDLED_STATIC = Path(getattr(sys, "_MEIPASS", ".")) / "frontend_dist"
 STATIC_DIR = Path(
-    os.environ.get("GENBA_STATIC_DIR", Path(__file__).resolve().parents[2] / "frontend" / "dist")
+    os.environ.get("GENBA_STATIC_DIR")
+    or (_BUNDLED_STATIC if is_frozen() else Path(__file__).resolve().parents[2] / "frontend" / "dist")
 )
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     config = get_config()
+    logger.info("基準のフォルダ: %s、DB: %s", config.home or Path.cwd(), config.paths.database)
+    # 更新の前のバックアップ(開発指針 10)。DBの構造を変える前に取る
+    make_backup(config.paths.database, config.paths.backup_dir, config.backup.keep, "startup")
     engine = init_db(config.paths.database)
     upgrade_to_head(engine)
+    daily_backup = DailyBackup(config.paths.database, config.paths.backup_dir, config.backup)
+    daily_backup.start()
 
     scheduler: PlanSyncScheduler | None = None
     if config.paths.legacy_app_dir is None:
@@ -48,6 +57,7 @@ async def lifespan(_app: FastAPI):
     finally:
         if scheduler is not None:
             await scheduler.stop()
+        await daily_backup.stop()
         engine.dispose()
 
 
