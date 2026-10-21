@@ -53,6 +53,32 @@ npm run dev
 
 ブラウザで http://localhost:5173 を開く。稼働確認は http://localhost:8000/api/health 。
 
+## 画面の確認用のデータ
+
+既存アプリのDBを使わずに画面を確かめるときは、確認用の計画(5件。1回目と2回目の組、時間の重なり、タクトなしを含む)と、作業者2名・設備2台を入れる。
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.cli demo-seed --line S --date 2026-10-21
+```
+
+- 対象は config.toml の `paths.database`。何度実行しても同じ結果になる
+- config.toml に `paths.legacy_app_dir` が設定されているときは、実データと混ざらないよう、何もせずにエラーで止まる
+- 日付は、ライン画面で見る日(ふつうは今日)にする
+
+## 画面の開発(frontend)
+
+```powershell
+cd frontend
+npm run gen:api   # APIの型を作り直す(バックエンドの OpenAPI → src/api/schema.ts)。APIを変えたら必ず実行する
+npm test          # vitest(UUID、時刻と位置の変換、工程の状態、送り直し)
+npm run build
+npx playwright install chromium   # 初回だけ(ブラウザをユーザーのフォルダに入れる)
+npm run e2e       # Playwright。確認用のデータを入れたDBで画面を操作し、frontend/test-results/screens/ にスクリーンショットを撮る
+```
+
+`npm run e2e` は `npm run build` のあとで実行する(ビルドした画面をバックエンドが配信する形で確かめる)。確認用のDBは `frontend/test-results/e2e-data/` に毎回作り直す。
+
 ## DBの構造の更新(Alembic)
 
 起動時に自動で最新の構造に更新される。手で `python -m alembic ...` を使うとき(backend フォルダで、venv の中で)は、**対象が config.toml(環境変数 `GENBA_CONFIG`、未指定なら `data\config.toml`)の `paths.database` になる**ので、どのDBを指しているか確認してから実行する。

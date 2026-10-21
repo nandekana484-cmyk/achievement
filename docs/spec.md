@@ -66,7 +66,7 @@
 | バックエンド | Python + FastAPI(uvicorn 1プロセス) | 画面の静的ファイルも配信する |
 | DB | SQLite(WALモード)+ SQLAlchemy + Alembic | 書き込みは短いトランザクション |
 | フロントエンド | React + TypeScript + Vite | ビルドした静的ファイルをFastAPIから配信 |
-| APIクライアント | OpenAPIから自動生成 | 画面とAPIの食い違いを防ぐ |
+| APIクライアント | OpenAPIから自動生成(openapi-typescript + openapi-fetch。`npm run gen:api`) | 画面とAPIの食い違いを防ぐ。手書きの fetch は使わない |
 | 画面の更新 | 数秒ごとのポーリング | 遅延が問題になったらWebSocketを検討 |
 | 配布 | PyInstaller(フォルダ形式)で版ごとに配布 | 担当者PCにPythonもNode.jsも入れない |
 | テスト | pytest(バックエンド)、Playwright(画面) | |
@@ -374,6 +374,7 @@ API:
 - タイムテーブルで計画をクリックすると、右カラムにその回の工程ボタンが表示される
 - 計画の枠は最新の計画の順番で、実績は実際にボタンが押された時刻で描く(順番が入れ替わっても実績は動かない)
 - 付帯作業のボタンは、計画を選んでいなくても押せる
+- 詳細: docs/design/line-screen.md(実装した画面の作り、ボタン操作の送り方、タブレット向けの決まり)
 
 ### 7.2 管理画面(PC)
 
