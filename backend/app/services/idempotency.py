@@ -1,13 +1,6 @@
-"""ボタン操作の冪等性(開発指針 0-5)。
+"""ボタン操作の冪等性(開発指針 0-5)。同じ request_id の再送には最初の応答を返し、内容が違えば 409。
 
-端末は操作ごとに一意の request_id を送る。
-- 初めての request_id: 操作を行い、要求の内容と応答を api_requests に記録する
-- 同じ request_id で同じ内容: 操作はせず、最初の応答をそのまま返す
-- 同じ request_id で違う内容: 拒否する(409)
-- ルール違反やDBの混雑で失敗した操作は記録しない(同じ request_id で送り直せば、もう一度判定する)
-
-操作は write_transaction(app/db/session.py)の中で行う。計画の同期と同じプロセス内のロックを使い、
-トランザクションは BEGIN IMMEDIATE で始める(終了していない記録の確認と追加の間に、ほかの書き込みが割り込まない)。
+詳細: docs/design/run-records.md
 """
 
 from __future__ import annotations

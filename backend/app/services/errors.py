@@ -1,7 +1,4 @@
-"""業務ルールの違反を表す例外。メッセージは画面にそのまま出せる日本語の文にする。
-
-API(main.py の例外ハンドラ)で、RuleViolation は 409、NotFound は 404、Busy は 503 に変える。
-"""
+"""業務ルールの違反などの例外(main.py で 409 / 404 / 503 に変える)。メッセージは画面にそのまま出せる文。"""
 
 from __future__ import annotations
 

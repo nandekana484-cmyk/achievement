@@ -1,8 +1,4 @@
-"""起動時にDBの構造を最新に更新する(Alembic)。
-
-マイグレーションの場所は __file__ 基準で決める。カレントフォルダや alembic.ini の場所には依存しないので、
-PyInstaller で exe にしても、migrations フォルダを app/db/ の下に同梱すれば動く。
-"""
+"""起動時にDBの構造を最新に更新する(Alembic)。"""
 
 from __future__ import annotations
 
@@ -12,7 +8,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine
 
-MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
+MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"  # exe にしても動くよう __file__ 基準
 
 
 def alembic_config() -> Config:

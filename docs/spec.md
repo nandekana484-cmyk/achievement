@@ -129,7 +129,7 @@ genba-app/
 
 ### 5.2 計画データの項目
 
-既存アプリの月次DBの `kitting_plan_items`(1行=1計画=1面)から読む。
+既存アプリの月次DBの `kitting_plan_items`(1行=1計画=1面)から読む。詳細: docs/design/legacy-integration.md
 
 | 本アプリの項目 | 既存DBの列 | 備考 |
 | --- | --- | --- |
@@ -168,6 +168,8 @@ genba-app/
 ### 5.4 回の工程
 
 各回で、次の工程の開始・終了を記録する。段取りと片付けは回ごと(表と裏で別々)に行う。
+
+詳細: docs/design/run-records.md(5.4〜5.8 の実装の判断の理由。冪等性、二重の記録の防止、完了の写し、board の付帯作業の扱いなど)
 
 | 工程 | step_type | 入力 | 必須 |
 | --- | --- | --- | --- |
@@ -282,7 +284,8 @@ API:
 ### 6.1 計画の取得(既存 → 本アプリ)
 
 - 既存アプリのSQLiteを**読み取り専用**で開き(SQLiteのURIで `mode=ro`)、一定間隔(既定1分、設定で変更可)で計画を読む。読み取りは短く終える
-- 既存DBの構造に依存する処理は `integration/legacy_plans.py` に閉じ込める
+- 既存DBの構造に依存する処理は `integration/legacy/`(入口は `integration/legacy_plans.py`)に閉じ込める
+- 詳細: docs/design/legacy-integration.md(既存アプリの調査結果、正とするDBの決め方と取消にしない条件の理由)
 - 差分は**自動で反映**する(計画は頻繁に変わるため、人の確認は挟まない)
 
 **読むDB**(設定は既存アプリのフォルダ `paths.legacy_app_dir` だけ):
@@ -416,10 +419,13 @@ API:
 
 - 時刻はサーバーが記録し、タイムゾーン付き(日本時間)で保存する
 - 削除はしない。取り消しは状態で表す
+- テーブルの定義は `backend/app/db/models/`(plans.py=計画と同期、records.py=実績、masters.py=マスタ)。詳細: docs/design/run-records.md
 
 ---
 
 ## 9. 非機能要件
+
+詳細: docs/design/db-writes.md(書き込みのロックの背景とテスト)
 
 | 項目 | 方針 |
 | --- | --- |

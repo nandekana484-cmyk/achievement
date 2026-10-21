@@ -1,15 +1,6 @@
-"""本アプリのDB(SQLite)への接続。
+"""本アプリのDB(SQLite、WAL)への接続と、書き込みのトランザクション(write_transaction)。
 
-- WALモードで開き、複数端末からの読み取りと書き込みを両立させる
-- 外部キー制約を有効にする
-- 既存アプリのDBはここでは扱わない(integration/ で読み取り専用に開く)
-
-書き込みの衝突を防ぐ(開発指針 9):
-- SQLite は、古い読み取りにもとづく書き込みを拒否する(busy_timeout があっても即座に database is locked になる)。
-  そこで、本アプリのDBに書き込む処理は write_transaction() の中で行い、処理の最初に書き込みのロックを取る
-  (BEGIN IMMEDIATE)。あわせて、同じプロセス内の書き込みは1つのロックで1つずつ行う
-- トランザクションの開始は、SQLAlchemy が pysqlite 向けに示している方法で制御する
-  (pysqlite 自身の BEGIN を止め、begin イベントで BEGIN / BEGIN IMMEDIATE を出す)
+詳細: docs/design/db-writes.md
 """
 
 from __future__ import annotations
@@ -30,8 +21,7 @@ BUSY_TIMEOUT_MS = 10_000
 # 実行オプション。これが付いた接続のトランザクションは BEGIN IMMEDIATE で始める
 _IMMEDIATE = "genba_begin_immediate"
 
-# 本アプリのDBへの書き込み(ボタン操作、計画の同期、開発用コマンド)を1つずつ行うためのロック。
-# 1プロセスで動かす前提(開発指針 0-7)。同じスレッドの入れ子は許す
+# 同じプロセス内の書き込みを1つずつ行う(1プロセス前提。開発指針 0-7)
 write_lock = threading.RLock()
 
 
@@ -66,13 +56,9 @@ def make_engine(db_path: Path) -> Engine:
 
 @contextmanager
 def write_transaction(session: Session) -> Iterator[None]:
-    """本アプリのDBに書き込む処理を囲む。プロセス内のロックを取り、トランザクションを BEGIN IMMEDIATE で始める。
-
-    中でコミットまで行うこと。セッションがすでにトランザクションの途中(読み取りなど)なら、
-    古い読み取りにもとづいて書かないよう、いったん終えてから始め直す。
-    """
+    """書き込む処理を囲む。プロセス内のロックを取り、BEGIN IMMEDIATE で始める(中でコミットまで行う)。"""
     with write_lock:
-        if session.in_transaction():
+        if session.in_transaction():  # 古い読み取りにもとづいて書かないよう、いったん終える
             session.commit()
         session.connection(execution_options={_IMMEDIATE: True})
         yield
