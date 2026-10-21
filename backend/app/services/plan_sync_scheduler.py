@@ -1,9 +1,6 @@
-"""計画の同期の定期実行。
+"""計画の同期の定期実行(asyncio のタスク。同期そのものは別スレッドで、同時に1つだけ)。
 
-- main.py の lifespan で start() / stop() する asyncio のタスク
-- 同期処理は別スレッドで実行し、イベントループ(APIの応答)を止めない
-- 同期は同時に1つだけ。実行中に次が来たら skipped として記録する
-- 1回の失敗で止めず、次の回も実行する
+詳細: docs/design/legacy-integration.md
 """
 
 from __future__ import annotations

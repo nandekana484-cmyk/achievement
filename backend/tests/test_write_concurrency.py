@@ -94,17 +94,119 @@ N_LINE_EVENT_CYCLES = 10
 N_OPERATOR_CHANGES = 10
 N_SYNCS = 15
 SENDS = 2  # 同じ request_id で2回ずつ送る(再送)
+SYNC_TARGET = "0799-1-S-251014-99"  # 同期のたびに数量を変える計画(同期にも書き込ませる)
 
 
 def _plan_kno(i: int) -> str:
     return f"{700 + i:04d}-1-S-251014-{i:02d}"
 
 
+class _Load:
+    """ボタン操作と計画の同期を、複数のスレッドから同時に行う。"""
+
+    def __init__(self, client, legacy_app, legacy_db, yamada: int, sato: int) -> None:  # noqa: ANN001
+        self.client, self.legacy_app, self.legacy_db = client, legacy_app, legacy_db
+        self.yamada, self.sato = yamada, sato
+        self.restart = [_reason_id("人員交代"), _reason_id("トラブル停止")]
+        self.line_reasons = [_reason_id("部品探し"), _reason_id("欠品")]
+        self.statuses: Counter = Counter()
+        self.failures: list[str] = []
+        self.sync_results: list[str] = []
+        self.lock = threading.Lock()
+        self.barrier = threading.Barrier(N_PLANS + N_LINE_EVENT_THREADS + 2)
+        self.threads: list[threading.Thread] = []
+
+    def run(self) -> float:
+        """全スレッドを同時に始めて、終わるまで待つ。かかった秒数を返す。"""
+        self.threads = [threading.Thread(target=self.plan_worker, args=(i,)) for i in range(N_PLANS)]
+        self.threads += [threading.Thread(target=self.line_event_worker, args=(r,)) for r in self.line_reasons]
+        self.threads += [threading.Thread(target=self.operator_worker), threading.Thread(target=self.sync_worker)]
+        started = time.perf_counter()
+        for t in self.threads:
+            t.start()
+        for t in self.threads:
+            t.join(timeout=120)
+        assert not any(t.is_alive() for t in self.threads), "終わらないスレッドがあります"
+        return time.perf_counter() - started
+
+    def send(self, method: str, url: str, body: dict) -> dict:
+        """同じ request_id で SENDS 回送り、200 以外や、再送で応答が変わったものを記録する。"""
+        body = {"request_id": rid(), **body}
+        first = None
+        for _ in range(SENDS):
+            r = self.client.request(method, url, json=body)
+            with self.lock:
+                self.statuses[r.status_code] += 1
+                if r.status_code != 200:
+                    self.failures.append(f"{method} {url} -> {r.status_code} {r.text}")
+            if first is None:
+                first = r.json()
+            elif r.status_code == 200 and r.json() != first:
+                with self.lock:
+                    self.failures.append(f"再送で応答が変わった: {url}")
+        return first
+
+    def plan_worker(self, i: int) -> None:
+        base = f"/api/runs/{_plan_kno(i)}/L{i:03d}"
+        op = {"operator_id": self.yamada}
+        self.barrier.wait()
+        self.send("POST", f"{base}/steps/setup/start", op)
+        self.send("POST", f"{base}/steps/setup/end", op)
+        for seg in range(3):
+            self.send("POST", f"{base}/steps/production/start", {**op, "restart_reason_id": self.restart[seg - 1] if seg else None})
+            self.send("POST", f"{base}/steps/production/end", {**op, "produced_qty": 10 * (seg + 1)})
+        self.send("PUT", f"{base}/ng-qty", {**op, "ng_qty": i})
+        self.send("POST", f"{base}/remarks", {**op, "text": f"備考{i}"})
+        self.send("POST", f"{base}/steps/cleanup/start", op)
+        self.send("POST", f"{base}/steps/cleanup/end", op)
+
+    def line_event_worker(self, reason_id: int) -> None:
+        self.barrier.wait()
+        for _ in range(N_LINE_EVENT_CYCLES):
+            e = self.send("POST", "/api/lines/S/events/start", {"reason_id": reason_id, "operator_id": self.sato})
+            self.send("POST", f"/api/lines/S/events/{e['id']}/end", {"operator_id": self.sato})
+
+    def operator_worker(self) -> None:
+        self.barrier.wait()
+        for n in range(N_OPERATOR_CHANGES):
+            self.send("PUT", "/api/lines/S/operator", {"operator_id": self.sato if n % 2 == 0 else self.yamada})
+
+    def sync_worker(self) -> None:
+        self.barrier.wait()
+        for n in range(N_SYNCS):
+            insert_plan(self.legacy_db, kitting_no=SYNC_TARGET, file_no="0799", lot_no="L999", qty=101 + n)
+            with get_sessionmaker()() as s:
+                r = run_plan_sync(s, self.legacy_app)
+            with self.lock:
+                self.sync_results.append(r.result if r.result == "ok" else f"{r.result}: {r.error_message}")
+
+
+def _assert_records_are_exact(operations: int) -> None:
+    """記録が欠けたり重複したりしていない。"""
+    assert _count(RunEvent) == N_PLANS * 5
+    assert _count(RunEvent, RunEvent.end_at.is_(None)) == 0
+    assert _count(RunCompletion) == N_PLANS
+    assert _count(RunInput) == N_PLANS * 2
+    assert _count(LineEvent) == N_LINE_EVENT_THREADS * N_LINE_EVENT_CYCLES
+    assert _count(LineEvent, LineEvent.end_at.is_(None)) == 0
+    assert _count(LineOperator) == 1 + N_OPERATOR_CHANGES
+    assert _count(LineOperator, LineOperator.end_at.is_(None)) == 1
+    assert _count(PlanSyncRun) == 1 + N_SYNCS
+    assert _count(ApiRequest) == 1 + operations  # 最初の担当者の設定 + 各操作(再送は数えない)
+    with get_sessionmaker()() as s:
+        for i in range(N_PLANS):
+            seqs = list(s.scalars(select(RunEvent.seq).where(
+                RunEvent.kitting_no == _plan_kno(i), RunEvent.step_type == "production").order_by(RunEvent.seq)))
+            assert seqs == [1, 2, 3]
+            c = s.scalars(select(RunCompletion).where(RunCompletion.kitting_no == _plan_kno(i))).one()
+            assert (c.produced_qty, c.ng_qty) == (60, i)
+        assert s.get(Plan, (SYNC_TARGET, "L999")).planned_qty == 100 + N_SYNCS
+
+
 def test_concurrent_button_operations_and_sync(tmp_path, monkeypatch, legacy_app, legacy_db, fake_clock, capsys):
     for i in range(N_PLANS):
         insert_plan(legacy_db, kitting_no=_plan_kno(i), file_no=f"{700 + i:04d}", lot_no=f"L{i:03d}")
-    sync_target = "0799-1-S-251014-99"  # 同期のたびに数量を変える計画(同期にも書き込ませる)
-    insert_plan(legacy_db, kitting_no=sync_target, file_no="0799", lot_no="L999", qty=100)
+    insert_plan(legacy_db, kitting_no=SYNC_TARGET, file_no="0799", lot_no="L999", qty=100)
 
     with _client(tmp_path, monkeypatch) as client:
         with get_sessionmaker()() as s:
@@ -112,106 +214,20 @@ def test_concurrent_button_operations_and_sync(tmp_path, monkeypatch, legacy_app
             yamada = masters.add_operator(s, "山田").id
             sato = masters.add_operator(s, "佐藤").id
         client.put("/api/lines/S/operator", json={"request_id": rid(), "operator_id": yamada})
-        restart = [_reason_id("人員交代"), _reason_id("トラブル停止")]
-        line_reasons = [_reason_id("部品探し"), _reason_id("欠品")]
 
-        statuses: Counter = Counter()
-        failures: list[str] = []
-        sync_results: list[str] = []
-        lock = threading.Lock()
-        barrier = threading.Barrier(N_PLANS + N_LINE_EVENT_THREADS + 2)
+        load = _Load(client, legacy_app, legacy_db, yamada, sato)
+        elapsed = load.run()
 
-        def send(method: str, url: str, body: dict) -> dict:
-            body = {"request_id": rid(), **body}
-            first = None
-            for _ in range(SENDS):
-                r = client.request(method, url, json=body)
-                with lock:
-                    statuses[r.status_code] += 1
-                    if r.status_code != 200:
-                        failures.append(f"{method} {url} -> {r.status_code} {r.text}")
-                if first is None:
-                    first = r.json()
-                elif r.status_code == 200 and r.json() != first:
-                    with lock:
-                        failures.append(f"再送で応答が変わった: {url}")
-            return first
-
-        def plan_worker(i: int) -> None:
-            base = f"/api/runs/{_plan_kno(i)}/L{i:03d}"
-            barrier.wait()
-            op = {"operator_id": yamada}
-            send("POST", f"{base}/steps/setup/start", op)
-            send("POST", f"{base}/steps/setup/end", op)
-            for seg in range(3):
-                send("POST", f"{base}/steps/production/start", {**op, "restart_reason_id": restart[seg - 1] if seg else None})
-                send("POST", f"{base}/steps/production/end", {**op, "produced_qty": 10 * (seg + 1)})
-            send("PUT", f"{base}/ng-qty", {**op, "ng_qty": i})
-            send("POST", f"{base}/remarks", {**op, "text": f"備考{i}"})
-            send("POST", f"{base}/steps/cleanup/start", op)
-            send("POST", f"{base}/steps/cleanup/end", op)
-
-        def line_event_worker(reason_id: int) -> None:
-            barrier.wait()
-            for _ in range(N_LINE_EVENT_CYCLES):
-                e = send("POST", "/api/lines/S/events/start", {"reason_id": reason_id, "operator_id": sato})
-                send("POST", f"/api/lines/S/events/{e['id']}/end", {"operator_id": sato})
-
-        def operator_worker() -> None:
-            barrier.wait()
-            for n in range(N_OPERATOR_CHANGES):
-                send("PUT", "/api/lines/S/operator", {"operator_id": sato if n % 2 == 0 else yamada})
-
-        def sync_worker() -> None:
-            barrier.wait()
-            for n in range(N_SYNCS):
-                insert_plan(legacy_db, kitting_no=sync_target, file_no="0799", lot_no="L999", qty=101 + n)
-                with get_sessionmaker()() as s:
-                    r = run_plan_sync(s, legacy_app)
-                with lock:
-                    sync_results.append(r.result if r.result == "ok" else f"{r.result}: {r.error_message}")
-
-        threads = [threading.Thread(target=plan_worker, args=(i,)) for i in range(N_PLANS)]
-        threads += [threading.Thread(target=line_event_worker, args=(r,)) for r in line_reasons]
-        threads += [threading.Thread(target=operator_worker), threading.Thread(target=sync_worker)]
-        started = time.perf_counter()
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join(timeout=120)
-        elapsed = time.perf_counter() - started
-
-        assert not any(t.is_alive() for t in threads), "終わらないスレッドがあります"
-        assert failures == []
-        assert set(statuses) == {200}  # 500 も 503 も出ない
-        assert sync_results == ["ok"] * N_SYNCS
-
-        # 記録が欠けたり重複したりしていない
-        assert _count(RunEvent) == N_PLANS * 5
-        assert _count(RunEvent, RunEvent.end_at.is_(None)) == 0
-        assert _count(RunCompletion) == N_PLANS
-        assert _count(RunInput) == N_PLANS * 2
-        assert _count(LineEvent) == N_LINE_EVENT_THREADS * N_LINE_EVENT_CYCLES
-        assert _count(LineEvent, LineEvent.end_at.is_(None)) == 0
-        assert _count(LineOperator) == 1 + N_OPERATOR_CHANGES
-        assert _count(LineOperator, LineOperator.end_at.is_(None)) == 1
-        assert _count(PlanSyncRun) == 1 + N_SYNCS
-        with get_sessionmaker()() as s:
-            for i in range(N_PLANS):
-                seqs = list(s.scalars(select(RunEvent.seq).where(
-                    RunEvent.kitting_no == _plan_kno(i), RunEvent.step_type == "production").order_by(RunEvent.seq)))
-                assert seqs == [1, 2, 3]
-                c = s.scalars(select(RunCompletion).where(RunCompletion.kitting_no == _plan_kno(i))).one()
-                assert (c.produced_qty, c.ng_qty) == (60, i)
-            assert s.get(Plan, (sync_target, "L999")).planned_qty == 100 + N_SYNCS
-
-        operations = sum(statuses.values()) // SENDS
-        assert _count(ApiRequest) == 1 + operations  # 最初の担当者の設定 + 各操作(再送は数えない)
+        assert load.failures == []
+        assert set(load.statuses) == {200}  # 500 も 503 も出ない
+        assert load.sync_results == ["ok"] * N_SYNCS
+        requests = sum(load.statuses.values())
+        _assert_records_are_exact(requests // SENDS)
         with capsys.disabled():
             print(
-                f"\n[同時実行] スレッド {len(threads)}本(計画 {N_PLANS}・付帯作業 {N_LINE_EVENT_THREADS}・"
-                f"担当者の交代 1・計画の同期 1)、ボタン操作 {operations}回(再送込みのリクエスト "
-                f"{sum(statuses.values())}回)、計画の同期 {N_SYNCS}回、{elapsed:.2f}秒"
+                f"\n[同時実行] スレッド {len(load.threads)}本(計画 {N_PLANS}・付帯作業 {N_LINE_EVENT_THREADS}・"
+                f"担当者の交代 1・計画の同期 1)、ボタン操作 {requests // SENDS}回(再送込みのリクエスト "
+                f"{requests}回)、計画の同期 {N_SYNCS}回、{elapsed:.2f}秒"
             )
 
 

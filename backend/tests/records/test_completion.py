@@ -1,0 +1,61 @@
+"""完了(開発指針 5.7)。"""
+
+from app.db.models import RunCompletion
+from legacy_fixture import insert_plan
+from records_helpers import K1, LOT, rid, sync_plans, count_rows, reason_id, start, end, ok
+
+
+def test_cleanup_end_completes_with_snapshots(client, staffed):
+    ok(start(client, "production"))
+    ok(end(client, "production", produced_qty=100))
+    ok(start(client, "production", restart_reason_id=reason_id("人員交代")))
+    ok(end(client, "production", produced_qty=150))
+    ok(client.put(f"/api/runs/{K1}/{LOT}/ng-qty", json={"request_id": rid(), "ng_qty": 3}))
+    ok(client.put(f"/api/runs/{K1}/{LOT}/ng-qty", json={"request_id": rid(), "ng_qty": 5}))
+    ok(start(client, "cleanup"))
+
+    r = ok(end(client, "cleanup"))
+
+    c = r["completion"]
+    assert (c["produced_qty"], c["ng_qty"], c["plan_qty_snapshot"], c["takt_sec_snapshot"]) == (250, 5, 300, 30.0)
+    assert c["utilization"] is None and c["completed_at"] == r["event"]["end_at"]
+
+    # あとで計画の数量が変わっても、完了の写しは変わらない
+    insert_plan(staffed["db"], kitting_no=K1, qty=400, at="2026-10-21 09:00:00")
+    sync_plans(staffed["app"])
+    plan = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))["plans"][0]
+    assert plan["plan"]["planned_qty"] == 400
+    assert plan["completed"] is True and plan["completion"]["plan_qty_snapshot"] == 300
+
+
+def test_other_steps_do_not_complete(client, staffed):
+    ok(start(client, "setup"))
+    assert ok(end(client, "setup"))["completion"] is None
+    assert count_rows(RunCompletion) == 0
+
+
+def test_cleanup_again_adds_completion_and_latest_wins(client, staffed, fake_clock):
+    ok(start(client, "production"))
+    ok(end(client, "production", produced_qty=100))
+    ok(start(client, "cleanup"))
+    ok(end(client, "cleanup"))
+
+    # 完了後も工程の記録は受け付ける
+    ok(start(client, "production", restart_reason_id=reason_id("計画切替")))
+    ok(end(client, "production", produced_qty=20))
+    fake_clock.advance(minutes=10)
+    ok(start(client, "cleanup"))
+    second = ok(end(client, "cleanup"))["completion"]
+
+    assert second["produced_qty"] == 120
+    assert count_rows(RunCompletion) == 2
+    plan = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))["plans"][0]
+    assert plan["completion"]["id"] == second["id"]
+
+
+def test_completion_resend_does_not_duplicate(client, staffed):
+    ok(start(client, "cleanup"))
+    request_id = rid()
+    first = ok(end(client, "cleanup", request_id=request_id))
+    assert ok(end(client, "cleanup", request_id=request_id)) == first
+    assert count_rows(RunCompletion) == 1
