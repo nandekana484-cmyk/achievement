@@ -1,6 +1,8 @@
 """画面の確認用のデータ(開発用のコマンド demo-seed)。既存アプリのDBを使わない環境でだけ使う。
 
-1回目と2回目の組、計画の時間の重なり、タクトなしの計画を含める。何度実行しても同じ結果になる。
+1回目と2回目の組、計画の時間の重なり、タクトなし、日付をまたぐ計画、次の稼働日の計画、表示範囲の終わりをまたぐ計画、
+過ぎて未着手の計画を含める。
+何度実行しても同じ結果になる。
 """
 
 from __future__ import annotations
@@ -33,16 +35,20 @@ class _DemoPlan:
     qty: int
     takt_sec: float | None
     start: str  # HH:MM
-    end: str
+    end: str  # HH:MM。計画開始より前なら翌日
+    day_offset: int = 0  # 指定した日からの日数
 
 
-# (ファイルNo.、回、発行順、ロットNo.、品名、数量、タクト、計画開始、計画終了)
+# (ファイルNo.、回、発行順、ロットNo.、品名、数量、タクト、計画開始、計画終了、日数)
 PLANS = (
-    _DemoPlan("0722", 1, 1, "DEMO-001", "制御基板A", 300, 30.0, "08:00", "11:00"),
-    _DemoPlan("0722", 2, 2, "DEMO-001", "制御基板A", 300, 55.72, "11:00", "14:00"),  # 上と組
+    _DemoPlan("0722", 1, 1, "DEMO-001", "制御基板A", 300, 30.0, "08:30", "11:30"),
+    _DemoPlan("0722", 2, 2, "DEMO-001", "制御基板A", 300, 55.72, "11:30", "14:30"),  # 上と組
     _DemoPlan("0800", 1, 3, "DEMO-002", "電源基板B", 120, None, "10:30", "12:30"),  # 重なり・タクトなし
-    _DemoPlan("0915", 1, 4, "DEMO-003", "表示基板C", 500, 25.0, "14:00", "17:30"),
-    _DemoPlan("0930", 1, 5, "DEMO-004", "通信基板D", 200, 40.0, "18:00", "20:00"),
+    _DemoPlan("0915", 1, 4, "DEMO-003", "表示基板C", 500, 25.0, "14:30", "18:00"),
+    _DemoPlan("0930", 1, 5, "DEMO-004", "通信基板D", 200, 40.0, "22:00", "02:00"),  # 日付をまたぐ
+    _DemoPlan("0940", 1, 6, "DEMO-005", "入力基板E", 150, 35.0, "08:30", "10:30", 1),  # 次の稼働日(境目の先)
+    _DemoPlan("0960", 1, 8, "DEMO-007", "検査基板G", 100, 30.0, "18:00", "22:00", 1),  # 表示範囲の終わりをまたぐ
+    _DemoPlan("0950", 1, 7, "DEMO-006", "試作基板F", 80, 30.0, "09:00", "12:00", -3),  # 過ぎて未着手(検索で選ぶ)
 )
 
 
@@ -75,8 +81,10 @@ def _upsert_plan(session: Session, p: _DemoPlan, line: str, day: dt.date, issue:
         session.add(row)
     row.file_no, row.line_code, row.product_name, row.run_no = p.file_no, line, p.product_name, p.run_no
     row.planned_qty, row.cumulative_qty, row.order_qty, row.takt_sec = p.qty, 0, p.qty, p.takt_sec
-    row.planned_start, row.planned_end = _at(day, p.start), _at(day, p.end)
-    row.deadline = _at(day + dt.timedelta(days=3), "17:00")
+    start_day = day + dt.timedelta(days=p.day_offset)
+    row.planned_start = _at(start_day, p.start)
+    row.planned_end = _at(start_day + dt.timedelta(days=1 if p.end <= p.start else 0), p.end)
+    row.deadline = _at(start_day + dt.timedelta(days=3), "17:00")
     row.delete_flag, row.legacy_status, row.source_db = False, None, DEMO_SOURCE
     row.legacy_plan_item_id, row.legacy_version = 0, 0
     row.issue_date, row.issue_seq = parsed.issue_date, parsed.issue_seq

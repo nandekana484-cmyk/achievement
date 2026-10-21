@@ -29,10 +29,12 @@ def test_board(client, staffed, fake_clock):
     for t in (p1["events"][0]["start_at"], p1["events"][0]["end_at"], b["current_operator"]["start_at"], b["line_events"][0]["start_at"]):
         assert t.endswith("+09:00")
 
-    # 日付を省略すると今日。別の日は計画も付帯作業も出ない
-    assert ok(client.get("/api/lines/S/board")) == b
-    other = ok(client.get("/api/lines/S/board", params={"date": "2026-10-23"}))
-    assert other["plans"] == [] and other["line_events"] == [] and other["line_progress"] is None
+    # 日付を省略すると今の稼働日(10/21 8:00 は 8:15 より前なので 10/20)
+    assert ok(client.get("/api/lines/S/board"))["date"] == "2026-10-20"
+    # 別の稼働日でも、片付けが終わっていない計画(遅れ)は出る。付帯作業は出ない
+    other = ok(client.get("/api/lines/S/board", params={"date": "2026-10-24"}))
+    assert [p["plan"]["kitting_no"] for p in other["plans"]] == [K1, K2]
+    assert other["line_events"] == [] and other["line_progress"] is None
 
 
 def test_board_with_zero_qty_plan(client, staffed):

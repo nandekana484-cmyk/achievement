@@ -37,8 +37,8 @@ class PlanOut(BaseModel):
     planned_qty: int
     cumulative_qty: int | None
     order_qty: int | None
-    planned_start: dt.datetime
-    planned_end: dt.datetime
+    planned_start: dt.datetime | None  # 検索や遅れの計画では、日程が空のこともある
+    planned_end: dt.datetime | None
     deadline: dt.datetime | None
     issue_date: dt.date
     issue_seq: int
@@ -185,11 +185,16 @@ class BoardPlanOut(BaseModel):
 
 class BoardOut(BaseModel):
     line_code: str
-    date: dt.date
+    date: dt.date  # 稼働日
+    workday_start: dt.datetime  # 稼働日の始まり(day_start)
+    workday_end: dt.datetime
+    display_start: dt.datetime  # 表示範囲(稼働日の前後12時間を足した48時間)
+    display_end: dt.datetime
+    server_time: dt.datetime  # タブレットの時計とのずれの補正に使う
     current_operator: CurrentOperatorOut | None
     plans: list[BoardPlanOut]
-    line_events: list[LineEventOut]  # その日に重なる付帯作業
-    # TODO(要確認): ラインの進捗率の定義(今は その日の計画の生産数の合計 ÷ 計画数の合計)
+    line_events: list[LineEventOut]  # 表示範囲に重なる付帯作業
+    # TODO(要確認): ラインの進捗率の定義(今は 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計)
     line_progress: float | None
     utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
 

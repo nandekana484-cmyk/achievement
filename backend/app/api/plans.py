@@ -11,9 +11,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import clock
+from app.core.config import get_config
 from app.db.models import Plan, PlanSyncRun, PlanSyncWarning
 from app.db.session import get_session
-from app.services.board import plans_for_day
+from app.domain.workday import workday_of, workday_range
+from app.services import plan_search
+from app.services.plan_query import plans_overlapping
 from app.services.views import PlanOut
 
 router = APIRouter(prefix="/api", tags=["plans"])
@@ -49,11 +52,23 @@ class SyncStatusOut(BaseModel):
 @router.get("/lines/{line_code}/plans", response_model=list[PlanOut])
 def list_line_plans(
     line_code: str,
-    date: dt.date | None = Query(default=None, description="YYYY-MM-DD。省略すると今日"),
+    date: dt.date | None = Query(default=None, description="稼働日(YYYY-MM-DD)。省略すると今の稼働日"),
     session: Session = Depends(get_session),
 ) -> list[Plan]:
-    """その日に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。"""
-    return plans_for_day(session, line_code, date or clock.now().date())
+    """稼働日(day_start〜翌日の day_start)に計画開始〜終了が重なる有効な計画を、計画開始の順で返す。"""
+    day_start = get_config().schedule.day_start
+    start, end = workday_range(date or workday_of(clock.now(), day_start), day_start)
+    return plans_overlapping(session, line_code, start, end)
+
+
+@router.get("/plans/search", response_model=list[PlanOut])
+def search_plans(
+    q: str = Query(max_length=100, description="キッティングNo.・ロットNo.・品名の一部"),
+    line_code: str | None = Query(default=None, description="指定すると、そのラインの計画だけ"),
+    session: Session = Depends(get_session),
+) -> list[Plan]:
+    """有効な計画を一部一致で探す(大文字・小文字、全角・半角の違いは無視)。計画開始が今に近い順に最大20件。"""
+    return plan_search.search_plans(session, q, clock.now(), line_code)
 
 
 @router.get("/sync/status", response_model=SyncStatusOut)

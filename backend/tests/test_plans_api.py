@@ -48,28 +48,35 @@ def test_line_plans_filtered_by_date_and_sorted(client, legacy_app, legacy_db):
     plan("0903-1-S-251014-06", "", "")  # 日程が空
     plan("0904-1-T-251014-07", "2026/10/21 10:00:00", "2026/10/21 11:00:00", line="T")  # 別のライン
     plan("0905-1-S-251014-08", "2026/10/21 10:00:00", "2026/10/21 11:00:00")  # 取消にする
+    plan("0906-1-S-251014-09", "2026/10/22 08:00:00", "2026/10/22 08:30:00")  # 翌日の 8:15 より前に始まる
     _sync(legacy_app)
     deactivate(legacy_db, "0905-1-S-251014-08")
     _sync(legacy_app)
 
+    # date は稼働日(10/21 8:15 〜 10/22 8:15)
     r = client.get("/api/lines/S/plans", params={"date": "2026-10-21"})
 
     assert r.status_code == 200
     body = r.json()
     assert [p["kitting_no"] for p in body] == [
-        "0900-1-S-251014-03",
         "0800-1-S-251014-02",
         "0722-1-S-251014-01",
+        "0906-1-S-251014-09",
     ]
-    first = body[1]
+    first = body[0]
     assert first["planned_start"] == "2026-10-21T09:00:00+09:00"
     assert first["planned_end"] == "2026-10-21T12:00:00+09:00"
     assert first["issue_date"] == "2025-10-14" and first["status"] == "active"
     assert first["source_db"] == "2026-10" and first["takt_sec"] == 30.0  # ファイルNo. 0722・S・1回目
 
-    # date を省略すると今日(clock.now() = 2026-10-21)
-    assert client.get("/api/lines/S/plans").json() == body
-    assert [p["kitting_no"] for p in client.get("/api/lines/T/plans").json()] == ["0904-1-T-251014-07"]
+    # date を省略すると今の稼働日(clock.now() = 10/21 8:00 は 8:15 より前なので、10/20 の稼働日)
+    assert [p["kitting_no"] for p in client.get("/api/lines/S/plans").json()] == [
+        "0902-1-S-251014-05",
+        "0900-1-S-251014-03",
+    ]
+    assert [p["kitting_no"] for p in client.get("/api/lines/T/plans", params={"date": "2026-10-21"}).json()] == [
+        "0904-1-T-251014-07",
+    ]
 
 
 def test_line_plans_rejects_bad_date(client):

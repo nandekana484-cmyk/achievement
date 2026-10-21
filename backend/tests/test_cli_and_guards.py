@@ -1,6 +1,6 @@
 """開発用のコマンド(python -m app.cli)と、DB側の二重記録の防止。"""
 
-from datetime import date
+from datetime import date, time
 
 import pytest
 from sqlalchemy import func, select
@@ -60,11 +60,11 @@ def test_cli_reasons_list(cli_config, capsys):
     assert "人員交代\tロス以外\t-\t-\t-\t-\t○" in out
 
 
-def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys):
+def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys, fake_clock):
     assert cli.main(["demo-seed", "--line", "s", "--date", "2026-10-21"]) == 0
     assert cli.main(["demo-seed", "--line", "S", "--date", "2026-10-21"]) == 0  # 何度実行しても同じ
     out = capsys.readouterr().out
-    assert "計画 5件" in out and "0722-1-S-261014-01" in out
+    assert "計画 8件" in out and "0722-1-S-261014-01" in out
 
     from app.db.session import get_sessionmaker
     from app.services.board import get_board
@@ -72,14 +72,18 @@ def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys):
     with get_sessionmaker()() as s:
         assert [o.name for o in s.scalars(select(Operator))] == ["山田", "佐藤"]
         assert s.scalar(select(func.count()).select_from(Line)) == 1
-        b = get_board(s, "S", date(2026, 10, 21))
-    plans = [p.plan for p in b.plans]
-    assert len(plans) == 5
-    assert {(p.lot_no, p.run_no) for p in plans if p.lot_no == "DEMO-001"} == {("DEMO-001", 1), ("DEMO-001", 2)}  # 組
-    assert any(p.takt_sec is None for p in plans)  # タクトなし
-    by_kno = {p.kitting_no: p for p in plans}
-    a, c = by_kno["0722-1-S-261014-01"], by_kno["0800-1-S-261014-03"]
+        b = get_board(s, "S", date(2026, 10, 21), time(8, 15))
+    plans = {p.plan.kitting_no: p.plan for p in b.plans}
+    # 過ぎて未着手の計画(3日前)は出ず、ほかの7件は表示範囲(10/20 20:15〜10/22 20:15)に出る
+    assert len(plans) == 7 and "0950-1-S-261014-07" not in plans
+    assert plans["0960-1-S-261014-08"].planned_end > b.display_end  # 表示範囲の終わりをまたぐ
+    assert {(p.lot_no, p.run_no) for p in plans.values() if p.lot_no == "DEMO-001"} == {("DEMO-001", 1), ("DEMO-001", 2)}  # 組
+    assert any(p.takt_sec is None for p in plans.values())  # タクトなし
+    a, c = plans["0722-1-S-261014-01"], plans["0800-1-S-261014-03"]
     assert a.planned_start < c.planned_end and c.planned_start < a.planned_end  # 時間の重なり
+    night = plans["0930-1-S-261014-05"]
+    assert night.planned_end.date() == date(2026, 10, 22)  # 日付をまたぐ
+    assert plans["0940-1-S-261014-06"].planned_start > b.workday_end  # 次の稼働日(境目の先)
 
 
 def test_demo_seed_refuses_when_legacy_app_dir_is_set(tmp_path, monkeypatch, capsys):
