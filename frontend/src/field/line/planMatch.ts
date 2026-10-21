@@ -1,4 +1,5 @@
-// 計画の検索で使う、表示から分けた判定(完全一致の1件、表示範囲の外か)。
+// 計画の検索で使う、表示から分けた判定(完全一致の1件、表示範囲の外か)と、計画の短い説明の文。
+import type { Translate } from "../../i18n/translate";
 import type { Board, Plan } from "../../shared/api";
 import { formatMDHM } from "./timeScale";
 
@@ -21,6 +22,17 @@ export function isOutsideDisplay(plan: Plan, board: Pick<Board, "display_start" 
 }
 
 /** 「表示範囲外の計画です(計画: 10/18 9:00〜)」の文。 */
-export function outsideMessage(plan: Plan): string {
-  return `表示範囲外の計画です(計画: ${plan.planned_start ? `${formatMDHM(plan.planned_start)}〜` : "日程なし"})`;
+export function outsideMessage(plan: Plan, t: Translate): string {
+  return t("plan.outsideDisplay", { when: plannedFrom(plan, t) });
+}
+
+/** 計画開始「10/18 9:00〜」。日程が空なら「日程なし」。 */
+export function plannedFrom(plan: Plan, t: Translate): string {
+  return plan.planned_start ? t("common.from", { time: formatMDHM(plan.planned_start) }) : t("common.noSchedule");
+}
+
+/** 「3ロット・計画数 300・1回目」(ロットが1つなら基板名)。タイムテーブルの枠と検索の結果に出す。 */
+export function planSummary(plan: Plan, t: Translate): string {
+  const what = plan.lots.length > 1 ? t("unit.lots", { count: plan.lots.length }) : plan.product_name;
+  return t("plan.summary", { what, qty: plan.planned_qty, run: t("unit.runNo", { run: plan.run_no }) });
 }

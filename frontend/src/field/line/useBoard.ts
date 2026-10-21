@@ -1,6 +1,7 @@
 // ライン画面用の取得(board)を5秒ごとに読み直すフック。画面が非表示のあいだは止める。
 // あわせて、サーバーの時計とタブレットの時計の差を測る(今の時刻の線の補正に使う)。
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 import { api, type Board } from "../../shared/api";
 import { clockOffset } from "./timeScale";
 
@@ -13,6 +14,9 @@ export function useBoard(lineCode: string): BoardState {
   const [error, setError] = useState<string | null>(null);
   const [offsetMs, setOffsetMs] = useState(0);
   const seq = useRef(0);
+  const { t } = useI18n();
+  const tRef = useRef(t); // 言語を切り替えても読み直しの間隔を変えない(失敗の文はその時点の言語)
+  tRef.current = t;
 
   const reload = useCallback(() => {
     const mine = ++seq.current; // 古い応答があとから届いても、新しい応答で上書きされないようにする
@@ -26,10 +30,10 @@ export function useBoard(lineCode: string): BoardState {
           setOffsetMs(clockOffset(data.server_time, sent, Date.now()));
           setError(null);
         } else {
-          setError(typeof e?.detail === "string" ? e.detail : "ラインの情報を読めませんでした");
+          setError(typeof e?.detail === "string" ? e.detail : tRef.current("error.boardLoad"));
         }
       })
-      .catch(() => mine === seq.current && setError("通信できませんでした。電波の状態を確かめてください"));
+      .catch(() => mine === seq.current && setError(tRef.current("error.connection")));
   }, [lineCode]);
 
   useEffect(() => {

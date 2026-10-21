@@ -87,6 +87,16 @@ h1 { font-size: 26px; }
 
 /* ダッシュボード */
 .dashboard { padding: 24px; }
+.dashboard-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* 表示言語の切り替え(ライン選択の画面と、ライン画面の上部) */
+.lang-switch { display: flex; flex-shrink: 0; border: 2px solid var(--border); border-radius: 8px; overflow: hidden; }
+.lang-button {
+  min-height: var(--touch); padding: 4px 12px; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+  background: #f6f8fa; color: var(--text); border: 0;
+}
+.lang-button + .lang-button { border-left: 2px solid var(--border); }
+.lang-current { background: var(--accent); color: #fff; }
 .line-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 16px; }
 .line-card {
   display: flex; align-items: center; justify-content: center; min-width: 220px; min-height: 96px; padding: 16px 24px;

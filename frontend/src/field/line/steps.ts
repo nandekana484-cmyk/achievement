@@ -1,16 +1,18 @@
 // 工程の並び・名前・色と、工程の状態の判定(開発指針 5.4)。
+import type { MessageKey } from "../../i18n/ja";
+import type { Translate } from "../../i18n/translate";
 import type { RunEvent, StepType } from "../../shared/api";
 import { formatHM } from "./timeScale";
 
 export const STEP_ORDER: StepType[] = ["setup", "n1_check", "production", "first_article", "xray", "cleanup"];
 
-export const STEP_LABELS: Record<StepType, string> = {
-  setup: "段取り",
-  n1_check: "N1チェック",
-  production: "生産",
-  first_article: "初品チェック",
-  xray: "X線検査",
-  cleanup: "片付け",
+export const STEP_LABEL_KEYS: Record<StepType, MessageKey> = {
+  setup: "step.setup",
+  n1_check: "step.n1_check",
+  production: "step.production",
+  first_article: "step.first_article",
+  xray: "step.xray",
+  cleanup: "step.cleanup",
 };
 
 // 色だけで区別しないよう、表示では必ず工程名も出す
@@ -25,7 +27,7 @@ export const STEP_COLORS: Record<StepType, string> = {
 
 export type StepState = "todo" | "doing" | "done";
 
-export const STATE_TEXT: Record<StepState, string> = { todo: "未着手", doing: "作業中", done: "済" };
+export const STATE_KEYS: Record<StepState, MessageKey> = { todo: "stepState.todo", doing: "stepState.doing", done: "stepState.done" };
 
 export type StepStatus = {
   step: StepType;
@@ -41,7 +43,7 @@ export type StepStatus = {
 };
 
 /** その計画の工程の記録から、工程の状態と、次に押したときの動きを決める。 */
-export function stepStatus(events: RunEvent[], step: StepType): StepStatus {
+export function stepStatus(events: RunEvent[], step: StepType, t: Translate): StepStatus {
   const mine = events.filter((e) => e.step_type === step).sort((a, b) => a.seq - b.seq);
   const open = mine.find((e) => !e.end_at) ?? null;
   const last = mine.length ? mine[mine.length - 1] : null;
@@ -49,11 +51,11 @@ export function stepStatus(events: RunEvent[], step: StepType): StepStatus {
   const state: StepState = open ? "doing" : last ? "done" : "todo";
 
   let timeText = "";
-  if (open) timeText = `${formatHM(open.start_at)} 〜`;
-  else if (last?.end_at) timeText = `${formatHM(last.start_at)} 〜 ${formatHM(last.end_at)}`;
+  if (open) timeText = t("step.timeOpen", { start: formatHM(open.start_at) });
+  else if (last?.end_at) timeText = t("step.timeRange", { start: formatHM(last.start_at), end: formatHM(last.end_at) });
 
   const seqForLabel = open ? open.seq : nextSeq;
-  const label = step === "production" ? `生産 ${seqForLabel}回目` : STEP_LABELS[step];
+  const label = step === "production" ? t("step.productionSeq", { seq: seqForLabel }) : t(STEP_LABEL_KEYS[step]);
   const action = open ? "end" : "start";
   return {
     step, state, label, timeText, open, nextSeq, action,

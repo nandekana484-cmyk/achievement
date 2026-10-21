@@ -1,4 +1,5 @@
 // ライン画面のダイアログの出し分け。どのダイアログを出すかは LineScreen が DialogState で決める。
+import { useI18n } from "../../i18n/I18nProvider";
 import type { Board, BoardPlan, Masters, Reason } from "../../shared/api";
 import type { RunResult } from "../../shared/useOperation";
 import { ConfirmDialog } from "./dialogs/ConfirmDialog";
@@ -23,6 +24,7 @@ export type DialogState =
 type Props = { dialog: DialogState; board: Board; masters: Masters; actions: LineActions; close: () => void };
 
 export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
+  const { t } = useI18n();
   // 選ぶだけのダイアログはすぐ閉じ、結果は画面のお知らせと board の読み直しで分かるようにする
   const then = (send: () => void) => () => {
     close();
@@ -48,9 +50,9 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
     case "qty":
       return (
         <NumberPadDialog
-          title={`${dialog.status.label}の終了`}
-          message="この区切りで生産した数を入れてください。"
-          submitLabel="生産を終了"
+          title={t("productionEnd.title", { step: dialog.status.label })}
+          message={t("productionEnd.message")}
+          submitLabel={t("productionEnd.submit")}
           onSubmit={(n) => untilSuccess(actions.endStep(dialog.plan, "production", n, { showError: false }))}
           onCancel={close}
         />
@@ -58,7 +60,7 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
     case "reason":
       return (
         <RestartReasonDialog
-          title={`${dialog.status.label}の開始`}
+          title={t("restart.title", { step: dialog.status.label })}
           reasons={masters.reasons.filter((r) => r.usable_as_restart)}
           equipment={masters.equipment}
           onSubmit={(reasonId, equipmentId) => then(() => actions.startStep(dialog.plan, "production", reasonId, equipmentId))()}
@@ -68,9 +70,9 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
     case "confirm":
       return (
         <ConfirmDialog
-          title="片付けの終了"
-          message="片付けを終了すると、この計画は完了になります。"
-          confirmLabel="片付けを終了"
+          title={t("cleanup.title")}
+          message={t("cleanup.message")}
+          confirmLabel={t("cleanup.confirm")}
           onConfirm={then(() => actions.endStep(dialog.plan, "cleanup"))}
           onCancel={close}
         />
@@ -85,7 +87,8 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
       );
     case "remark":
       return (
-        <TextDialog title="備考の入力" label="備考" submitLabel="備考を記録" onSubmit={(t) => then(() => actions.addRemark(dialog.plan, t))()} onCancel={close} />
+        <TextDialog title={t("remark.title")} label={t("remark.label")} submitLabel={t("remark.submit")}
+          onSubmit={(text) => then(() => actions.addRemark(dialog.plan, text))()} onCancel={close} />
       );
     case "lineEvent":
       return (

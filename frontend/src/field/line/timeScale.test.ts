@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignLanes, clockOffset, formatElapsed, formatHM, formatMD, formatMDHM, hourTicks, minutesFrom, minutesToY, spanFor,
 } from "./timeScale";
+import { makeTranslate } from "../../i18n/translate";
 
 // 稼働日 10/21 の表示範囲: 10/20 20:15 〜 10/22 20:15(48時間)
 const ORIGIN = Date.parse("2026-10-20T20:15:00+09:00");
@@ -63,9 +64,9 @@ describe("時刻と位置の変換", () => {
     expect(formatMDHM("2026-10-18T09:00:00+09:00")).toBe("10/18 9:00");
     expect(formatMDHM("2026-10-17T15:05:00Z")).toBe("10/18 0:05");
     expect(formatMD("2026-10-21")).toBe("10/21");
-    expect(formatElapsed(0, 12 * 60000)).toBe("12分");
-    expect(formatElapsed(0, 65 * 60000)).toBe("1時間05分");
-    expect(formatElapsed(1000, 0)).toBe("0分");
+    expect(formatElapsed(0, 12 * 60000, makeTranslate("ja"))).toBe("12分");
+    expect(formatElapsed(0, 65 * 60000, makeTranslate("ja"))).toBe("1時間05分");
+    expect(formatElapsed(1000, 0, makeTranslate("ja"))).toBe("0分");
   });
 
   it("サーバーの時計との差(往復の真ん中で比べる)", () => {
