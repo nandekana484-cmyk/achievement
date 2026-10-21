@@ -38,7 +38,8 @@ class PathsConfig:
 @dataclass(frozen=True)
 class SyncConfig:
     plan_interval_sec: int = 60
-    # 一括取消の安全装置: 取消が cancel_guard_min 件以上 かつ 有効な計画の cancel_guard_ratio 以上なら反映しない
+    # 一括取消の安全装置: 取消が cancel_guard_min 件以上 かつ
+    # 有効な計画(計画終了が今日の 0:00 以降、または空)の cancel_guard_ratio 以上なら反映しない
     cancel_guard_min: int = 10
     cancel_guard_ratio: float = 0.3
     # ファイルの更新日時がこの日数より古い月次DBは読まない

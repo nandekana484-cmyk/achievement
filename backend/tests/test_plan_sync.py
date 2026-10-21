@@ -281,7 +281,7 @@ def test_mass_cancel_is_guarded(sync, session_factory, legacy_db):
     r = sync()
 
     assert r.result == "guarded"
-    assert "取消 10件 / 有効な計画 12件" in r.error_message
+    assert "取消 10件 / 計画終了が今日以降の有効な計画 12件" in r.error_message
     assert _snapshot(session_factory) == before
     with session_factory() as s:
         assert s.get(PlanSyncRun, r.sync_run_id).result == "guarded"
@@ -302,6 +302,42 @@ def test_cancel_below_ratio_is_applied(sync, session_factory, legacy_db):
     for k in keys[:10]:  # 10件だが 10 / 40 = 25% < 30%
         deactivate(legacy_db, k)
     r = sync()
+    assert r.result == "ok" and r.cancelled == 10
+
+
+def _past(legacy_db, n, end="2026/10/20 12:00:00"):
+    """計画終了が今日(2026-10-21)の 0:00 より前の計画。"""
+    keys = [f"{i:04d}-1-S-251001-{i:02d}" for i in range(101, 101 + n)]
+    for k in keys:
+        insert_plan(legacy_db, kitting_no=k, file_no=k[:4], start="2026/10/20 09:00:00", end=end)
+    return keys
+
+
+def test_guard_ignores_past_plans_in_denominator(sync, session_factory, legacy_db):
+    _past(legacy_db, 40)
+    keys = _many(legacy_db, 12)
+    sync()
+    before = _snapshot(session_factory)
+
+    for k in keys[:10]:  # 未来の計画が一斉に消えた(全体の 52件中では 19% だが、今日以降の 12件中 83%)
+        deactivate(legacy_db, k)
+    r = sync()
+
+    assert r.result == "guarded"
+    assert "取消 10件 / 計画終了が今日以降の有効な計画 12件" in r.error_message
+    assert _snapshot(session_factory) == before
+
+
+def test_guard_denominator_counts_plans_without_end(sync, session_factory, legacy_db):
+    for i in range(30):  # 計画終了が空の計画は、終わっていないものとして分母に入る
+        insert_plan(legacy_db, kitting_no=f"{i + 200:04d}-1-S-251001-{i:02d}", file_no=f"{i + 200:04d}", start="", end="")
+    keys = _many(legacy_db, 10)
+    sync()
+
+    for k in keys:  # 10件 / 40件 = 25% < 30%
+        deactivate(legacy_db, k)
+    r = sync()
+
     assert r.result == "ok" and r.cancelled == 10
 
 

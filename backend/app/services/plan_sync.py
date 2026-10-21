@@ -82,13 +82,16 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
         diff = diff_plans(current, sel.plans, keys_with_actuals)
         incoming = {p.key: p for p in sel.plans}
 
+        today_start = datetime.combine(clock.now().date(), time(), tzinfo=clock.JST)
         removed, warnings = _plans_to_cancel(
-            diff.removed_without_actuals + diff.removed_with_actuals, rows, incoming, sel, clock.now(),
+            diff.removed_without_actuals + diff.removed_with_actuals, rows, incoming, sel, today_start,
         )
         removed_set = set(removed)
         carryovers = [c for c in diff.carryovers if c.old_key in removed_set]
 
-        guard = _cancel_guard_reason(len(removed), len(current), cfg)
+        # 安全装置の分母は、取消の対象になりうる計画だけ(計画終了が今日の 0:00 より前の計画は取消にしないので除く)
+        cancellable = sum(1 for p in current.values() if not _ended_before(p.planned_end, today_start))
+        guard = _cancel_guard_reason(len(removed), cancellable, cfg)
         if guard is not None:
             session.rollback()
             logger.warning("計画の同期を反映しませんでした: %s", guard)
@@ -165,7 +168,7 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
 
 def _plans_to_cancel(
     missing: list[PlanKey], rows: dict[PlanKey, Plan], incoming: dict[PlanKey, LegacyPlan],
-    sel: SourceSelection, now: datetime,
+    sel: SourceSelection, today_start: datetime,
 ) -> tuple[list[PlanKey], list[ReadWarning]]:
     """正とするDBに無かった計画のうち、取消にするものを選ぶ。あわせて、この同期の警告をすべて返す。
 
@@ -174,7 +177,6 @@ def _plans_to_cancel(
     warnings = list(sel.warnings)
     # 形式エラーで読めなかった行の計画は、既存DBに行はあるので取消にしない(値も更新しない)
     unreadable = {w.key for w in sel.warnings if w.key is not None} - incoming.keys()
-    today_start = datetime.combine(now.date(), time(), tzinfo=clock.JST)
 
     removed: list[PlanKey] = []
     vanished_lots: set[str] = set()
@@ -182,7 +184,7 @@ def _plans_to_cancel(
         row = rows[key]
         if key in unreadable:
             continue
-        if row.planned_end is not None and row.planned_end < today_start:
+        if _ended_before(row.planned_end, today_start):
             continue  # 終わった計画は、古い月次DBが読む対象から外れても残す
         if row.lot_no not in sel.lot_sources:
             vanished_lots.add(row.lot_no)
@@ -194,6 +196,11 @@ def _plans_to_cancel(
             "ロットがどの月次DBにも見つかりません。このロットの計画は取消にせず、そのままにします"
         )))
     return removed, warnings
+
+
+def _ended_before(planned_end: datetime | None, today_start: datetime) -> bool:
+    """計画終了が今日の 0:00 より前か。計画終了が空の計画は、終わっていないものとして扱う。"""
+    return planned_end is not None and planned_end < today_start
 
 
 def _legacy_dbs_json(source: LegacySourceRead, sel: SourceSelection) -> str:
@@ -222,12 +229,13 @@ def _legacy_dbs_json(source: LegacySourceRead, sel: SourceSelection) -> str:
 def _cancel_guard_reason(cancel_count: int, active_count: int, cfg: SyncConfig) -> str | None:
     """一括取消の安全装置。既存DBの設定の間違いなどで、計画が一斉に取消になるのを防ぐ。
 
+    active_count は、有効な計画のうち計画終了が今日の 0:00 以降(または空)のもの。
     TODO(要確認): 一括取消の判定の閾値
     """
     if cancel_count >= cfg.cancel_guard_min and cancel_count >= active_count * cfg.cancel_guard_ratio:
         return (
             f"取消になる計画が多すぎるため、反映しませんでした"
-            f"(取消 {cancel_count}件 / 有効な計画 {active_count}件。"
+            f"(取消 {cancel_count}件 / 計画終了が今日以降の有効な計画 {active_count}件。"
             f"閾値: {cfg.cancel_guard_min}件以上 かつ {cfg.cancel_guard_ratio:.0%}以上)。"
             f"既存DBの設定や切り替えを確認してください"
         )
