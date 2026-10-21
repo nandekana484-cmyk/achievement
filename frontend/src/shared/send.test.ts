@@ -61,7 +61,7 @@ describe("failureMessage", () => {
     expect(failureMessage({ status: 422, detail: null }, t)).toBe("入力の内容が正しくありません。入力し直してください");
     expect(failureMessage({ status: 500, detail: null }, t)).toBe("サーバーでエラーが起きました(500)。もう一度押してください");
     expect(failureMessage({ status: 404, detail: null }, t)).toBe("サーバーでエラーが起きました(404)。もう一度押してください");
-    expect(failureMessage({ status: 500, detail: null }, makeTranslate("vi"))).toBe("(未翻訳)サーバーでエラーが起きました(500)。もう一度押してください");
+    expect(failureMessage({ status: 500, detail: null }, makeTranslate("vi"))).toBe("Máy chủ bị lỗi (500). Hãy bấm lại");
   });
 });
 

@@ -190,9 +190,9 @@ test("⑭ ベトナム語に切り替えたライン画面", async ({ page }) =>
   await openLine(page);
   await page.locator(".lang-switch").getByRole("button", { name: VI }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "vi");
-  await expect(page.getByRole("button", { name: "(未翻訳)タイムテーブル" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bảng thời gian" })).toBeVisible();
   await page.locator(".tt-plan", { hasText: FIRST }).click();
-  await expect(step(page, "(未翻訳)段取り")).toContainText("(未翻訳)押すと"); // 状態はほかのテストの操作による
+  await expect(step(page, "Chuẩn bị (setup)")).toContainText("Bấm để"); // 状態はほかのテストの操作による
   // 計画の内容と、ベトナム語の名前が無いマスタの名前は、日本語のまま
   await expect(page.locator(".plan-kno")).toHaveText(FIRST);
   await expect(page.locator(".reason-button", { hasText: "部品探し" })).toBeVisible();
@@ -202,7 +202,7 @@ test("⑭ ベトナム語に切り替えたライン画面", async ({ page }) =>
 
   // その端末に記憶する(開き直してもベトナム語)。日本語に戻せる
   await page.reload();
-  await expect(page.getByRole("button", { name: "(未翻訳)タイムテーブル" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bảng thời gian" })).toBeVisible();
   await page.locator(".lang-switch").getByRole("button", { name: "日本語" }).click();
   await expect(page.getByRole("button", { name: "タイムテーブル", exact: true })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja");

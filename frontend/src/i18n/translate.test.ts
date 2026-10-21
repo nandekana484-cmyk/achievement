@@ -20,7 +20,7 @@ describe("差し込み", () => {
 describe("t()", () => {
   it("キーから選んだ言語の文を返す", () => {
     expect(makeTranslate("ja")("unit.lots", { count: 2 })).toBe("2ロット");
-    expect(makeTranslate("vi")("unit.lots", { count: 2 })).toBe("(未翻訳)2ロット");
+    expect(makeTranslate("vi")("unit.lots", { count: 2 })).toBe("2 lô");
   });
 });
 
