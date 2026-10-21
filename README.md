@@ -71,7 +71,7 @@ http://localhost:8000 で画面とAPIが1つのプロセスから配信される
 
 ## コードの大きさの確認
 
-リポジトリ直下で `py -3.14 tools/check_code_size.py --top 10`(標準ライブラリだけで動く。ルールは [AGENTS.md](AGENTS.md) の「コードの大きさとコメントのルール」)。
+リポジトリ直下で `py -3.14 tools/check_code_size.py --top 10`(標準ライブラリだけで動く。ルールは [AGENTS.md](AGENTS.md) の「コードの大きさとコメントのルール」)。スクリプト自体のテストは `backend\.venv\Scripts\python.exe -m pytest tools/tests`。
 
 ## 2拠点での作業
 

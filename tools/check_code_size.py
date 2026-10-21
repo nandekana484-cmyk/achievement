@@ -107,8 +107,9 @@ def _ts_comment_lines(source: str) -> set[int]:
     return lines
 
 
-def analyze(path: Path) -> FileStat | None:
-    rel = path.relative_to(ROOT).as_posix()
+def analyze(path: Path, root: Path = ROOT) -> FileStat | None:
+    """1ファイルを調べる。自動生成のファイルなら None。"""
+    rel = path.relative_to(root).as_posix()
     source = path.read_text(encoding="utf-8")
     if any(m in "\n".join(source.splitlines()[:5]) for m in GENERATED_MARKERS):
         return None
@@ -124,29 +125,30 @@ def analyze(path: Path) -> FileStat | None:
     return FileStat(rel, is_test, total, total - len(blank), len(comments), long_functions)
 
 
-def collect() -> list[FileStat]:
+def collect(root: Path = ROOT) -> list[FileStat]:
+    """対象のフォルダのファイルをすべて調べる(マイグレーションと自動生成のファイルは除く)。"""
     stats = []
     for d in TARGET_DIRS:
-        for path in sorted((ROOT / d).rglob("*")):
-            rel = path.relative_to(ROOT).as_posix()
+        for path in sorted((root / d).rglob("*")):
+            rel = path.relative_to(root).as_posix()
             if path.suffix not in EXTENSIONS or path.name.endswith(".d.ts") or not path.is_file():
                 continue
             if any(rel.startswith(x + "/") for x in EXCLUDED_DIRS) or "__pycache__" in rel:
                 continue
-            stat = analyze(path)
+            stat = analyze(path, root)
             if stat is not None:
                 stats.append(stat)
     return stats
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, root: Path = ROOT) -> int:
     p = argparse.ArgumentParser(description="コードの大きさとコメントの割合を調べる")
     p.add_argument("--top", type=int, default=0, help="行数の多いファイルを上位 N 件表示する")
     args = p.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")
 
-    stats = collect()
+    stats = collect(root)
     flagged = [s for s in stats if s.findings()]
     print(f"対象 {len(stats)} ファイル / 目安に当たるファイル {len(flagged)} 件")
     for s in sorted(flagged, key=lambda x: -x.lines):
