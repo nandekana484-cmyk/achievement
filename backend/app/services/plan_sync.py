@@ -29,6 +29,7 @@ from app.db.models import (
 )
 from app.db.session import is_busy_error, write_transaction
 from app.integration.legacy_plans import LegacyPlan, LegacySourceRead, ReadWarning, read_legacy_source
+from app.services.kitting_plans import group_lots
 from app.services.masters import register_lines
 from app.services.plan_cancel import cancel_guard_reason, count_cancellable, plans_to_cancel
 from app.services.plan_diff import CarryoverCandidate, PlanDiff, PlanKey, diff_plans
@@ -149,6 +150,7 @@ def _plan_changes(session: Session, sel: SourceSelection, cfg: SyncConfig) -> _C
     removed, warnings = plans_to_cancel(
         diff.removed_without_actuals + diff.removed_with_actuals, rows, incoming, sel, today_start,
     )
+    warnings += [ReadWarning(None, g.kitting_no, message) for g in group_lots(sel.plans) for message in g.warnings]
     removed_set = set(removed)
     return _Changes(
         rows=rows, diff=diff, incoming=incoming, removed=removed, warnings=warnings,

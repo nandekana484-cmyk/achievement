@@ -11,7 +11,8 @@ from app.api.schemas import ChangeOperatorIn, LineEventEndIn, LineEventStartIn
 from app.core.config import get_config
 from app.db.session import get_session
 from app.services import board, line_events, line_operators, masters
-from app.services.views import BoardOut, CurrentOperatorOut, LineEventOut, MastersOut
+from app.services.plan_views import BoardOut
+from app.services.views import CurrentOperatorOut, LineEventOut, MastersOut
 
 router = APIRouter(prefix="/api", tags=["lines"])
 

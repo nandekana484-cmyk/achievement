@@ -20,7 +20,7 @@ def test_board(client, staffed, fake_clock):
     assert b["current_operator"]["operator_name"] == "山田"
     assert [p["plan"]["kitting_no"] for p in b["plans"]] == [K1, K2]
     p1, p2 = b["plans"]
-    assert (p1["produced_qty"], p1["progress"], p1["completed"], p1["ng_qty"]) == (150, 0.5, False, None)
+    assert (p1["produced_qty"], p1["progress"], p1["completed"], p1["ng_entries"]) == (150, 0.5, False, [])
     assert (p2["produced_qty"], p2["progress"]) == (60, 0.2)
     assert [e["seq"] for e in p2["events"]] == [1, 2]
     assert b["line_progress"] == pytest.approx(210 / 600)

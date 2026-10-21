@@ -10,7 +10,6 @@ from app.services.plan_sync import run_plan_sync
 
 K1 = "0722-1-S-251014-01"
 K2 = "0722-2-S-251014-02"
-LOT = "L001"
 
 
 def rid() -> str:
@@ -47,14 +46,14 @@ def set_operator(client, operator_id, line="S"):
     return r.json()
 
 
-def start(client, step, kitting_no=K1, lot_no=LOT, **body):
+def start(client, step, kitting_no=K1, **body):
     body.setdefault("request_id", rid())
-    return client.post(f"/api/runs/{kitting_no}/{lot_no}/steps/{step}/start", json=body)
+    return client.post(f"/api/runs/{kitting_no}/steps/{step}/start", json=body)
 
 
-def end(client, step, kitting_no=K1, lot_no=LOT, **body):
+def end(client, step, kitting_no=K1, **body):
     body.setdefault("request_id", rid())
-    return client.post(f"/api/runs/{kitting_no}/{lot_no}/steps/{step}/end", json=body)
+    return client.post(f"/api/runs/{kitting_no}/steps/{step}/end", json=body)
 
 
 def ok(r):

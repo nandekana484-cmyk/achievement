@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -33,13 +33,12 @@ class LineOperator(Base):
 
 
 class RunEvent(Base):
-    """工程と生産の区切りの記録。seq は計画×工程ごとに1から振る。"""
+    """工程と生産の区切りの記録(キッティングNo.の単位)。seq はキッティングNo.×工程ごとに1から振る。"""
 
     __tablename__ = "run_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     kitting_no: Mapped[str] = mapped_column(String)
-    lot_no: Mapped[str] = mapped_column(String)
     step_type: Mapped[str] = mapped_column(String)
     seq: Mapped[int] = mapped_column(Integer)
     start_at: Mapped[datetime] = mapped_column(TZDateTime)
@@ -55,55 +54,64 @@ class RunEvent(Base):
     created_at: Mapped[datetime] = mapped_column(TZDateTime)
 
     __table_args__ = (
-        ForeignKeyConstraint(["kitting_no", "lot_no"], ["plans.kitting_no", "plans.lot_no"]),
-        UniqueConstraint("kitting_no", "lot_no", "step_type", "seq", name="uq_run_events_seq"),
-        # 同じ計画の同じ工程で、終了していない記録は1件まで(二重開始をDBでも防ぐ)
-        Index("ux_run_events_open", "kitting_no", "lot_no", "step_type", unique=True,
-              sqlite_where=text("end_at IS NULL")),
+        UniqueConstraint("kitting_no", "step_type", "seq", name="uq_run_events_seq"),
+        # 同じキッティングNo.の同じ工程で、終了していない記録は1件まで(二重開始をDBでも防ぐ)
+        Index("ux_run_events_open", "kitting_no", "step_type", unique=True, sqlite_where=text("end_at IS NULL")),
     )
 
 
 class RunInput(Base):
-    """時刻を持たない入力(NG数・備考)。NG数は行を追加し、最新の値を有効とする。"""
+    """時刻を持たない入力のうち、NG数以外(今は備考)。キッティングNo.の単位。"""
 
     __tablename__ = "run_inputs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     kitting_no: Mapped[str] = mapped_column(String)
-    lot_no: Mapped[str] = mapped_column(String)
-    kind: Mapped[str] = mapped_column(String)  # ng_qty / remark
+    kind: Mapped[str] = mapped_column(String)  # remark
     value: Mapped[str] = mapped_column(Text)
     entered_by: Mapped[int] = mapped_column(Integer, ForeignKey("operators.id"))
     entered_at: Mapped[datetime] = mapped_column(TZDateTime)
     request_id: Mapped[str] = mapped_column(String, unique=True)
 
-    __table_args__ = (
-        ForeignKeyConstraint(["kitting_no", "lot_no"], ["plans.kitting_no", "plans.lot_no"]),
-        Index("ix_run_inputs_plan", "kitting_no", "lot_no", "kind"),
-    )
+    __table_args__ = (Index("ix_run_inputs_kitting", "kitting_no", "kind"),)
+
+
+class RunNgInput(Base):
+    """NG数。ロットと、NGが出た面を選んで入力する。同じ (kitting_no, lot_no, side) は最新の値を有効とする。"""
+
+    __tablename__ = "run_ng_inputs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    kitting_no: Mapped[str] = mapped_column(String)  # 入力した画面の計画
+    lot_no: Mapped[str] = mapped_column(String)
+    side: Mapped[int] = mapped_column(Integer)  # NGが出た面(1 / 2)
+    side_kitting_no: Mapped[str] = mapped_column(String)  # NGが出た面の計画のキッティングNo.(既存アプリに返すときに使う)
+    ng_qty: Mapped[int] = mapped_column(Integer)
+    entered_by: Mapped[int] = mapped_column(Integer, ForeignKey("operators.id"))
+    entered_at: Mapped[datetime] = mapped_column(TZDateTime)
+    request_id: Mapped[str] = mapped_column(String, unique=True)
+
+    __table_args__ = (Index("ix_run_ng_inputs_key", "kitting_no", "lot_no", "side"),)
 
 
 class RunCompletion(Base):
-    """完了時点の確定値。片付けの終了で1件作る(やり直したらもう1件。最新のものを有効とする)。"""
+    """完了時点の確定値(キッティングNo.の単位)。片付けの終了で1件作る(やり直したらもう1件。最新を有効とする)。"""
 
     __tablename__ = "run_completions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     kitting_no: Mapped[str] = mapped_column(String)
-    lot_no: Mapped[str] = mapped_column(String)
     cleanup_event_id: Mapped[int] = mapped_column(Integer, ForeignKey("run_events.id"), unique=True)
     completed_at: Mapped[datetime] = mapped_column(TZDateTime)
     produced_qty: Mapped[int] = mapped_column(Integer)  # 生産の区切りの合計
-    ng_qty: Mapped[int | None] = mapped_column(Integer)  # その時点の最新のNG数
-    plan_qty_snapshot: Mapped[int] = mapped_column(Integer)
+    plan_qty_snapshot: Mapped[int] = mapped_column(Integer)  # ロットの数量の合計
     takt_sec_snapshot: Mapped[float | None] = mapped_column(Float)
+    lots_snapshot: Mapped[str | None] = mapped_column(Text)  # JSON: [{lot_no, product_name, planned_qty}]
+    ng_snapshot: Mapped[str | None] = mapped_column(Text)  # JSON: ロットと面ごとの最新のNG数
     # TODO(要確認): 稼働率の定義(今は計算しない)
     utilization: Mapped[float | None] = mapped_column(Float)
 
-    __table_args__ = (
-        ForeignKeyConstraint(["kitting_no", "lot_no"], ["plans.kitting_no", "plans.lot_no"]),
-        Index("ix_run_completions_plan", "kitting_no", "lot_no"),
-    )
+    __table_args__ = (Index("ix_run_completions_kitting", "kitting_no"),)
 
 
 class LineEvent(Base):

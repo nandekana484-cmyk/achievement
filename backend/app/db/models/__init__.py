@@ -12,7 +12,7 @@ from app.db.models.plans import (
     PlanSyncRun,
     PlanSyncWarning,
 )
-from app.db.models.records import ApiRequest, LineEvent, LineOperator, RunCompletion, RunEvent, RunInput
+from app.db.models.records import ApiRequest, LineEvent, LineOperator, RunCompletion, RunEvent, RunInput, RunNgInput
 
 __all__ = [
     "PLAN_ACTIVE",
@@ -34,4 +34,5 @@ __all__ = [
     "RunCompletion",
     "RunEvent",
     "RunInput",
+    "RunNgInput",
 ]

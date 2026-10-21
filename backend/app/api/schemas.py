@@ -34,6 +34,8 @@ class StepEndIn(_Body):
 
 class NgQtyIn(_Body):
     request_id: RequestId
+    lot_no: str = Field(max_length=100)
+    side: int  # NGが出た面(1 / 2)
     ng_qty: int
     operator_id: int | None = None
 
