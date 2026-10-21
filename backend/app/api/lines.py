@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.schemas import ChangeOperatorIn, LineEventEndIn, LineEventStartIn
+from app.core.config import get_config
 from app.db.session import get_session
 from app.services import board, line_events, line_operators, masters
 from app.services.views import BoardOut, CurrentOperatorOut, LineEventOut, MastersOut
@@ -45,11 +46,11 @@ def end_line_event(line_code: str, event_id: int, body: LineEventEndIn, session:
 @router.get("/lines/{line_code}/board", response_model=BoardOut)
 def get_board(
     line_code: str,
-    date: dt.date | None = Query(default=None, description="YYYY-MM-DD。省略すると今日"),
+    date: dt.date | None = Query(default=None, description="稼働日(YYYY-MM-DD)。省略すると今の稼働日"),
     session: Session = Depends(get_session),
 ) -> BoardOut:
-    """ライン画面用: その日の計画ごとの工程の記録・生産数・NG数・完了・進捗率と、付帯作業、今の担当者。"""
-    return board.get_board(session, line_code, date)
+    """ライン画面用: 表示範囲の計画ごとの工程の記録・生産数・NG数・完了・進捗率と、付帯作業、今の担当者。"""
+    return board.get_board(session, line_code, date, get_config().schedule.day_start)
 
 
 @router.get("/masters", response_model=MastersOut)

@@ -10,6 +10,7 @@ import logging
 import os
 import tomllib
 from dataclasses import dataclass, field
+from datetime import time
 from functools import lru_cache
 from pathlib import Path
 
@@ -48,10 +49,17 @@ class SyncConfig:
 
 
 @dataclass(frozen=True)
+class ScheduleConfig:
+    # 稼働日の始まり。稼働日 = この時刻から翌日のこの時刻まで(これより前は前日の稼働日)
+    day_start: time = time(8, 15)
+
+
+@dataclass(frozen=True)
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
     sync: SyncConfig = field(default_factory=SyncConfig)
+    schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     timezone: str = "Asia/Tokyo"
 
 
@@ -87,6 +95,9 @@ def load_config(path: Path | None = None) -> AppConfig:
             cancel_guard_min=int(y.get("cancel_guard_min", SyncConfig.cancel_guard_min)),
             cancel_guard_ratio=float(y.get("cancel_guard_ratio", SyncConfig.cancel_guard_ratio)),
             legacy_db_max_age_days=int(y.get("legacy_db_max_age_days", SyncConfig.legacy_db_max_age_days)),
+        ),
+        schedule=ScheduleConfig(
+            day_start=time.fromisoformat(raw.get("schedule", {}).get("day_start", ScheduleConfig.day_start.isoformat("minutes"))),
         ),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     )

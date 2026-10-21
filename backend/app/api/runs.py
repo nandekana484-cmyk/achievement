@@ -8,10 +8,16 @@ from sqlalchemy.orm import Session
 from app.api.schemas import NgQtyIn, RemarkIn, StepEndIn, StepStartIn
 from app.db.session import get_session
 from app.domain.steps import StepType
-from app.services import run_records
-from app.services.views import RunInputOut, StepResultOut
+from app.services import board, run_records
+from app.services.views import BoardPlanOut, RunInputOut, StepResultOut
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
+
+
+@router.get("/{kitting_no}/{lot_no}", response_model=BoardPlanOut)
+def get_run(kitting_no: str, lot_no: str, session: Session = Depends(get_session)) -> BoardPlanOut:
+    """計画1件の工程の記録・生産数・NG数・完了・進捗率(表示範囲の外の計画を選んだときに使う)。"""
+    return board.get_run(session, kitting_no, lot_no)
 
 
 @router.post("/{kitting_no}/{lot_no}/steps/{step_type}/start", response_model=StepResultOut)

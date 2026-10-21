@@ -27,3 +27,7 @@ dist/
 
 # TypeScript のビルドキャッシュ(ビルドのたびに変わる)
 *.tsbuildinfo
+
+# 画面の確認(Playwright)の結果とスクリーンショット
+frontend/test-results/
+frontend/playwright-report/
