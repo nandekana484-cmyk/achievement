@@ -1,4 +1,4 @@
-"""APIの入力(リクエストの本文)。応答の形は services/views.py と plan_views.py。
+"""APIの入力(リクエストの本文)。応答の形は services/views/ と plan_views.py。
 
 記録者は operator_id(本アプリの中の番号)か worker_id(作業者ID)のどちらかで指定できる。省略するとラインの今の担当者。
 """

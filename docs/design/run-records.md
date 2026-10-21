@@ -13,7 +13,7 @@
 | `backend/app/services/line_operators.py` | 今の担当者と、記録者の決め方 |
 | `backend/app/services/idempotency.py` | ボタン操作の冪等性 |
 | `backend/app/services/board.py` | ライン画面用の取得 |
-| `backend/app/services/views.py` | 応答の形(Pydantic)と、DBの行からの組み立て |
+| `backend/app/services/views/` | 応答の形(Pydantic)と、DBの行からの組み立て。masters.py(マスタ)、operators.py(記録した人と今の担当者)、runs.py(工程の記録・完了・備考・NG数)、line_events.py(付帯作業)に分け、`__init__.py` から同じ名前で使える |
 | `backend/app/db/models/records.py` | 実績のテーブル |
 
 ## キッティングNo.の単位(2026-10-21 に変更)
