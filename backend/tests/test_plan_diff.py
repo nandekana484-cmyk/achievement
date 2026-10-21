@@ -2,7 +2,7 @@ from dataclasses import replace
 
 from app.integration.legacy_plans import read_active_plans
 from app.services.plan_diff import diff_plans
-from legacy_fixture import insert_plan, make_plan_db
+from legacy_fixture import TAKT, insert_plan, make_plan_db
 
 
 def _plans(tmp_path, specs):
@@ -10,7 +10,7 @@ def _plans(tmp_path, specs):
     make_plan_db(p)
     for s in specs:
         insert_plan(p, **s)
-    return {pl.key: pl for pl in read_active_plans(p).plans}
+    return {pl.key: pl for pl in read_active_plans(p, TAKT).plans}
 
 
 def test_reimport_with_same_content_is_unchanged(tmp_path):
@@ -35,11 +35,18 @@ def test_added_changed_removed(tmp_path):
     assert d.removed_without_actuals == [k2]
 
 
-def test_delete_flag_counts_as_removed(tmp_path):
+def test_delete_flag_is_ignored(tmp_path):
     cur = _plans(tmp_path, [{"kitting_no": "0722-1-S-251014-01"}])
     flagged = [replace(p, delete_flag=True) for p in cur.values()]
     d = diff_plans(cur, flagged, keys_with_actuals=set(cur))
-    assert d.removed_with_actuals == list(cur)
+    assert d.unchanged == list(cur) and not d.removed_with_actuals and not d.changed
+
+
+def test_takt_change_counts_as_changed(tmp_path):
+    cur = _plans(tmp_path, [{"kitting_no": "0722-1-S-251014-01"}])
+    retimed = [replace(p, takt_sec=31.5) for p in cur.values()]
+    d = diff_plans(cur, retimed, keys_with_actuals=set())
+    assert [p.key for p in d.changed] == list(cur)
 
 
 def test_renumbered_plan_with_actuals_becomes_carryover(tmp_path):

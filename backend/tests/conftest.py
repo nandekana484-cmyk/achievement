@@ -9,7 +9,7 @@ from app.core import clock
 from app.core.clock import JST
 from app.db.migrate import upgrade_to_head
 from app.db.session import make_engine
-from legacy_fixture import make_plan_db
+from legacy_fixture import add_monthly_db, make_legacy_app
 
 
 class FakeClock:
@@ -47,8 +47,14 @@ def session_factory(engine):
 
 
 @pytest.fixture
-def legacy_db(tmp_path):
-    p = tmp_path / "legacy" / "monthly.db"
-    p.parent.mkdir()
-    make_plan_db(p)
-    return p
+def legacy_app(tmp_path):
+    """既存アプリのフォルダ(master.db と、月次DB「2026-10」が1つ)。"""
+    app_dir = make_legacy_app(tmp_path / "legacy-app")
+    add_monthly_db(app_dir, "2026-10")
+    return app_dir
+
+
+@pytest.fixture
+def legacy_db(legacy_app):
+    """legacy_app の月次DB「2026-10」。"""
+    return legacy_app / "db" / "2026-10" / "inventory.db"

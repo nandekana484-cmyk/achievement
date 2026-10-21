@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, Index, Integer, String, Text
+from sqlalchemy import Date, Float, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -39,7 +39,12 @@ class Plan(Base):
     planned_start: Mapped[datetime | None] = mapped_column(TZDateTime)
     planned_end: Mapped[datetime | None] = mapped_column(TZDateTime)
     deadline: Mapped[datetime | None] = mapped_column(TZDateTime)
-    delete_flag: Mapped[bool] = mapped_column(default=False)
+    delete_flag: Mapped[bool] = mapped_column(default=False)  # 保存するだけ。取消の判定には使わない
+    # 想定タクト(master.db の production_side_master.takt_time)。マスタに無い・読めないときは None
+    # TODO(要確認): 想定タクトの単位(今は「1枚あたりの秒」と仮定)
+    takt_sec: Mapped[float | None] = mapped_column(Float)
+    # 正とした既存アプリの月次DBのフォルダ名(ロットごとに、最後に書き込まれたDB)
+    source_db: Mapped[str | None] = mapped_column(String)
     # 既存DBの status 列の値(本アプリの status と区別するため legacy_ を付ける)
     legacy_status: Mapped[str | None] = mapped_column(String)
     legacy_plan_item_id: Mapped[int] = mapped_column(Integer)
@@ -73,6 +78,8 @@ class PlanSyncRun(Base):
     unchanged: Mapped[int] = mapped_column(Integer, default=0)
     cancelled: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text)
+    # その回に読んだ月次DBの一覧と、DBごとの計画の件数(JSON)。読む前に失敗した回は空
+    legacy_dbs: Mapped[str | None] = mapped_column(Text)
 
 
 class PlanSyncWarning(Base):
