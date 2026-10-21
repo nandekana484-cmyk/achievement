@@ -3,7 +3,7 @@
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
 - 最終更新: 2026-10-21
-- main の最新: `b780754` Merge branch 'fix/vi-terms'(feature/packaging は取り込み前)
+- main の最新: Merge branch 'feature/packaging'(この文書を直したコミットを含む)
 
 ## 進め方
 
@@ -22,7 +22,7 @@
 - 表示言語の切り替え: 日本語とベトナム語(訳の初版を取り込み済み)。選んだ言語は端末に記憶。理由と設備はベトナム語の名前(name_vi)を出す([spec 7.5](spec.md#75-表示言語の切り替え)、[i18n.md](design/i18n.md))
 - 書き込みのロック([db-writes.md](design/db-writes.md))
 - コードの大きさのチェック(`tools/check_code_size.py`)
-- 本番の形(exe): `packaging\build.ps1` でフォルダ形式の exe と zip を作れる。基準のフォルダ(GENBA_HOME)から config.toml とDBを読む。担当者PCで使う自動起動とファイアウォールのスクリプト(まだ担当者PCでは動かしていない)([spec 10](spec.md#10-開発配布運用)、[packaging.md](design/packaging.md))
+- 本番の形(exe): `packaging\build.ps1` でフォルダ形式の exe(ウィンドウを出さない形)と zip を作れる。基準のフォルダ(GENBA_HOME)から config.toml とDBを読む。起動の失敗はログのファイルに残る。担当者PCで使う自動起動(担当者のアカウントで、ログオンしているかどうかにかかわらず実行)とファイアウォールのスクリプト([spec 10](spec.md#10-開発配布運用)、[packaging.md](design/packaging.md))
 - DBのバックアップ: 起動時(更新の前)と毎日 12:30 に backup_dir へ。世代は30([spec 9](spec.md#9-非機能要件))
 - ログ: `logs\genba.log` に日ごとに分けて保存
 
@@ -34,7 +34,7 @@
    - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
    - 生産数をロットに分けるかは未決定
 4. 記録用紙の印刷(A4、1回目と2回目)
-5. 本番への配置: 担当者PCに置き、自動起動とファイアウォールのスクリプトを実行する。バックアップの保存先(共有フォルダ)の権限を確かめる(exe とスクリプトはできている)
+5. 本番への配置: exe化とバックアップはできた。残りは担当者PCでの登録と確認(zip の展開、config.toml、自動起動とファイアウォールのスクリプトの実行、共有フォルダへのバックアップの書き込み、タブレットからの接続)
 6. 依存ライブラリの更新
    - 先に NANJYOU-H の Node を 22 に上げる
    - そのあと vite・vitest・esbuild を更新し、pytest の httpx の警告に対応する
