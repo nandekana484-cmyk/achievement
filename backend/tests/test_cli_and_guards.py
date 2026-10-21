@@ -79,8 +79,8 @@ def test_cli_equipment_requires_registered_line(cli_config, capsys):
 def test_cli_reasons_list(cli_config, capsys):
     assert cli.main(["reasons", "list"]) == 0
     out = capsys.readouterr().out
-    assert "マシントラブル\t-\tロス\t-\t○\t-\t○\t○" in out  # 2列目はベトナム語の名前(未登録は -)
-    assert "人員交代\t-\tロス以外\t-\t-\t-\t-\t○" in out
+    assert "マシントラブル\tSự cố máy\tロス\t-\t○\t-\t○\t○" in out  # 2列目はベトナム語の名前(未登録は -)
+    assert "人員交代\tĐổi người\tロス以外\t-\t-\t-\t-\t○" in out
 
 
 def test_cli_vietnamese_names(cli_config, capsys):
@@ -100,12 +100,12 @@ def test_cli_vietnamese_names(cli_config, capsys):
     with get_sessionmaker()() as s:
         eq2 = s.scalars(select(Equipment).where(Equipment.name == "マウンター2")).one().id
     assert cli.main(["equipment", "set-vi", str(eq2), "Máy gắn 2"]) == 0
-    assert cli.main(["reasons", "set-vi", "1", "Tìm linh kiện"]) == 0
+    assert cli.main(["reasons", "set-vi", "1", "Tìm phụ tùng"]) == 0
     assert cli.main(["equipment", "set-vi", "999", "x"]) == 1
     assert "設備(ID 999)が見つかりません" in capsys.readouterr().err
     with get_sessionmaker()() as s:
         assert s.get(Equipment, eq2).name_vi == "Máy gắn 2"
-        assert s.get(Reason, 1).name_vi == "Tìm linh kiện"
+        assert s.get(Reason, 1).name_vi == "Tìm phụ tùng"
 
     assert cli.main(["equipment", "set-vi", str(eq2), ""]) == 0  # 空にすると消す(画面は日本語の名前を出す)
     with get_sessionmaker()() as s:

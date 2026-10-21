@@ -13,7 +13,7 @@ def test_upgrade_creates_tables_and_is_repeatable(engine):
     names = set(inspect(engine).get_table_names())
     assert {"plans", "plan_sync_runs", "plan_sync_warnings", "alembic_version"} <= names
     with engine.connect() as c:
-        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
 
 
 def test_models_match_migrations(engine):
@@ -117,4 +117,39 @@ def test_upgrade_from_0002_keeps_plans(tmp_path):
         assert c.execute(text("SELECT legacy_dbs FROM plan_sync_runs")).all() == []
         # 0004: それまでに取り込んだ計画のラインが登録される
         assert c.execute(text("SELECT line_code, name FROM lines")).all() == [("S", "Sライン")]
+    e.dispose()
+
+
+def test_reason_names_vi_are_seeded(engine):
+    with engine.connect() as c:
+        rows = dict(c.execute(text("SELECT name, name_vi FROM reasons")).all())
+    assert rows["部品探し"] == "Tìm linh kiện" and rows["マシントラブル"] == "Sự cố máy"
+    assert rows["応援・その他"] == "Hỗ trợ / Khác" and rows["計画切替"] == "Chuyển kế hoạch"
+    assert all(rows.values())  # 初期の9件すべてに入る
+
+
+def test_0009_does_not_overwrite_names_set_by_people(tmp_path):
+    from alembic import command
+
+    from app.db.migrate import alembic_config
+    from app.db.session import make_engine
+
+    e = make_engine(tmp_path / "old.db")
+    cfg = alembic_config()
+    with e.begin() as c:
+        cfg.attributes["connection"] = c
+        command.upgrade(cfg, "0008")
+        c.execute(text("UPDATE reasons SET name_vi = 'Tìm phụ tùng' WHERE name = '部品探し'"))
+        c.execute(text("UPDATE reasons SET name_vi = '  ' WHERE name = '欠品'"))  # 空白だけは空とみなす
+    upgrade_to_head(e)
+    with e.connect() as c:
+        rows = dict(c.execute(text("SELECT name, name_vi FROM reasons")).all())
+    assert rows["部品探し"] == "Tìm phụ tùng" and rows["欠品"] == "Thiếu linh kiện"
+
+    with e.begin() as c:  # 戻すと、0009 で入れた値のものだけ空になる
+        cfg.attributes["connection"] = c
+        command.downgrade(cfg, "0008")
+    with e.connect() as c:
+        rows = dict(c.execute(text("SELECT name, name_vi FROM reasons")).all())
+    assert rows["部品探し"] == "Tìm phụ tùng" and rows["欠品"] is None
     e.dispose()
