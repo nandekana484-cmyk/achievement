@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest==9.1.1   # MIT
 httpx==0.28.1   # BSD  TestClient が使う
+pyinstaller==6.22.3  # GPL-2.0-or-later(ブートローダーの例外付き。作った exe にはGPLが及ばない)。ビルドのときだけ使う道具(開発指針 4)
