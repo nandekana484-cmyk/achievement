@@ -20,7 +20,7 @@ def alembic_config() -> Config:
 def upgrade_to_head(engine: Engine) -> None:
     """本アプリのDBを最新の構造にする。何度呼んでもよい。
 
-    TODO(バックアップ実装後): 更新の前にバックアップを取る(開発指針 10)
+    更新の前のバックアップは、アプリの起動時(main.py の lifespan)にこの前で取る。
     """
     cfg = alembic_config()
     with engine.begin() as conn:
