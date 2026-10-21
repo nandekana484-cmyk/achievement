@@ -37,7 +37,8 @@
 | 既存アプリ | 担当者が使っている生産管理アプリ(デスクトップアプリ、担当者PCのローカルSQLite) |
 | 製品 / ロット | 既存アプリの管理単位。ロットNo.は製品に1つ。1つのロットに複数の機種(ファイルNo.)が含まれることがある |
 | ファイルNo. | 生産機種を表す番号。同じファイルNo.でも品名が異なることがある(中身は同じ) |
-| 計画 | 計画データの1行。キッティングNo.で識別する。**計画1行=1回** |
+| 計画 | 計画データの1行(キッティングNo.+ロットNo.)。**計画1行=1回**。取り込み(同期)はこの単位 |
+| 計画のまとまり | 同じキッティングNo.の計画(ロット)をまとめたもの。**画面と実績はこの単位**(タイムテーブルの枠、工程の記録、生産数、進捗)。計画数はロットの数量の合計。1つのキッティングNo.に複数のロットがあることが多い(有効な計画の約3割、最大10ロット)。ファイルNo.・ライン・面・計画開始・終了はロットによらず同じ(違えば警告) |
 | 回 | 1回目(表)または2回目(裏)。製品によっては1回目だけのこともある |
 | 組 | 同じ製品の1回目の計画と2回目の計画のペア |
 | 工程 | 1回の中で行う作業。段取り、N1チェック、生産、初品チェック、X線検査、片付け |
@@ -191,20 +192,26 @@ genba-app/
 - 区切りは記録用紙の欄が3つなので、画面上の目安は3回。**データ上は上限を設けない**
 - **工程は繰り返し記録できる**(例: トラブルで別の計画に切り替え、戻ってから段取りをやり直す。seq が2になる)
 - 異なる工程どうしは時間が重なってよい(例: 生産中に初品チェック)
-- 同じ計画の同じ工程で、終了していないものがあるのに開始はできない(生産の区切りどうしも重ならない)。終了していないものが無いのに終了はできない。DBにも「終了していない記録は計画×工程で1件まで」の一意制約を持たせ、同時の操作でも二重に記録しない
+- 工程の記録・生産数・備考・完了は、**キッティングNo.(計画のまとまり)の単位**で記録する(ロットNo.を使わない)
+- 同じキッティングNo.の同じ工程で、終了していないものがあるのに開始はできない(生産の区切りどうしも重ならない)。終了していないものが無いのに終了はできない。DBにも「終了していない記録はキッティングNo.×工程で1件まで」の一意制約を持たせ、同時の操作でも二重に記録しない
+- **NG数だけは、ロットとNGが出た面を選んで入力する**(記録: 入力した画面の計画のキッティングNo.、ロットNo.、面、NG数、入力者、日時)。同じ「キッティングNo.+ロットNo.+面」の入力は最新の値を有効とし、過去の値は履歴として残す
+  - 選べる面: 面1の計画では面1だけ。面2の計画では面2と、同じロットNo.・同じファイルNo.の面1の計画が見つかるときの面1(見つからなければ面1は選べない)
+  - 面1のNGには、対応する面1の計画のキッティングNo.も記録する(既存アプリに返すときに使う)
 - 計画が無ければ 404。取消の計画は開始できない(終了はできる)
 - 時刻はサーバーの時計で記録する。記録者の決め方は 5.6
 - NG数は行を追加し、最新の値を有効とする(上書きしない)。備考は追加する
+- 詳細: docs/design/run-records.md(NGで面を区別する理由、既存アプリの保存の形への変換)
 - 計画をまたぐ重なりは基本的にないが、トラブルで今の計画を止めて別の計画を生産することはある。計画の順番の入れ替えもある(最終的に生産がそろえばよい)
 
 API:
 
 | メソッド | パス | 本文 |
 | --- | --- | --- |
-| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/start` | request_id、restart_reason_id?、equipment_id?、operator_id? |
-| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/end` | request_id、produced_qty?、operator_id? |
-| PUT | `/api/runs/{kitting_no}/{lot_no}/ng-qty` | request_id、ng_qty、operator_id? |
-| POST | `/api/runs/{kitting_no}/{lot_no}/remarks` | request_id、text、operator_id? |
+| GET | `/api/runs/{kitting_no}` | (計画のまとまり1件の状態) |
+| POST | `/api/runs/{kitting_no}/steps/{step_type}/start` | request_id、restart_reason_id?、equipment_id?、operator_id? |
+| POST | `/api/runs/{kitting_no}/steps/{step_type}/end` | request_id、produced_qty?、operator_id? |
+| PUT | `/api/runs/{kitting_no}/ng-qty` | request_id、lot_no、side(NGが出た面)、ng_qty、operator_id? |
+| POST | `/api/runs/{kitting_no}/remarks` | request_id、text、operator_id? |
 
 **冪等性**(0-5): すべての操作で request_id を送る。同じ request_id の再送には、最初の応答をそのまま返す(200)。同じ request_id で内容が違えば 409。ルール違反で失敗した操作は記録しないので、同じ request_id で送り直せる(`services/idempotency.py`、表 api_requests)。
 
@@ -269,7 +276,8 @@ API:
   - 製品の完成数 = 最終の回の生産数(区切りの合計)。1回目と2回目を足さない
   - NG数は回ごとに分けて返す(既存アプリが回ごとに持っている)
 - 完了後の誤りは、管理者が訂正し(訂正履歴を残す)、区分「訂正」で再出力する
-- 実装済み(run_completions): 片付けの終了で1件作る(生産数=区切りの合計、NG数=その時点の最新、計画数と想定タクトの写し。稼働率は定義が決まるまで空)。片付けをやり直して終了したらもう1件作り、最新のものを有効とする。完了後も工程の記録は受け付ける
+- 実装済み(run_completions。キッティングNo.の単位): 片付けの終了で1件作る。生産数=区切りの合計、計画数(ロットの数量の合計)と想定タクトの写しに加えて、その時点のロットの一覧(ロットNo.・基板名・数量)と、ロットと面ごとの最新のNG数も写す。稼働率は定義が決まるまで空。片付けをやり直して終了したらもう1件作り、最新のものを有効とする。完了後も工程の記録は受け付ける
+- 既存アプリはNGを「キッティングNo.+ロットNo.+面」で、面1 = 面1の欄 + 面2の欄 の形で持つ。この形への変換は、実績の反映の作業で作る(docs/design/run-records.md)
 - ライン画面用の取得: `GET /api/lines/{line_code}/board?date=YYYY-MM-DD`(計画ごとの工程の記録・生産数の合計・最新のNG数・完了・計画の進捗率と、その日の付帯作業、今の担当者、ラインの進捗率)、`GET /api/masters?line_code=`(有効なマスタ)
 
 ### 5.8 進捗率と稼働率
@@ -376,13 +384,14 @@ API:
 - 計画の枠は最新の計画の順番で、実績は実際にボタンが押された時刻で描く(順番が入れ替わっても実績は動かない)
 - 付帯作業のボタンは、計画を選んでいなくても押せる
 - **表示範囲**: 稼働日の始まりの12時間前から、終わりの12時間後までの48時間(例: 稼働日 10/21 → 10/20 20:15〜10/22 20:15)。タイムテーブルの縦軸はこの48時間で、稼働日の境目(8:15)に線と日付を出す。開いたときは今の時刻のあたりまで自動でスクロールし、今の時刻の線はサーバーの時刻との差を補正して引く。表示範囲からはみ出す計画の枠は端で切り、切れていることが分かる印を付ける
-- **ライン画面に出す計画**(有効な計画のうち、次のどれか)
+- 画面は**キッティングNo.(計画のまとまり)の単位**。タイムテーブルの枠はキッティングNo.ごとに1つで、キッティングNo.・ロットの数(例: 3ロット)・計画数の合計を出す。右のパネルの見出しにロットの一覧(ロットNo.、基板名、数量、面ごとのNG数)を出す(多いときはパネルの中でスクロール)。NGは、ロットを選ぶ → 面を選ぶ(選べない面は押せない) → テンキーで数を入れる。入力済みのNGは一覧で見られる
+- **ライン画面に出す計画**(有効な計画のまとまりのうち、次のどれか)
   1. 計画開始〜終了が表示範囲と重なる
   2. 表示範囲の中に実績の記録がある(先行して始めた計画)
   3. 作業を始めたが、片付けが終わっていない(日付は問わない。遅れている計画)
   - ただし、計画終了が過ぎたのに未着手の計画は出さない(検索で選ぶ)
 - **ラインの進捗率**は、計画開始〜終了が稼働日(8:15〜翌8:15)と重なる計画で計算する(画面に出さない未着手で過ぎた計画も含める)
-- **計画の検索**: 左のカラムの上の検索欄で、キッティングNo.・ロットNo.・品名の一部で探す(`GET /api/plans/search?q=&line_code=`。英字の大文字・小文字と全角・半角の違いは無視。有効な計画のみ、計画開始が今に近い順に最大20件)。結果を押すとその計画を選ぶ。キッティングNo.が完全に一致する計画が1件だけなら、Enter でそのまま選ぶ(将来のバーコードリーダーのため)。選んだ計画が表示範囲の外なら「表示範囲外の計画です(計画: 10/18 9:00〜)」と出す
+- **計画の検索**: 左のカラムの上の検索欄で、キッティングNo.・ロットNo.・基板名の一部で探す(`GET /api/plans/search?q=&line_code=`。英字の大文字・小文字と全角・半角の違いは無視。有効な計画のみ、計画開始が今に近い順に最大20件)。ロットNo.や基板名で当たっても、そのキッティングNo.のまとまりを返し、当たったところ(ロットNo.・基板名)を出す。結果を押すとその計画を選ぶ。キッティングNo.が完全に一致する計画が1件だけなら、Enter でそのまま選ぶ(将来のバーコードリーダーのため)。選んだ計画が表示範囲の外なら「表示範囲外の計画です(計画: 10/18 9:00〜)」と出す
 - 担当者が未設定のまま記録のボタンを押したら、サーバーに送らず、先に担当者を選ぶ画面を出す
 - 詳細: docs/design/line-screen.md(実装した画面の作り、ボタン操作の送り方、稼働日と表示範囲の理由、タブレット向けの決まり)
 
@@ -417,9 +426,10 @@ API:
 | plan_pairs | pair_id、lot_no、file_no、qty、run1_kitting_no、run2_kitting_no | 組 |
 | plan_sync_runs | 実行日時、件数(追加・変更・取消・引き継ぎ)、エラー、読んだ月次DBの一覧とDBごとの計画の件数(legacy_dbs) | 同期の記録 |
 | plan_carryovers | old_kitting_no、new_kitting_no、方法(自動・手動)、日時、実行者 | 引き継ぎの履歴 |
-| run_events | id、kitting_no、lot_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at。(計画×工程×seq)は一意、終了していない記録は計画×工程で1件まで | 工程と生産の区切りの記録 |
-| run_inputs | id、kitting_no、lot_no、kind(ng_qty / remark)、value、entered_by、entered_at、request_id(一意) | 時刻を持たない入力(NG数は最新の値を有効とする) |
-| run_completions | id、kitting_no、lot_no、cleanup_event_id(完了にした片付けの記録。一意)、completed_at、produced_qty、ng_qty、plan_qty_snapshot、takt_sec_snapshot、utilization(稼働率。今は空) | 完了時点の確定値(最新のものを有効とする) |
+| run_events | id、kitting_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at。(キッティングNo.×工程×seq)は一意、終了していない記録はキッティングNo.×工程で1件まで | 工程と生産の区切りの記録(キッティングNo.の単位) |
+| run_inputs | id、kitting_no、kind(remark)、value、entered_by、entered_at、request_id(一意) | 時刻を持たない入力のうち、NG数以外(備考) |
+| run_ng_inputs | id、kitting_no(入力した画面の計画)、lot_no、side(NGが出た面)、side_kitting_no(NGが出た面の計画のキッティングNo.)、ng_qty、entered_by、entered_at、request_id(一意) | NG数(同じ kitting_no+lot_no+side は最新の値を有効とする) |
+| run_completions | id、kitting_no、cleanup_event_id(完了にした片付けの記録。一意)、completed_at、produced_qty、plan_qty_snapshot(ロットの数量の合計)、takt_sec_snapshot、lots_snapshot(ロットの一覧。JSON)、ng_snapshot(ロットと面ごとの最新のNG数。JSON)、utilization(稼働率。今は空) | 完了時点の確定値(最新のものを有効とする) |
 | line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、start_request_id(一意)、end_request_id(一意)。終了していない記録はライン×理由で1件まで | 付帯作業 |
 | line_operators | id、line_code、operator_id、start_at、end_at、request_id。今の担当者(end_at が空)はラインに1人 | 今の担当者とその履歴 |
 | api_requests | request_id(主キー)、operation、payload、response、created_at | ボタン操作の冪等性(再送に最初の応答を返す) |
