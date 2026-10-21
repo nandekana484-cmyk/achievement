@@ -24,7 +24,7 @@ def test_current_operator_change(client, world, fake_clock):
 
 
 def test_operator_change_rules(client, world):
-    conflict(client.put("/api/lines/S/operator", json={"request_id": rid(), "operator_id": 999}), "作業者(ID 999)が見つかりません")
+    conflict(client.put("/api/lines/S/operator", json={"request_id": rid(), "operator_id": 999}), "作業者(内部の番号 999)が見つかりません")
     r = client.put("/api/lines/X/operator", json={"request_id": rid(), "operator_id": world["yamada"]})
     assert r.status_code == 404 and "ライン「X」が見つかりません" in r.json()["detail"]
     # ラインの記号は正規化して探す(s → S)

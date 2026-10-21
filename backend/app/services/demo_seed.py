@@ -18,10 +18,12 @@ from app.db.models import PLAN_ACTIVE, Equipment, Operator, Plan
 from app.db.session import write_transaction
 from app.domain.kitting_no import parse_kitting_no
 from app.domain.normalize import normalize_mounting_line
+from app.domain.worker_id import worker_key
 from app.services.masters import register_lines
 
 DEMO_SOURCE = "demo"
-OPERATORS = ("山田", "佐藤")
+# (名前, 作業者ID)。同じ名前の人がいても区別できることを確かめるため、山田を2人入れる
+OPERATORS = (("山田", "Y001"), ("佐藤", "S002"), ("山田", "Y015"))
 EQUIPMENT = ("マウンター1", "リフロー炉")
 
 
@@ -66,9 +68,10 @@ def seed_demo(session: Session, line_code: str, day: dt.date) -> list[str]:
     with write_transaction(session):
         register_lines(session, [line])
         session.flush()
-        for i, name in enumerate(OPERATORS):
-            if session.scalars(select(Operator).where(Operator.name == name)).first() is None:
-                session.add(Operator(name=name, active=True, sort_order=(i + 1) * 10))
+        for i, (name, wid) in enumerate(OPERATORS):
+            if session.scalars(select(Operator).where(Operator.worker_key == worker_key(wid))).first() is None:
+                session.add(Operator(name=name, worker_id=wid, worker_key=worker_key(wid), role="operator", source="local",
+                                     active=True, sort_order=(i + 1) * 10))
         for i, name in enumerate(EQUIPMENT):
             exists = session.scalars(select(Equipment).where(Equipment.line_code == line, Equipment.name == name)).first()
             if exists is None:

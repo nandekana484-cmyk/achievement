@@ -58,6 +58,18 @@ def test_records_are_moved_to_kitting_unit(tmp_path):
     e.dispose()
 
 
+def test_0007_keeps_operators_referenced_by_records(tmp_path):
+    # 0007 は表を作り直さないので、工程の記録が作業者を参照していても止まらない
+    e = _at_0005(tmp_path)
+    with e.begin() as c:
+        _event(c, 1, "L1")
+    upgrade_to_head(e)
+    with e.connect() as c:
+        assert c.execute(text("SELECT name, worker_id, role, source FROM operators")).all() == [("山田", None, "operator", "local")]
+        assert c.execute(text("SELECT started_by FROM run_events")).scalar_one() == 1
+    e.dispose()
+
+
 def test_stops_when_records_overlap(tmp_path):
     e = _at_0005(tmp_path)
     with e.begin() as c:

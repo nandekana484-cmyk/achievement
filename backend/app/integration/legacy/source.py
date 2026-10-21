@@ -14,6 +14,7 @@ from app.integration.legacy.plans import read_active_plans
 from app.integration.legacy.readonly import file_mtime
 from app.integration.legacy.takt import read_takt_master
 from app.integration.legacy.types import LegacySourceError, LegacySourceRead, MonthlyDbRead, SkippedDb
+from app.integration.legacy.workers import read_workers
 
 MONTHLY_DB_NAME = "inventory.db"
 MASTER_DB_NAME = "master.db"
@@ -47,6 +48,7 @@ def read_legacy_source(legacy_app_dir: Path, max_age_days: int, now: datetime) -
     master = legacy_app_dir / "db" / MASTER_DB_NAME
     try:
         takt_master = read_takt_master(master)
+        workers = read_workers(master)
     except (OSError, sqlite3.Error) as e:
         raise LegacySourceError(f"master.db を読めません({master}): {type(e).__name__}: {e}") from e
 
@@ -65,4 +67,4 @@ def read_legacy_source(legacy_app_dir: Path, max_age_days: int, now: datetime) -
             raise LegacySourceError(f"月次DB「{name}」を読めません({path}): {type(e).__name__}: {e}") from e
         result = replace(result, warnings=[replace(w, message=f"[{name}] {w.message}") for w in result.warnings])
         dbs.append(MonthlyDbRead(name=name, path=path, file_mtime=mtime, result=result))
-    return LegacySourceRead(dbs=dbs, skipped=skipped)
+    return LegacySourceRead(dbs=dbs, skipped=skipped, workers=workers)

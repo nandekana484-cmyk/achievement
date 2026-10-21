@@ -257,13 +257,17 @@ API:
 - すべての記録に、開始した人と終了した人を別々に持つ(人員交代で変わるため)
 - ラインごとに「今の担当者」を設定し、ボタン操作の記録に自動で付ける。担当者は始業時と人員交代時に切り替える。1回の操作だけ別の人にすることもできる
 - 実装(`services/line_operators.py`): 表 line_operators に履歴を持つ。交代すると前の行に end_at を入れ、新しい行を足す(今の担当者はラインに1人。すでに同じ人なら何も変えない)
-- 記録者 = 本文の operator_id。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」
-- 作業者は作業者マスタ(operators)から選ぶ。PIN は付けない(11. 未確定事項)
+- 記録者 = 本文の operator_id(本アプリの中の番号)か worker_id(作業者ID)のどちらか。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」
+- **作業者は既存アプリの master.db の workers から読み込む**(計画の同期のたびに。読み取り専用)。名前・役割(admin / operator)・有効/無効を既存アプリに合わせ、既存アプリから見えなくなった作業者は消さずに無効にする(過去の記録が参照しているため)。作業者IDは既存アプリの表記のまま持ち、全角・半角と大文字・小文字の違いを無視して比べる(`domain/worker_id.py`)。正規化すると重なるIDは、片方を取り込まずに警告を出す
+- legacy_app_dir が設定されていない環境(開発用)だけ、開発用コマンドで作業者を足せる(`python -m app.cli operators add <名前> --id <作業者ID>`。source=local)
+- 担当者は**作業者IDで呼び出す**(PIN は付けない。11. 未確定事項)。画面では作業者IDの入力欄を一番上に置き、Enter(または「呼び出し」)でIDと名前を表示して確かめてから決める。入力欄はタブレットの文字キーボードが出る形で、将来の社員証のバーコードリーダー(文字の入力 + Enter)でも動く。名前の一覧(名前順。IDも並べる)から選ぶ方法も補助として残す
+- 同じ名前の人がいても区別できるよう、画面の上部や記録の表示では名前の横に作業者IDも出す
 
 | メソッド | パス | 説明 |
 | --- | --- | --- |
 | GET | `/api/lines/{line_code}/operator` | 今の担当者(未設定なら null) |
-| PUT | `/api/lines/{line_code}/operator` | 交代する(本文: request_id、operator_id) |
+| PUT | `/api/lines/{line_code}/operator` | 交代する(本文: request_id、operator_id か worker_id) |
+| GET | `/api/operators/lookup?worker_id=` | 作業者IDで、有効な作業者を呼び出す(無ければ 404「作業者IDが見つかりません」) |
 
 ラインの記号は、既存アプリと同じ規則で正規化してから探す(`s` → `S`)。ラインは計画の同期で新しい記号を見つけたら自動で登録する(名前は「<記号>ライン」)。
 
@@ -436,7 +440,7 @@ API:
 | result_exports / result_export_items | 出力ID、ファイル名、日時 / 製品、完成数、回ごとのNG数、区分(新規・訂正) | 既存への反映の記録 |
 | print_logs | 製品、印刷日時、印刷時の計画の値のハッシュ | 再印刷の判定 |
 | audit_log | 対象、項目、訂正前、訂正後、訂正者、日時、理由 | 訂正履歴 |
-| マスタ | lines(line_code=正規化した記号、name)、operators(name)、equipment(line_code、name)、reasons(name、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
+| マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name)、reasons(name、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
 
 - 時刻はサーバーが記録し、タイムゾーン付き(日本時間)で保存する
 - 削除はしない。取り消しは状態で表す
@@ -494,7 +498,7 @@ C:\GenbaApp\
 | ラインの進捗率の定義 | 上部の表示 | 当日の計画の生産数合計 ÷ 数量合計 |
 | 付帯作業を稼働率に含めるか(種類ごと) | 稼働率の計算 | すべて含めない |
 | 記録用紙のうち、手書きで残す項目 | 印刷ページ | 要確認 |
-| 現場の担当者選択にPINを付けるか | 認証 | 付けない(今回は作業者の選択のみ) |
+| 現場の担当者選択にPINを付けるか | 認証 | 付けない。作業者IDで呼び出す(既存アプリの workers の作業者ID。将来は社員証のバーコードの読み取り) |
 | 担当者の勤務時間外にラインが動くか | 自動起動、日付の区切り | 日中のみ |
 | 担当者PCで管理者権限を使えるか | 自動起動、ファイアウォール | 使える |
 | タブレットのWi-Fiが担当者PCと同じ社内LANか | 接続 | 同じLAN |

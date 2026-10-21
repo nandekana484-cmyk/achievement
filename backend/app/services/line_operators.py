@@ -41,8 +41,10 @@ def resolve_recorder(session: Session, line_code: str, operator_id: int | None) 
     return row.operator_id
 
 
-def change_operator(session: Session, line_code: str, operator_id: int, request_id: str) -> CurrentOperatorOut:
+def change_operator(session: Session, line_code: str, operator_id: int | None, request_id: str) -> CurrentOperatorOut:
     """今の担当者を交代する。すでに同じ人が担当者なら、何も変えずに今の担当者を返す。"""
+    if operator_id is None:
+        raise RuleViolation("交代する担当者(作業者ID)を指定してください")
     line = get_line(session, line_code)
     payload = {"line_code": line.line_code, "operator_id": operator_id}
 

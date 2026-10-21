@@ -16,9 +16,17 @@ async function openLine(page: Page) {
   await expect(page.locator(".tt-plan").first()).toBeVisible();
 }
 
-async function pickOperator(page: Page) {
-  await page.getByRole("dialog", { name: "担当者の交代" }).getByRole("button", { name: "山田" }).click();
-  await expect(page.locator(".kpi-button")).toContainText("山田");
+/** 作業者IDで呼び出し(小文字で入れても当たる)、IDと名前を確かめてから決める。shotName を渡すと、確かめている状態を撮る。 */
+async function pickOperator(page: Page, shotName?: string) {
+  const dialog = page.getByRole("dialog", { name: "担当者の交代" });
+  await dialog.getByLabel("作業者ID").fill("y001");
+  await dialog.getByLabel("作業者ID").press("Enter"); // バーコードリーダーと同じ(文字の入力 + Enter)
+  const found = dialog.getByRole("status", { name: "呼び出した作業者" });
+  await expect(found).toContainText("ID Y001");
+  await expect(found).toContainText("山田");
+  if (shotName) await shot(page, shotName);
+  await dialog.getByRole("button", { name: "この人にする" }).click();
+  await expect(page.locator(".kpi-button")).toContainText("山田(Y001)");
 }
 
 test("ライン画面の操作", async ({ page }) => {
@@ -36,8 +44,16 @@ test("ライン画面の操作", async ({ page }) => {
   // 担当者が未設定なら、工程のボタンはサーバーに送らず、先に担当者を選ぶ画面を出す
   await page.locator(".tt-plan", { hasText: FIRST }).click();
   await step(page, "段取り").click();
-  await expect(page.getByRole("dialog", { name: "担当者の交代" })).toContainText("担当者を選んでから、もう一度ボタンを押してください");
-  await pickOperator(page);
+  const picker = page.getByRole("dialog", { name: "担当者の交代" });
+  await expect(picker).toContainText("担当者を選んでから、もう一度ボタンを押してください");
+  // 無いIDは呼び出せない
+  await picker.getByLabel("作業者ID").fill("Z999");
+  await picker.getByRole("button", { name: "呼び出し" }).click();
+  await expect(picker.getByRole("alert")).toContainText("作業者IDが見つかりません");
+  // 名前の一覧は名前順で、同じ名前の人はIDで区別できる
+  await expect(picker.locator(".choice")).toHaveText(["佐藤(S002)", "山田(Y001)", "山田(Y015)"]);
+  // ⑬ IDで呼び出して確認している状態
+  await pickOperator(page, "13-operator-lookup");
   await expect(step(page, "段取り")).toContainText("未着手"); // 送っていない
 
   // ⑦ 409 のエラー表示: ほかの端末で先に段取りが開始され、この画面の表示がまだ古いまま押した

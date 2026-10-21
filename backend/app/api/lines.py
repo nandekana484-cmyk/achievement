@@ -12,7 +12,7 @@ from app.core.config import get_config
 from app.db.session import get_session
 from app.services import board, line_events, line_operators, masters
 from app.services.plan_views import BoardOut
-from app.services.views import CurrentOperatorOut, LineEventOut, MastersOut
+from app.services.views import CurrentOperatorOut, LineEventOut, MastersOut, OperatorOut
 
 router = APIRouter(prefix="/api", tags=["lines"])
 
@@ -25,23 +25,34 @@ def get_operator(line_code: str, session: Session = Depends(get_session)) -> Cur
 
 @router.put("/lines/{line_code}/operator", response_model=CurrentOperatorOut)
 def change_operator(line_code: str, body: ChangeOperatorIn, session: Session = Depends(get_session)) -> CurrentOperatorOut:
-    """ラインの今の担当者を交代する。"""
-    return line_operators.change_operator(session, line_code, body.operator_id, body.request_id)
+    """ラインの今の担当者を交代する(operator_id か worker_id のどちらかで指定)。"""
+    operator_id = masters.resolve_operator_ref(session, body.operator_id, body.worker_id)
+    return line_operators.change_operator(session, line_code, operator_id, body.request_id)
+
+
+@router.get("/operators/lookup", response_model=OperatorOut)
+def lookup_operator(
+    worker_id: str = Query(max_length=64, description="作業者ID(全角・半角、大文字・小文字は区別しない)"),
+    session: Session = Depends(get_session),
+) -> OperatorOut:
+    """作業者IDで、有効な作業者を呼び出す(無ければ 404「作業者IDが見つかりません」)。"""
+    return OperatorOut.model_validate(masters.lookup_operator(session, worker_id))
 
 
 @router.post("/lines/{line_code}/events/start", response_model=LineEventOut)
 def start_line_event(line_code: str, body: LineEventStartIn, session: Session = Depends(get_session)) -> LineEventOut:
     """付帯作業を開始する。"""
     return line_events.start_line_event(
-        session, line_code, body.reason_id, body.request_id,
-        equipment_id=body.equipment_id, reason_text=body.reason_text, operator_id=body.operator_id,
+        session, line_code, body.reason_id, body.request_id, equipment_id=body.equipment_id, reason_text=body.reason_text,
+        operator_id=masters.resolve_operator_ref(session, body.operator_id, body.worker_id),
     )
 
 
 @router.post("/lines/{line_code}/events/{event_id}/end", response_model=LineEventOut)
 def end_line_event(line_code: str, event_id: int, body: LineEventEndIn, session: Session = Depends(get_session)) -> LineEventOut:
     """付帯作業を終了する。"""
-    return line_events.end_line_event(session, line_code, event_id, body.request_id, operator_id=body.operator_id)
+    return line_events.end_line_event(session, line_code, event_id, body.request_id,
+                                      operator_id=masters.resolve_operator_ref(session, body.operator_id, body.worker_id))
 
 
 @router.get("/lines/{line_code}/board", response_model=BoardOut)

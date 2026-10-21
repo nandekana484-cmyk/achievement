@@ -44,6 +44,12 @@ CREATE TABLE production_side_master (
   imported_at TEXT,
   UNIQUE(setup_file_no, mounting_line, production_side)
 );
+CREATE TABLE workers (
+  worker_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT DEFAULT 'operator',
+  is_active INTEGER DEFAULT 1
+);
 """
 
 # 想定タクトのマスタ (setup_file_no, mounting_line, production_side) → takt_time。値は既存アプリと同じく文字列
@@ -81,6 +87,27 @@ def make_master_db(path: Path, takt: Mapping[tuple[str, str, str], str | None] =
                 "INSERT INTO production_side_master (row_key, setup_file_no, mounting_line, production_side, takt_time) VALUES (?,?,?,?,?)",
                 (f"{file_no}|{line}|{side}", file_no, line, side, value),
             )
+
+
+def put_worker(master: Path, worker_id: str, name: str, role: str = "operator", active: bool = True) -> None:
+    """既存アプリの作業者を足す、または変える(既存アプリと同じく行は消さない)。"""
+    with _connect(master) as c:
+        c.execute(
+            "INSERT INTO workers (worker_id, name, role, is_active) VALUES (?,?,?,?) "
+            "ON CONFLICT(worker_id) DO UPDATE SET name=excluded.name, role=excluded.role, is_active=excluded.is_active",
+            (worker_id, name, role, int(active)),
+        )
+
+
+def delete_worker(master: Path, worker_id: str) -> None:
+    """既存アプリから作業者が見えなくなった場合(既存アプリは消さないが、DBを入れ替えたときなど)。"""
+    with _connect(master) as c:
+        c.execute("DELETE FROM workers WHERE worker_id = ?", (worker_id,))
+
+
+def drop_workers_table(master: Path) -> None:
+    with _connect(master) as c:
+        c.execute("DROP TABLE workers")
 
 
 def make_legacy_app(root: Path, takt: Mapping[tuple[str, str, str], str | None] = DEFAULT_TAKT) -> Path:

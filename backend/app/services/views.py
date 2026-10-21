@@ -40,8 +40,10 @@ class LineOut(BaseModel):
 class OperatorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: int  # 本アプリの中の番号
     name: str
+    worker_id: str | None  # 作業者ID(既存アプリの表記のまま)。同じ名前の人を区別するため、名前の横に出す
+    role: str
     sort_order: int
 
 
@@ -83,6 +85,8 @@ class CurrentOperatorOut(BaseModel):
     operator_id: int
     operator_name: str
     start_at: dt.datetime
+    # 作業者ID。既定値は、この項目が無かったころに保存した応答(api_requests)を読み直すため(以下の *_worker_id も同じ)
+    operator_worker_id: str | None = None
 
 
 class RunEventOut(BaseModel):
@@ -96,6 +100,8 @@ class RunEventOut(BaseModel):
     started_by_name: str
     ended_by: int | None
     ended_by_name: str | None
+    started_by_worker_id: str | None = None
+    ended_by_worker_id: str | None = None
     produced_qty: int | None
     restart_reason_id: int | None
     restart_reason_name: str | None
@@ -121,6 +127,7 @@ class NgEntryOut(BaseModel):
     ng_qty: int
     entered_by_name: str = ""
     entered_at: dt.datetime | None = None
+    entered_by_worker_id: str | None = None
 
 
 class RunCompletionOut(BaseModel):
@@ -152,6 +159,7 @@ class RunInputOut(BaseModel):
     entered_by: int
     entered_by_name: str
     entered_at: dt.datetime
+    entered_by_worker_id: str | None = None
 
 
 class NgInputOut(BaseModel):
@@ -166,6 +174,7 @@ class NgInputOut(BaseModel):
     entered_by: int
     entered_by_name: str
     entered_at: dt.datetime
+    entered_by_worker_id: str | None = None
 
 
 class LineEventOut(BaseModel):
@@ -182,6 +191,8 @@ class LineEventOut(BaseModel):
     started_by_name: str
     ended_by: int | None
     ended_by_name: str | None
+    started_by_worker_id: str | None = None
+    ended_by_worker_id: str | None = None
 
 
 # --- 組み立て ---
@@ -194,10 +205,19 @@ def _operator_name(session: Session, operator_id: int | None) -> str | None:
     return op.name if op is not None else None
 
 
+def _worker_id(session: Session, operator_id: int | None) -> str | None:
+    """作業者ID(同じ名前の人を区別するため、名前の横に出す)。"""
+    if operator_id is None:
+        return None
+    op = session.get(Operator, operator_id)
+    return op.worker_id if op is not None else None
+
+
 def current_operator_out(session: Session, row: LineOperator) -> CurrentOperatorOut:
     return CurrentOperatorOut(
         line_code=row.line_code, operator_id=row.operator_id,
         operator_name=_operator_name(session, row.operator_id) or "", start_at=row.start_at,
+        operator_worker_id=_worker_id(session, row.operator_id),
     )
 
 
@@ -209,6 +229,7 @@ def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
         start_at=e.start_at, end_at=e.end_at,
         started_by=e.started_by, started_by_name=_operator_name(session, e.started_by) or "",
         ended_by=e.ended_by, ended_by_name=_operator_name(session, e.ended_by),
+        started_by_worker_id=_worker_id(session, e.started_by), ended_by_worker_id=_worker_id(session, e.ended_by),
         produced_qty=e.produced_qty,
         restart_reason_id=e.restart_reason_id, restart_reason_name=reason.name if reason else None,
         equipment_id=e.equipment_id, equipment_name=equipment.name if equipment else None,
@@ -229,7 +250,7 @@ def run_input_out(session: Session, i: RunInput) -> RunInputOut:
     return RunInputOut(
         id=i.id, kitting_no=i.kitting_no, kind=i.kind, value=i.value,
         entered_by=i.entered_by, entered_by_name=_operator_name(session, i.entered_by) or "",
-        entered_at=i.entered_at,
+        entered_at=i.entered_at, entered_by_worker_id=_worker_id(session, i.entered_by),
     )
 
 
@@ -237,6 +258,7 @@ def ng_entry_out(session: Session, n: RunNgInput) -> NgEntryOut:
     return NgEntryOut(
         lot_no=n.lot_no, side=n.side, side_kitting_no=n.side_kitting_no, ng_qty=n.ng_qty,
         entered_by_name=_operator_name(session, n.entered_by) or "", entered_at=n.entered_at,
+        entered_by_worker_id=_worker_id(session, n.entered_by),
     )
 
 
@@ -244,7 +266,7 @@ def ng_input_out(session: Session, n: RunNgInput) -> NgInputOut:
     return NgInputOut(
         id=n.id, kitting_no=n.kitting_no, lot_no=n.lot_no, side=n.side, side_kitting_no=n.side_kitting_no,
         ng_qty=n.ng_qty, entered_by=n.entered_by, entered_by_name=_operator_name(session, n.entered_by) or "",
-        entered_at=n.entered_at,
+        entered_at=n.entered_at, entered_by_worker_id=_worker_id(session, n.entered_by),
     )
 
 
@@ -257,6 +279,7 @@ def line_event_out(session: Session, e: LineEvent) -> LineEventOut:
         reason_text=e.reason_text, start_at=e.start_at, end_at=e.end_at,
         started_by=e.started_by, started_by_name=_operator_name(session, e.started_by) or "",
         ended_by=e.ended_by, ended_by_name=_operator_name(session, e.ended_by),
+        started_by_worker_id=_worker_id(session, e.started_by), ended_by_worker_id=_worker_id(session, e.ended_by),
     )
 
 

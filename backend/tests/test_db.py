@@ -13,7 +13,7 @@ def test_upgrade_creates_tables_and_is_repeatable(engine):
     names = set(inspect(engine).get_table_names())
     assert {"plans", "plan_sync_runs", "plan_sync_warnings", "alembic_version"} <= names
     with engine.connect() as c:
-        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0006"
+        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0007"
 
 
 def test_models_match_migrations(engine):

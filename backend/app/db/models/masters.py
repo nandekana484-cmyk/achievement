@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -20,7 +20,7 @@ class Line(Base):
 
 
 class Operator(Base):
-    """作業者。"""
+    """作業者。既存アプリの master.db の workers から読み込む(source=legacy)か、開発用コマンドで足す(source=local)。"""
 
     __tablename__ = "operators"
 
@@ -28,6 +28,15 @@ class Operator(Base):
     name: Mapped[str] = mapped_column(String)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    worker_id: Mapped[str | None] = mapped_column(String)  # 作業者ID(既存アプリの表記のまま)
+    worker_key: Mapped[str | None] = mapped_column(String)  # 作業者IDを正規化した値(呼び出しと重複の判定に使う)
+    role: Mapped[str] = mapped_column(String, default="operator")  # admin / operator
+    source: Mapped[str] = mapped_column(String, default="local")  # legacy / local
+
+    __table_args__ = (
+        Index("ux_operators_worker_id", "worker_id", unique=True),
+        Index("ux_operators_worker_key", "worker_key", unique=True),
+    )
 
 
 class Equipment(Base):
