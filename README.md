@@ -69,6 +69,10 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 http://localhost:8000 で画面とAPIが1つのプロセスから配信される。
 
+## コードの大きさの確認
+
+リポジトリ直下で `py -3.14 tools/check_code_size.py --top 10`(標準ライブラリだけで動く。ルールは [AGENTS.md](AGENTS.md) の「コードの大きさとコメントのルール」)。
+
 ## 2拠点での作業
 
 作業の前に main を `git pull` し、`feature/<内容>` のブランチで作業する。詳しいルールは [AGENTS.md](AGENTS.md) の「2拠点での作業ルール」を参照。
