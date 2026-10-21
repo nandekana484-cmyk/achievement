@@ -17,12 +17,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import __version__
-from app.api import health, lines, plans, runs
+from app.api import admin, admin_masters, health, lines, plans, runs
 from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
 from app.services.backup import DailyBackup, make_backup
-from app.services.errors import Busy, NotFound, RuleViolation
+from app.services.errors import Busy, Forbidden, NotFound, RuleViolation, TooManyAttempts, Unauthorized
 from app.services.plan_sync_scheduler import PlanSyncScheduler
 
 logger = logging.getLogger(__name__)
@@ -66,12 +66,30 @@ app.include_router(health.router)
 app.include_router(plans.router)
 app.include_router(runs.router)
 app.include_router(lines.router)
+app.include_router(admin.router)
+app.include_router(admin_masters.router)
 
 
 @app.exception_handler(RuleViolation)
 def _rule_violation(_request: Request, exc: RuleViolation) -> JSONResponse:
     """業務ルールの違反は 409。detail は画面にそのまま出せる日本語の文。"""
     return JSONResponse(status_code=409, content={"detail": exc.message})
+
+
+@app.exception_handler(Unauthorized)
+def _unauthorized(_request: Request, exc: Unauthorized) -> JSONResponse:
+    """管理画面: ログインしていない・切れた・管理者ではない。画面はログイン画面に戻す。"""
+    return JSONResponse(status_code=401, content={"detail": exc.message})
+
+
+@app.exception_handler(Forbidden)
+def _forbidden(_request: Request, exc: Forbidden) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": exc.message})
+
+
+@app.exception_handler(TooManyAttempts)
+def _too_many(_request: Request, exc: TooManyAttempts) -> JSONResponse:
+    return JSONResponse(status_code=429, content={"detail": exc.message})
 
 
 @app.exception_handler(NotFound)

@@ -58,6 +58,7 @@ export const vi: Messages = {
 
   "dashboard.title": "Chọn chuyền sản xuất",
   "dashboard.noLines": "Chưa có chuyền nào (sẽ tự động đăng ký khi đồng bộ kế hoạch).",
+  "dashboard.adminLink": "Quản lý",
 
   "lineScreen.lineFallback": "Chuyền {code}",
   "lineScreen.pickOperatorFirst": "Chưa có người phụ trách. Hãy chọn người phụ trách rồi bấm lại nút.",

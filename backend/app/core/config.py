@@ -69,12 +69,21 @@ class BackupConfig:
 
 
 @dataclass(frozen=True)
+class AdminConfig:
+    idle_minutes: int = 30  # 操作が無い時間がこれを超えたら、管理画面のログインを切る
+    max_hours: int = 12  # ログインからこの時間で切る
+    lockout_failures: int = 5  # 続けてこの回数間違えたら
+    lockout_minutes: int = 5  # この時間ログインできない
+
+
+@dataclass(frozen=True)
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
     sync: SyncConfig = field(default_factory=SyncConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
+    admin: AdminConfig = field(default_factory=AdminConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
 
@@ -123,6 +132,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
     p = raw.get("paths", {})
     y = raw.get("sync", {})
     b = raw.get("backup", {})
+    a = raw.get("admin", {})
     for old in _REMOVED_PATH_KEYS & p.keys():
         logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
     defaults = PathsConfig()
@@ -148,6 +158,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
             daily_at=time.fromisoformat(b.get("daily_at", BackupConfig.daily_at.isoformat("minutes"))),
             keep=int(b.get("keep", BackupConfig.keep)),
         ),
+        admin=AdminConfig(**{k: int(a.get(k, getattr(AdminConfig, k))) for k in AdminConfig.__dataclass_fields__}),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     ), home)
 
@@ -159,7 +170,7 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         database=_at(home, p.database), legacy_app_dir=opt(p.legacy_app_dir), exchange_dir=_at(home, p.exchange_dir),
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
-    return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup,
+    return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
                      timezone=cfg.timezone, home=home)
 
 

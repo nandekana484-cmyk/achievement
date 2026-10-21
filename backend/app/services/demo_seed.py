@@ -23,7 +23,8 @@ from app.services.masters import register_lines
 
 DEMO_SOURCE = "demo"
 # (名前, 作業者ID)。同じ名前の人がいても区別できることを確かめるため、山田を2人入れる
-OPERATORS = (("山田", "Y001"), ("佐藤", "S002"), ("山田", "Y015"))
+OPERATORS = (("山田", "Y001", "operator"), ("佐藤", "S002", "operator"), ("山田", "Y015", "operator"),
+             ("管理 花子", "A001", "admin"))  # 管理画面の確認用(パスワードは admin set-password で別に設定する)
 EQUIPMENT = ("マウンター1", "リフロー炉")
 
 
@@ -68,9 +69,9 @@ def seed_demo(session: Session, line_code: str, day: dt.date) -> list[str]:
     with write_transaction(session):
         register_lines(session, [line])
         session.flush()
-        for i, (name, wid) in enumerate(OPERATORS):
+        for i, (name, wid, role) in enumerate(OPERATORS):
             if session.scalars(select(Operator).where(Operator.worker_key == worker_key(wid))).first() is None:
-                session.add(Operator(name=name, worker_id=wid, worker_key=worker_key(wid), role="operator", source="local",
+                session.add(Operator(name=name, worker_id=wid, worker_key=worker_key(wid), role=role, source="local",
                                      active=True, sort_order=(i + 1) * 10))
         for i, name in enumerate(EQUIPMENT):
             exists = session.scalars(select(Equipment).where(Equipment.line_code == line, Equipment.name == name)).first()

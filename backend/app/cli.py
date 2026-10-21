@@ -10,6 +10,7 @@ backend フォルダで、venv の中で実行する。対象は config.toml(GEN
     python -m app.cli reasons list
     python -m app.cli reasons set-vi <ID> "Tìm linh kiện"
     python -m app.cli lines list
+    python -m app.cli admin set-password --worker-id K0042   # 管理画面のパスワード(入力は画面に出ない)
     python -m app.cli demo-seed --line S --date 2026-10-21
 """
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import getpass
 import sys
 from collections.abc import Sequence
 
@@ -28,7 +30,7 @@ from app.db.migrate import upgrade_to_head
 from app.db.models import Equipment, Line, Operator, Reason
 from app.db.session import get_sessionmaker, init_db
 from app.domain.normalize import normalize_mounting_line
-from app.services import masters
+from app.services import admin_auth, masters
 from app.services.demo_seed import seed_demo
 from app.services.errors import NotFound, RuleViolation
 
@@ -51,6 +53,7 @@ def _parser() -> argparse.ArgumentParser:
     add.add_argument("name")
     add.add_argument("--id", default=None, help="作業者ID(32文字まで。画面でIDから呼び出すときに使う)")
     add.add_argument("--sort", type=int, default=None, help="表示順(省略すると最後)")
+    add.add_argument("--admin", action="store_true", help="管理者にする(管理画面に入れる。開発用)")
 
     eq = sub.add_parser("equipment", help="設備").add_subparsers(dest="action", required=True)
     eq_list = eq.add_parser("list", help="一覧")
@@ -66,6 +69,11 @@ def _parser() -> argparse.ArgumentParser:
     rs.add_parser("list", help="一覧")
     _add_set_vi(rs)
     sub.add_parser("lines", help="ライン").add_subparsers(dest="action", required=True).add_parser("list", help="一覧")
+
+    adm = sub.add_parser("admin", help="管理画面").add_subparsers(dest="action", required=True)
+    pw = adm.add_parser("set-password", help="管理者のパスワードを設定する(最初の設定とリセット)")
+    pw.add_argument("--worker-id", required=True, help="作業者ID(既存アプリの役割が admin の作業者)")
+    pw.add_argument("--stdin", action="store_true", help="パスワードを標準入力の1行目から読む(画面の確認の自動化用)")
 
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
@@ -86,8 +94,30 @@ def _list_operators(s: Session, _args: argparse.Namespace) -> None:
 
 
 def _add_operator(s: Session, args: argparse.Namespace) -> None:
-    o = masters.add_operator(s, args.name, args.sort, worker_id=args.id)
+    o = masters.add_operator(s, args.name, args.sort, worker_id=args.id, role="admin" if args.admin else "operator")
     print(f"作業者を追加しました: 番号 {o.id} {o.name}(作業者ID {o.worker_id or 'なし'})")
+
+
+def _read_stdin_line() -> str:
+    """標準入力の1行目。PowerShell 5.1 から渡すと先頭に BOM が付くので、BOM 付きの UTF-8 として読む。"""
+    raw = sys.stdin.buffer.readline()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode(sys.stdin.encoding or "utf-8", errors="replace")
+    return text.rstrip("\r\n")
+
+
+def _set_password(s: Session, args: argparse.Namespace) -> None:
+    admin_auth.admin_for_password(s, args.worker_id)  # 管理者でなければ、パスワードを聞く前に断る
+    if args.stdin:
+        password = _read_stdin_line()
+    else:
+        password = getpass.getpass("新しいパスワード(8文字以上。入力した文字は画面に出ません): ")
+        if getpass.getpass("確認のため、もう一度: ") != password:
+            raise RuleViolation("2回の入力が違います。設定していません")
+    op = admin_auth.set_password(s, args.worker_id, password)
+    print(f"管理画面のパスワードを設定しました: {op.name}(作業者ID {op.worker_id})")
 
 
 def _list_equipment(s: Session, args: argparse.Namespace) -> None:
@@ -140,6 +170,7 @@ _COMMANDS = {
     ("equipment", "set-vi"): _set_vi(Equipment),
     ("reasons", "list"): _list_reasons,
     ("reasons", "set-vi"): _set_vi(Reason),
+    ("admin", "set-password"): _set_password,
     ("lines", "list"): _list_lines,
     ("demo-seed", None): _demo_seed,
 }

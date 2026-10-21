@@ -303,10 +303,258 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description 作業者IDとパスワードでログインする。失敗の理由は区別しない(401「作業者IDかパスワードが違います」)。
+         */
+        post: operations["login_api_admin_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description ログアウトする(ログインしていなくてもよい)。
+         */
+        post: operations["logout_api_admin_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Me
+         * @description ログイン中の管理者(ログインしていなければ 401)。
+         */
+        get: operations["me_api_admin_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change Password
+         * @description 自分のパスワードを変える(今のパスワードが要る。8文字以上)。
+         */
+        put: operations["change_password_api_admin_password_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment
+         * @description 設備の一覧(無効なものも含む)。
+         */
+        get: operations["list_equipment_api_admin_equipment_get"];
+        put?: never;
+        /**
+         * Add Equipment
+         * @description 設備を追加する。
+         */
+        post: operations["add_equipment_api_admin_equipment_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/equipment/{equipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Equipment
+         * @description 設備の名前(日本語・ベトナム語)・並び順を変える。active=false で無効にする(消さない)。
+         */
+        patch: operations["update_equipment_api_admin_equipment__equipment_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/reasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reasons
+         * @description 理由の一覧(無効なものも含む)。
+         */
+        get: operations["list_reasons_api_admin_reasons_get"];
+        put?: never;
+        /**
+         * Add Reason
+         * @description 理由を追加する。
+         */
+        post: operations["add_reason_api_admin_reasons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reasons/{reason_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Reason
+         * @description 理由の名前・区分・入力の決まり・使い道・稼働率に含めるか・並び順を変える。active=false で無効にする。
+         */
+        patch: operations["update_reason_api_admin_reasons__reason_id__patch"];
+        trace?: never;
+    };
+    "/api/admin/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Lines
+         * @description ラインの一覧(無効なものも含む)。
+         */
+        get: operations["list_lines_api_admin_lines_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/lines/{line_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Line
+         * @description ラインの名前・並び順を変える。active=false で無効にする。
+         */
+        patch: operations["update_line_api_admin_lines__line_code__patch"];
+        trace?: never;
+    };
+    "/api/admin/operators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Operators
+         * @description 作業者の一覧(見るだけ。既存アプリから読み込む)。
+         */
+        get: operations["list_operators_api_admin_operators_get"];
+        put?: never;
+        /**
+         * Add Operator
+         * @description 開発用の作業者を足す(legacy_app_dir が設定されていない環境だけ)。
+         */
+        post: operations["add_operator_api_admin_operators_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminMeOut */
+        AdminMeOut: {
+            /** Operator Id */
+            operator_id: number;
+            /** Worker Id */
+            worker_id: string | null;
+            /** Name */
+            name: string;
+            /** Idle Minutes */
+            idle_minutes: number;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+        };
         /** BoardOut */
         BoardOut: {
             /** Line Code */
@@ -399,6 +647,32 @@ export interface components {
             /** Operator Worker Id */
             operator_worker_id?: string | null;
         };
+        /** EquipmentAdminOut */
+        EquipmentAdminOut: {
+            /** Id */
+            id: number;
+            /** Line Code */
+            line_code: string;
+            /** Name */
+            name: string;
+            /** Name Vi */
+            name_vi: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Active */
+            active: boolean;
+        };
+        /** EquipmentIn */
+        EquipmentIn: {
+            /** Line Code */
+            line_code: string;
+            /** Name */
+            name: string;
+            /** Name Vi */
+            name_vi?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
         /** EquipmentOut */
         EquipmentOut: {
             /** Id */
@@ -411,6 +685,17 @@ export interface components {
             name_vi?: string | null;
             /** Sort Order */
             sort_order: number;
+        };
+        /** EquipmentPatch */
+        EquipmentPatch: {
+            /** Name */
+            name?: string | null;
+            /** Name Vi */
+            name_vi?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Active */
+            active?: boolean | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -457,6 +742,19 @@ export interface components {
             lots: components["schemas"]["LotOut"][];
             /** Warnings */
             warnings: string[];
+        };
+        /** LineAdminOut */
+        LineAdminOut: {
+            /** Line Code */
+            line_code: string;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Active */
+            active: boolean;
+            /** Auto Named */
+            auto_named: boolean;
         };
         /** LineEventEndIn */
         LineEventEndIn: {
@@ -547,6 +845,22 @@ export interface components {
              * @default false
              */
             auto_named: boolean;
+        };
+        /** LinePatch */
+        LinePatch: {
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Active */
+            active?: boolean | null;
+        };
+        /** LoginIn */
+        LoginIn: {
+            /** Worker Id */
+            worker_id: string;
+            /** Password */
+            password: string;
         };
         /**
          * LotOut
@@ -658,6 +972,30 @@ export interface components {
             /** Ng Qty */
             ng_qty: number;
         };
+        /** OperatorAdminOut */
+        OperatorAdminOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Worker Id */
+            worker_id: string | null;
+            /** Role */
+            role: string;
+            /** Active */
+            active: boolean;
+            /** Source */
+            source: string;
+            /** Has Password */
+            has_password: boolean;
+        };
+        /** OperatorIn */
+        OperatorIn: {
+            /** Name */
+            name: string;
+            /** Worker Id */
+            worker_id?: string | null;
+        };
         /** OperatorOut */
         OperatorOut: {
             /** Id */
@@ -670,6 +1008,77 @@ export interface components {
             role: string;
             /** Sort Order */
             sort_order: number;
+        };
+        /** PasswordChangeIn */
+        PasswordChangeIn: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** ReasonAdminOut */
+        ReasonAdminOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Name Vi */
+            name_vi: string | null;
+            /** Category */
+            category: string;
+            /** Requires Equipment */
+            requires_equipment: boolean;
+            /** Requires Text */
+            requires_text: boolean;
+            /** Usable As Line Event */
+            usable_as_line_event: boolean;
+            /** Usable As Restart */
+            usable_as_restart: boolean;
+            /** Counts In Utilization */
+            counts_in_utilization: boolean;
+            /** Sort Order */
+            sort_order: number;
+            /** Active */
+            active: boolean;
+        };
+        /** ReasonIn */
+        ReasonIn: {
+            /** Name */
+            name: string;
+            /** Name Vi */
+            name_vi?: string | null;
+            /**
+             * Category
+             * @default loss
+             */
+            category: string;
+            /**
+             * Requires Equipment
+             * @default false
+             */
+            requires_equipment: boolean;
+            /**
+             * Requires Text
+             * @default false
+             */
+            requires_text: boolean;
+            /**
+             * Usable As Line Event
+             * @default false
+             */
+            usable_as_line_event: boolean;
+            /**
+             * Usable As Restart
+             * @default false
+             */
+            usable_as_restart: boolean;
+            /**
+             * Counts In Utilization
+             * @default false
+             */
+            counts_in_utilization: boolean;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /** ReasonOut */
         ReasonOut: {
@@ -693,6 +1102,29 @@ export interface components {
             usable_as_restart: boolean;
             /** Sort Order */
             sort_order: number;
+        };
+        /** ReasonPatch */
+        ReasonPatch: {
+            /** Name */
+            name?: string | null;
+            /** Name Vi */
+            name_vi?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Requires Equipment */
+            requires_equipment?: boolean | null;
+            /** Requires Text */
+            requires_text?: boolean | null;
+            /** Usable As Line Event */
+            usable_as_line_event?: boolean | null;
+            /** Usable As Restart */
+            usable_as_restart?: boolean | null;
+            /** Counts In Utilization */
+            counts_in_utilization?: boolean | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Active */
+            active?: boolean | null;
         };
         /** RemarkIn */
         RemarkIn: {
@@ -1425,6 +1857,392 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MastersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_api_admin_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_admin_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    me_api_admin_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminMeOut"];
+                };
+            };
+        };
+    };
+    change_password_api_admin_password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_equipment_api_admin_equipment_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentAdminOut"][];
+                };
+            };
+        };
+    };
+    add_equipment_api_admin_equipment_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_equipment_api_admin_equipment__equipment_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                equipment_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reasons_api_admin_reasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReasonAdminOut"][];
+                };
+            };
+        };
+    };
+    add_reason_api_admin_reasons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReasonAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reason_api_admin_reasons__reason_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reason_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReasonAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_lines_api_admin_lines_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineAdminOut"][];
+                };
+            };
+        };
+    };
+    update_line_api_admin_lines__line_code__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_operators_api_admin_operators_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorAdminOut"][];
+                };
+            };
+        };
+    };
+    add_operator_api_admin_operators_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperatorIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorAdminOut"];
                 };
             };
             /** @description Validation Error */

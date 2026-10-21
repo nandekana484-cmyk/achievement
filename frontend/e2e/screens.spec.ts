@@ -51,7 +51,8 @@ test("ライン画面の操作", async ({ page }) => {
   await picker.getByRole("button", { name: "呼び出し" }).click();
   await expect(picker.getByRole("alert")).toContainText("作業者IDが見つかりません");
   // 名前の一覧は名前順で、同じ名前の人はIDで区別できる
-  await expect(picker.locator(".choice")).toHaveText(["佐藤(S002)", "山田(Y001)", "山田(Y015)"]);
+  // 管理者も作業者の1人として出る(demo-seed の管理者 A001)
+  await expect(picker.locator(".choice")).toHaveText(["管理 花子(A001)", "佐藤(S002)", "山田(Y001)", "山田(Y015)"]);
   // ⑬ IDで呼び出して確認している状態
   await pickOperator(page, "13-operator-lookup");
   await expect(step(page, "段取り")).toContainText("未着手"); // 送っていない

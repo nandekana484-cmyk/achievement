@@ -24,7 +24,7 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
   (有効化していない場合は `.\.venv\Scripts\python.exe -m pytest`)
 - バックエンドの起動: `cd backend` → `python -m uvicorn app.main:app --reload --port 8000`
   (有効化していない場合は `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`)
-- マスタの追加と一覧(開発用): `cd backend` → `python -m app.cli operators add <名前> --id <作業者ID>`(legacy_app_dir の設定時は断る) / `operators list` / `equipment add <ライン> <名前> [--vi <ベトナム語の名前>]` / `equipment set-vi <ID> <名前>` / `equipment list` / `reasons list` / `reasons set-vi <ID> <名前>` / `lines list`(対象は config.toml の `paths.database`)
+- マスタの追加と一覧(開発用): `cd backend` → `python -m app.cli operators add <名前> --id <作業者ID>`(legacy_app_dir の設定時は断る) / `operators list` / `equipment add <ライン> <名前> [--vi <ベトナム語の名前>]` / `equipment set-vi <ID> <名前>` / `equipment list` / `reasons list` / `reasons set-vi <ID> <名前>` / `lines list` / `admin set-password --worker-id <作業者ID>`(管理画面のパスワード。入力は画面に出ない) / `operators add <名前> --id <ID> --admin`(開発用の管理者)(対象は config.toml の `paths.database`)
 - DBの構造の変更: モデル(`app/db/models.py`)を変えたら、マイグレーションを `app/db/migrations/versions/` に追加する。起動時に自動で最新に更新される(`tests/test_db.py` がモデルとマイグレーションの食い違いを検出する)
   - **Alembic を手で使う**(`python -m alembic ...`)**ときの対象は、config.toml(`GENBA_CONFIG`)の `paths.database`**。本番のDBを指していないか確認してから実行する
 - フロントエンドの依存の導入: `cd frontend` → `npm ci`(`package-lock.json` のとおりに入れる)
@@ -70,6 +70,7 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
 - 新しいロジックにはテストを付ける
 - 画面の文言は日本語。用語は `docs/spec.md` の「2. 用語集」に従う
   - 画面の文言は `frontend/src/i18n/ja.ts` に書き、画面では `t("キー")` で出す(`.tsx` に直接書かない。テストで検出する)。`vi.ts` にも同じキーを足す(詳細: docs/design/i18n.md)
+  - 管理画面(`frontend/src/admin/`)は日本語だけ。文言は `src/admin/messages.ts` に書き、`at("キー")` で出す(vi.ts には足さない。詳細: docs/design/admin.md)
 
 ## コードの大きさとコメントのルール
 

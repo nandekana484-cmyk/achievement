@@ -61,7 +61,9 @@ def list_masters(session: Session, line_code: str | None = None) -> MastersOut:
     )
 
 
-def add_operator(session: Session, name: str, sort_order: int | None = None, worker_id: str | None = None) -> Operator:
+def add_operator(
+    session: Session, name: str, sort_order: int | None = None, worker_id: str | None = None, role: str = "operator",
+) -> Operator:
     """開発用に作業者を足す(source=local)。既存アプリの作業者を読み込む環境では、開発用コマンドの側で断る。"""
     name = name.strip()
     if not name:
@@ -76,7 +78,7 @@ def add_operator(session: Session, name: str, sort_order: int | None = None, wor
         if key and session.scalars(select(Operator).where(Operator.worker_key == key)).first() is not None:
             session.rollback()
             raise RuleViolation(f"作業者ID「{worker_id}」は、ほかの作業者と重なります(全角・半角、大文字・小文字の違いは区別しません)")
-        op = Operator(name=name, active=True, worker_id=worker_id, worker_key=key, role="operator", source="local",
+        op = Operator(name=name, active=True, worker_id=worker_id, worker_key=key, role=role, source="local",
                       sort_order=sort_order if sort_order is not None else _next_sort_order(session, Operator))
         session.add(op)
         session.commit()

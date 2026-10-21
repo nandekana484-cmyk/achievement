@@ -42,4 +42,16 @@ exe = EXE(  # noqa: F821
     console=CONSOLE,  # どちらの形でも、ログは <基準>\logs\genba.log に出る
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, name=f"v{VERSION}-console" if CONSOLE else f"v{VERSION}", upx=False)  # noqa: F821
+# 開発用コマンド(GenbaCli.exe)。管理者のパスワードの設定など、入力が要るのでいつもコンソールを出す
+cli = Analysis(  # noqa: F821
+    [str(ROOT / "packaging" / "cli_entry.py")],
+    pathex=[str(BACKEND)],
+    datas=datas,
+    hiddenimports=hiddenimports,
+    excludes=["tkinter", "pytest", "_pytest", "httpx"],
+)
+cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="GenbaCli", console=True, upx=False)  # noqa: F821
+coll = COLLECT(  # noqa: F821
+    exe, a.binaries, a.datas, cli_exe, cli.binaries, cli.datas,
+    name=f"v{VERSION}-console" if CONSOLE else f"v{VERSION}", upx=False,
+)

@@ -27,6 +27,7 @@ export function Dashboard() {
           </li>
         ))}
       </ul>
+      <Link to="/admin" className="admin-entry">{t("dashboard.adminLink")}</Link>
     </main>
   );
 }

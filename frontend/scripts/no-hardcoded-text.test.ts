@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts"]); // translate.ts は言語の名前(「日本語」)を持つ
+const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts
 
 // ひらがな・カタカナ・漢字と、全角の記号(「、」「〜」「(」など)
 const JAPANESE = /[　-〿぀-ヿ㐀-鿿＀-￯]/;
@@ -31,6 +31,7 @@ describe("画面の文言の漏れ", () => {
   it("確かめる対象がある(.tsx と、画面から切り離した .ts)", () => {
     expect(files.some((f) => f.endsWith(".tsx"))).toBe(true);
     expect(files).toContain("field/line/steps.ts");
+    expect(files).toContain("admin/ReasonsPage.tsx"); // 管理画面も同じ考え方で確かめる
   });
 
   it.each(files)("%s に日本語の文字が直接書かれていない", (file) => {
