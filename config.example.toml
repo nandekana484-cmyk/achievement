@@ -1,4 +1,6 @@
 # 本番は C:\GenbaApp\data\config.toml に置く。開発中は backend\data\config.toml。
+# 相対パスは基準のフォルダから見た位置。本番(exe)は C:\GenbaApp(環境変数 GENBA_HOME で変えられる)、
+# 開発中は起動したフォルダ(backend)。詳細: docs/design/packaging.md
 timezone = "Asia/Tokyo"
 
 [server]
@@ -11,14 +13,19 @@ database = "data/genba.db"
 #   <legacy_app_dir>\db\<フォルダ名>\inventory.db  月次DB(計画)。すべて読む
 #   <legacy_app_dir>\db\inventory.db               既定DB(未選択)。読まない
 #   <legacy_app_dir>\db\master.db                  共通マスタ(想定タクト)
-# 相対パスは起動したフォルダ(開発中は backend)から見た位置。
 # 開発中は、既存アプリのフォルダの複製をリポジトリ直下の legacy-db/ に置いて指す(legacy-db/ はGitに入らない)。
 # 本番(担当者PC)では、既存アプリの実際のフォルダを書く。
 # legacy_app_dir = "../legacy-db/inventory-app"
 exchange_dir = "exchange"
-# バックアップの保存先(共有フォルダ)
+# DBのバックアップの保存先(共有フォルダ)。未設定ならバックアップを取らない(起動のたびに警告をログに出す)
 # backup_dir = "//server/share/genba-backup"
 log_dir = "logs"
+
+[backup]
+# 起動したとき(DBの構造を更新する前)と、毎日この時刻にバックアップを取る
+daily_at = "12:30"
+# 残す数。超えたら古い順に消す(消すのは本アプリが作った genba_*.db だけ)
+keep = 30
 
 [schedule]
 # 稼働日の始まり。稼働日 = この時刻から翌日のこの時刻まで(これより前は前日の稼働日)
