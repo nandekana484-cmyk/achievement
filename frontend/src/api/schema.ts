@@ -193,9 +193,29 @@ export interface paths {
         get: operations["get_operator_api_lines__line_code__operator_get"];
         /**
          * Change Operator
-         * @description ラインの今の担当者を交代する。
+         * @description ラインの今の担当者を交代する(operator_id か worker_id のどちらかで指定)。
          */
         put: operations["change_operator_api_lines__line_code__operator_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/operators/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lookup Operator
+         * @description 作業者IDで、有効な作業者を呼び出す(無ければ 404「作業者IDが見つかりません」)。
+         */
+        get: operations["lookup_operator_api_operators_lookup_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -356,7 +376,12 @@ export interface components {
              */
             request_id: string;
             /** Operator Id */
-            operator_id: number;
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
         };
         /** CurrentOperatorOut */
         CurrentOperatorOut: {
@@ -371,6 +396,8 @@ export interface components {
              * Format: date-time
              */
             start_at: string;
+            /** Operator Worker Id */
+            operator_worker_id?: string | null;
         };
         /** EquipmentOut */
         EquipmentOut: {
@@ -431,13 +458,18 @@ export interface components {
         };
         /** LineEventEndIn */
         LineEventEndIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
              */
             request_id: string;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /** LineEventOut */
         LineEventOut: {
@@ -470,9 +502,20 @@ export interface components {
             ended_by: number | null;
             /** Ended By Name */
             ended_by_name: string | null;
+            /** Started By Worker Id */
+            started_by_worker_id?: string | null;
+            /** Ended By Worker Id */
+            ended_by_worker_id?: string | null;
         };
         /** LineEventStartIn */
         LineEventStartIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
@@ -484,8 +527,6 @@ export interface components {
             equipment_id?: number | null;
             /** Reason Text */
             reason_text?: string | null;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /** LineOut */
         LineOut: {
@@ -553,6 +594,8 @@ export interface components {
             entered_by_name: string;
             /** Entered At */
             entered_at?: string | null;
+            /** Entered By Worker Id */
+            entered_by_worker_id?: string | null;
         };
         /**
          * NgInputOut
@@ -580,9 +623,18 @@ export interface components {
              * Format: date-time
              */
             entered_at: string;
+            /** Entered By Worker Id */
+            entered_by_worker_id?: string | null;
         };
         /** NgQtyIn */
         NgQtyIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
@@ -594,8 +646,6 @@ export interface components {
             side: number;
             /** Ng Qty */
             ng_qty: number;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /** OperatorOut */
         OperatorOut: {
@@ -603,6 +653,10 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /** Worker Id */
+            worker_id: string | null;
+            /** Role */
+            role: string;
             /** Sort Order */
             sort_order: number;
         };
@@ -629,6 +683,13 @@ export interface components {
         };
         /** RemarkIn */
         RemarkIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
@@ -636,8 +697,6 @@ export interface components {
             request_id: string;
             /** Text */
             text: string;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /** RunCompletionOut */
         RunCompletionOut: {
@@ -688,6 +747,10 @@ export interface components {
             ended_by: number | null;
             /** Ended By Name */
             ended_by_name: string | null;
+            /** Started By Worker Id */
+            started_by_worker_id?: string | null;
+            /** Ended By Worker Id */
+            ended_by_worker_id?: string | null;
             /** Produced Qty */
             produced_qty: number | null;
             /** Restart Reason Id */
@@ -721,6 +784,8 @@ export interface components {
              * Format: date-time
              */
             entered_at: string;
+            /** Entered By Worker Id */
+            entered_by_worker_id?: string | null;
         };
         /** SearchHitOut */
         SearchHitOut: {
@@ -730,6 +795,13 @@ export interface components {
         };
         /** StepEndIn */
         StepEndIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
@@ -737,8 +809,6 @@ export interface components {
             request_id: string;
             /** Produced Qty */
             produced_qty?: number | null;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /**
          * StepResultOut
@@ -750,6 +820,13 @@ export interface components {
         };
         /** StepStartIn */
         StepStartIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
             /**
              * Request Id
              * @description 操作ごとに一意のID。再送には同じIDを使う
@@ -759,8 +836,6 @@ export interface components {
             restart_reason_id?: number | null;
             /** Equipment Id */
             equipment_id?: number | null;
-            /** Operator Id */
-            operator_id?: number | null;
         };
         /**
          * StepType
@@ -1164,6 +1239,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentOperatorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookup_operator_api_operators_lookup_get: {
+        parameters: {
+            query: {
+                /** @description 作業者ID(全角・半角、大文字・小文字は区別しない) */
+                worker_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorOut"];
                 };
             };
             /** @description Validation Error */
