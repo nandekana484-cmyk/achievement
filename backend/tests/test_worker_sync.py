@@ -6,7 +6,7 @@ from sqlalchemy import select
 from app.db.models import Operator, PlanSyncWarning
 from app.services import masters
 from app.services.plan_sync import NO_WORKERS_TABLE, run_plan_sync
-from legacy_fixture import delete_worker, drop_workers_table, put_worker
+from legacy_fixture import delete_worker, drop_takt_table, drop_workers_table, make_master_db, put_worker
 
 
 @pytest.fixture
@@ -115,3 +115,53 @@ def test_missing_workers_table_warns_and_changes_nothing(sync, session_factory, 
     sync()
     assert _operators(session_factory)["Y001"][2] is True  # 無効にしない
     assert NO_WORKERS_TABLE in _warnings(session_factory)
+
+
+# --- 計画の同期がエラーになっても、作業者は読み込む ---
+
+
+def _sync_expect_error(session_factory, legacy_app):
+    with session_factory() as s:
+        r = run_plan_sync(s, legacy_app)
+    assert r.result == "error"
+    return r
+
+
+def test_workers_are_loaded_even_if_takt_table_is_missing(session_factory, legacy_app, master, fake_clock):
+    put_worker(master, "Y001", "山田")
+    drop_takt_table(master)
+    r = _sync_expect_error(session_factory, legacy_app)
+    assert "production_side_master" in r.error_message
+    assert _operators(session_factory) == {"Y001": ("山田", "operator", True, "legacy")}
+
+
+def test_workers_are_loaded_even_without_monthly_dbs(session_factory, tmp_path, fake_clock):
+    # このPC(MSI)の既存アプリのフォルダと同じ形: master.db だけで、月次DBが無い
+    app_dir = tmp_path / "only-master"
+    make_master_db(app_dir / "db" / "master.db")
+    put_worker(app_dir / "db" / "master.db", "S002", "佐藤")
+    r = _sync_expect_error(session_factory, app_dir)
+    assert "読む月次DBがありません" in r.error_message
+    assert _operators(session_factory) == {"S002": ("佐藤", "operator", True, "legacy")}
+
+
+def test_failed_sync_keeps_warnings_and_deactivates_missing_workers(session_factory, legacy_app, master, fake_clock):
+    put_worker(master, "Y001", "山田")
+    put_worker(master, "S002", "佐藤")
+    with session_factory() as s:
+        assert run_plan_sync(s, legacy_app).result == "ok"
+    delete_worker(master, "S002")
+    put_worker(master, "AB01", "一人目")
+    put_worker(master, "ａｂ01", "二人目")  # 重なる作業者ID(警告になる)
+    drop_takt_table(master)
+    _sync_expect_error(session_factory, legacy_app)
+    ops = _operators(session_factory)
+    assert ops["S002"][2] is False and ops["AB01"][0] == "一人目" and "ａｂ01" not in ops
+    assert _warnings(session_factory) == []  # 読めなかった回は、警告の記録を変えない
+
+
+def test_missing_master_db_imports_nothing(session_factory, tmp_path, fake_clock):
+    (tmp_path / "empty" / "db").mkdir(parents=True)
+    r = _sync_expect_error(session_factory, tmp_path / "empty")
+    assert "master.db" in r.error_message
+    assert _operators(session_factory) == {}

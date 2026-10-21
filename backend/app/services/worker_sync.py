@@ -3,18 +3,24 @@
 - 既存アプリにある作業者: 名前・役割・有効/無効を既存アプリに合わせる(作業者IDは既存アプリの表記のまま)
 - 既存アプリから見えなくなった作業者: 消さずに無効にする(過去の記録が参照しているため)
 - 作業者IDが正規化すると重なる場合: 表記の順で最初の1人だけ取り込み、ほかは取り込まずに警告を出す
+- 計画の同期が失敗した回(計画の表が無いなど)でも、作業者は読み込む(sync_operators_alone)
 詳細: docs/design/run-records.md
 """
 
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Operator
+from app.db.session import write_transaction
 from app.domain.worker_id import worker_key
 from app.integration.legacy.workers import LegacyWorker
 from app.integration.legacy_plans import ReadWarning
+
+logger = logging.getLogger(__name__)
 
 SOURCE_LEGACY = "legacy"
 SOURCE_LOCAL = "local"
@@ -56,3 +62,17 @@ def sync_operators(session: Session, workers: list[LegacyWorker]) -> list[ReadWa
         if op.source == SOURCE_LEGACY and key not in kept:
             op.active = False  # 既存アプリから見えなくなった(消さずに無効にする)
     return warnings
+
+
+def sync_operators_alone(session: Session, workers: list[LegacyWorker] | None) -> None:
+    """計画の同期が失敗した回でも、作業者だけは反映する。警告の記録は変えず(読めなかった回のため)、ログに出す。"""
+    if workers is None:
+        return
+    try:
+        with write_transaction(session):
+            for w in sync_operators(session, workers):
+                logger.warning("作業者の読み込み: %s", w.message)
+            session.commit()
+    except Exception:  # noqa: BLE001  同期の失敗の記録を止めない
+        session.rollback()
+        logger.exception("作業者の読み込みに失敗しました")

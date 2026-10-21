@@ -5,7 +5,7 @@
 
 from app.integration.legacy.plans import read_active_plans
 from app.integration.legacy.readonly import open_readonly, parse_legacy_datetime
-from app.integration.legacy.source import MASTER_DB_NAME, MONTHLY_DB_NAME, find_monthly_dbs, read_legacy_source
+from app.integration.legacy.source import MASTER_DB_NAME, MONTHLY_DB_NAME, find_monthly_dbs, read_legacy_source, read_master_workers
 from app.integration.legacy.takt import parse_takt_sec, read_takt_master
 from app.integration.legacy.types import (
     LegacyPlan,
@@ -35,5 +35,6 @@ __all__ = [
     "parse_takt_sec",
     "read_active_plans",
     "read_legacy_source",
+    "read_master_workers",
     "read_takt_master",
 ]

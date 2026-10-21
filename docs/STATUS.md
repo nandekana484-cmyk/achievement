@@ -63,7 +63,7 @@
 
 | PC | Python | Node.js | config.toml |
 | --- | --- | --- | --- |
-| MSI | 3.14.4 | 22.23.2 | `legacy_app_dir = "C:/work/inventory/dist"`。ただし master.db には workers だけがあり、月次DBも想定タクトの表も無いので、計画の同期は error になる |
+| MSI | 3.14.4 | 22.23.2 | `legacy_app_dir` は設定しない(このPCの既存アプリのフォルダには月次DBと想定タクトの表が無いため)。確認用データ(`python -m app.cli demo-seed`)を使う |
 | NANJYOU-H | 3.14.7 | 20.19.6 | 実データを読む設定 |
 
 ## 別のPCで再開する手順
