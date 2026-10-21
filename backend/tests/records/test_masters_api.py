@@ -3,8 +3,9 @@
 from sqlalchemy import select
 
 from app.db.models import Equipment, Line, Reason
+from app.services import masters
 from legacy_fixture import insert_plan
-from records_helpers import K1, rid, new_session, sync_plans, reason_id, start, ok
+from records_helpers import K1, end, ev_start, rid, new_session, sync_plans, reason_id, start, ok
 
 
 def test_masters(client, staffed, equipment):
@@ -37,3 +38,25 @@ def test_requests_without_request_id_are_rejected(client, staffed):
     assert r.status_code == 422
     r = client.post(f"/api/runs/{K1}/steps/setup/start", json={"request_id": rid(), "unknown": 1})
     assert r.status_code == 422  # 知らない項目は受け付けない
+
+
+def test_masters_and_board_return_vietnamese_names(client, staffed, equipment):
+    with new_session() as s:
+        masters.set_name_vi(s, Reason, reason_id("マシントラブル"), "Sự cố máy")
+        masters.set_name_vi(s, Equipment, equipment["own"], "Máy gắn 1")
+
+    m = ok(client.get("/api/masters", params={"line_code": "S"}))
+    names = {x["name"]: x["name_vi"] for x in m["reasons"]}
+    assert names["マシントラブル"] == "Sự cố máy" and names["部品探し"] is None  # 空なら画面は日本語の名前を出す
+    assert [(x["name"], x["name_vi"]) for x in m["equipment"]] == [("マウンター1", "Máy gắn 1")]
+
+    e = ok(ev_start(client, reason_id=reason_id("マシントラブル"), equipment_id=equipment["own"]))
+    assert (e["reason_name"], e["reason_name_vi"], e["equipment_name"], e["equipment_name_vi"]) == (
+        "マシントラブル", "Sự cố máy", "マウンター1", "Máy gắn 1")
+    [board_event] = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))["line_events"]
+    assert (board_event["reason_name_vi"], board_event["equipment_name_vi"]) == ("Sự cố máy", "Máy gắn 1")
+
+    ok(start(client, "production"))
+    ok(end(client, "production", produced_qty=10))
+    restarted = ok(start(client, "production", restart_reason_id=reason_id("マシントラブル"), equipment_id=equipment["own"]))
+    assert (restarted["event"]["restart_reason_name_vi"], restarted["event"]["equipment_name_vi"]) == ("Sự cố máy", "Máy gắn 1")

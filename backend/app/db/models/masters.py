@@ -47,6 +47,7 @@ class Equipment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     line_code: Mapped[str] = mapped_column(String, ForeignKey("lines.line_code"))
     name: Mapped[str] = mapped_column(String)
+    name_vi: Mapped[str | None] = mapped_column(String)  # ベトナム語の名前。空なら画面は日本語の名前を出す
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -58,6 +59,7 @@ class Reason(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String)
+    name_vi: Mapped[str | None] = mapped_column(String)  # ベトナム語の名前。空なら画面は日本語の名前を出す
     category: Mapped[str] = mapped_column(String)  # loss=ロス / non_loss=ロス以外
     # TODO(要確認): 付帯作業を稼働率に含めるか(今はすべて含めない)
     counts_in_utilization: Mapped[bool] = mapped_column(Boolean, default=False)
