@@ -211,6 +211,8 @@ class RunEvent(Base):
     ended_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("operators.id"))
     produced_qty: Mapped[int | None] = mapped_column(Integer)  # 生産の区切りの生産数
     restart_reason_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("reasons.id"))
+    # 設備が必要な再開理由(マシントラブルなど)を選んだときの設備(任意)
+    equipment_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("equipment.id", name="fk_run_events_equipment_id"))
     start_request_id: Mapped[str] = mapped_column(String, unique=True)
     end_request_id: Mapped[str | None] = mapped_column(String, unique=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime)

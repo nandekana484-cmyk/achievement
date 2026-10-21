@@ -22,6 +22,7 @@ class ChangeOperatorIn(_Body):
 class StepStartIn(_Body):
     request_id: RequestId
     restart_reason_id: int | None = None
+    equipment_id: int | None = None  # 設備が必要な再開理由を選んだときだけ(任意。そのラインの設備)
     operator_id: int | None = None  # 省略するとラインの今の担当者
 
 

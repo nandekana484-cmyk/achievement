@@ -183,6 +183,7 @@ genba-app/
 ルール(`services/run_records.py`。違反は 409 と、画面にそのまま出せる日本語の理由):
 
 - **生産の区切り**: 画面は「生産開始」「生産終了(生産数)」を繰り返し押す形にし、区切り番号(seq)は計画×工程ごとに1から自動で振る。2回目以降の区切りを開始するときは、再開理由(理由マスタのうち「生産の再開理由として使える」もの)が必須。1回目の生産とほかの工程では再開理由を受け付けない
+- **再開理由の設備**: 2回目以降の生産の開始で、設備が必要な再開理由(マシントラブルなど)を選んだときは、設備(equipment_id)を任意で受け付ける(計画のラインの有効な設備であること)。それ以外の場合は受け付けない。ライン画面用の取得(board)でも返す
 - 生産の終了は生産数(0以上の整数)が必須。ほかの工程の終了では生産数を受け付けない
 - 区切りは記録用紙の欄が3つなので、画面上の目安は3回。**データ上は上限を設けない**
 - **工程は繰り返し記録できる**(例: トラブルで別の計画に切り替え、戻ってから段取りをやり直す。seq が2になる)
@@ -197,7 +198,7 @@ API:
 
 | メソッド | パス | 本文 |
 | --- | --- | --- |
-| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/start` | request_id、restart_reason_id?、operator_id? |
+| POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/start` | request_id、restart_reason_id?、equipment_id?、operator_id? |
 | POST | `/api/runs/{kitting_no}/{lot_no}/steps/{step_type}/end` | request_id、produced_qty?、operator_id? |
 | PUT | `/api/runs/{kitting_no}/{lot_no}/ng-qty` | request_id、ng_qty、operator_id? |
 | POST | `/api/runs/{kitting_no}/{lot_no}/remarks` | request_id、text、operator_id? |
@@ -226,7 +227,7 @@ API:
 - 開始・終了と、開始した人・終了した人を記録する
 - **稼働率の計算からは外すのが既定**。理由ごとに「稼働率に含めるか」の設定を持ち(初期値はすべて含めない)、定義が決まったら切り替えられるようにする
 - 種類はマスタで追加・変更できるようにする(今は開発用のコマンド `python -m app.cli` で一覧だけ。管理画面で作る)
-- 生産の再開理由として使うときは、設備や理由の記入は求めない
+- 生産の再開理由として使うときは、理由の記入は求めない。設備が必要な理由でも、設備は任意(5.4)
 
 ルール(`services/line_events.py`。違反は 409):
 
@@ -402,7 +403,7 @@ API:
 | plan_pairs | pair_id、lot_no、file_no、qty、run1_kitting_no、run2_kitting_no | 組 |
 | plan_sync_runs | 実行日時、件数(追加・変更・取消・引き継ぎ)、エラー、読んだ月次DBの一覧とDBごとの計画の件数(legacy_dbs) | 同期の記録 |
 | plan_carryovers | old_kitting_no、new_kitting_no、方法(自動・手動)、日時、実行者 | 引き継ぎの履歴 |
-| run_events | id、kitting_no、lot_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、start_request_id(一意)、end_request_id(一意)、created_at。(計画×工程×seq)は一意、終了していない記録は計画×工程で1件まで | 工程と生産の区切りの記録 |
+| run_events | id、kitting_no、lot_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at。(計画×工程×seq)は一意、終了していない記録は計画×工程で1件まで | 工程と生産の区切りの記録 |
 | run_inputs | id、kitting_no、lot_no、kind(ng_qty / remark)、value、entered_by、entered_at、request_id(一意) | 時刻を持たない入力(NG数は最新の値を有効とする) |
 | run_completions | id、kitting_no、lot_no、cleanup_event_id(完了にした片付けの記録。一意)、completed_at、produced_qty、ng_qty、plan_qty_snapshot、takt_sec_snapshot、utilization(稼働率。今は空) | 完了時点の確定値(最新のものを有効とする) |
 | line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、start_request_id(一意)、end_request_id(一意)。終了していない記録はライン×理由で1件まで | 付帯作業 |
@@ -423,6 +424,7 @@ API:
 | 項目 | 方針 |
 | --- | --- |
 | 同時アクセス | uvicornは1プロセス。SQLiteはWAL。端末数台を想定 |
+| 書き込みのロック | SQLite は古い読み取りにもとづく書き込みを拒否する(busy_timeout があっても即座に database is locked になる)ため、本アプリのDBに書き込む処理(ボタン操作、計画の同期、開発用コマンド)は、処理の最初に書き込みのロックを取る(BEGIN IMMEDIATE)。あわせて、同じプロセス内の書き込みは1つのロックで1つずつ行う(`app/db/session.py` の `write_transaction`)。計画の同期は、既存DBの読み取りと正とするDBの決定をロックの外で行い、本アプリのDBに反映する部分だけをロックする。それでもロックが取れなかったとき(ほかのプロセスが書き込み中など)は 503「他の処理と重なったため、記録できませんでした。もう一度押してください」を返し、冪等性の記録(api_requests)には残さない(同じ request_id で送り直せば記録される) |
 | 認証(現場) | 現場端末はライン単位で使い、記録者は「今の担当者」で特定する(PINの要否は未確定) |
 | 認証(管理) | 個人アカウントとパスワード(ハッシュで保存) |
 | HTTPS | フェーズ1は不要(カメラもPWAも使わないため)。必要になったら社内用の証明書を導入する |

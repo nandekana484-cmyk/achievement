@@ -122,6 +122,9 @@ class RunEventOut(BaseModel):
     produced_qty: int | None
     restart_reason_id: int | None
     restart_reason_name: str | None
+    # 再開理由の設備。既定値は、この項目が無かったころに保存した応答(api_requests)を読み直すため
+    equipment_id: int | None = None
+    equipment_name: str | None = None
 
 
 class RunCompletionOut(BaseModel):
@@ -210,6 +213,7 @@ def current_operator_out(session: Session, row: LineOperator) -> CurrentOperator
 
 def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
     reason = session.get(Reason, e.restart_reason_id) if e.restart_reason_id is not None else None
+    equipment = session.get(Equipment, e.equipment_id) if e.equipment_id is not None else None
     return RunEventOut(
         id=e.id, kitting_no=e.kitting_no, lot_no=e.lot_no, step_type=e.step_type, seq=e.seq,
         start_at=e.start_at, end_at=e.end_at,
@@ -217,6 +221,7 @@ def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
         ended_by=e.ended_by, ended_by_name=_operator_name(session, e.ended_by),
         produced_qty=e.produced_qty,
         restart_reason_id=e.restart_reason_id, restart_reason_name=reason.name if reason else None,
+        equipment_id=e.equipment_id, equipment_name=equipment.name if equipment else None,
     )
 
 

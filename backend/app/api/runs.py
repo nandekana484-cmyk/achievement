@@ -21,7 +21,7 @@ def start_step(
     """工程を開始する。"""
     return run_records.start_step(
         session, kitting_no, lot_no, step_type, body.request_id,
-        restart_reason_id=body.restart_reason_id, operator_id=body.operator_id,
+        restart_reason_id=body.restart_reason_id, equipment_id=body.equipment_id, operator_id=body.operator_id,
     )
 
 

@@ -233,6 +233,42 @@ def test_restart_reason_rules(client, staffed):
     assert (e["seq"], e["restart_reason_name"]) == (2, "人員交代")
 
 
+def test_restart_equipment_rules(client, staffed, equipment):
+    machine = _reason_id("マシントラブル")
+    conflict(start(client, "production", equipment_id=equipment["own"]), "設備は、設備が必要な再開理由")  # 1回目
+    conflict(start(client, "setup", equipment_id=equipment["own"]), "設備は、設備が必要な再開理由")  # ほかの工程
+    ok(start(client, "production"))
+    ok(end(client, "production", produced_qty=10))
+
+    conflict(start(client, "production", restart_reason_id=_reason_id("人員交代"), equipment_id=equipment["own"]),
+             "設備は、設備が必要な再開理由")
+    conflict(start(client, "production", restart_reason_id=machine, equipment_id=equipment["other"]),
+             "このラインの設備ではありません")
+    conflict(start(client, "production", restart_reason_id=machine, equipment_id=999), "このラインの設備ではありません")
+
+    e = ok(start(client, "production", restart_reason_id=machine, equipment_id=equipment["own"]))["event"]
+    assert (e["equipment_id"], e["equipment_name"]) == (equipment["own"], "マウンター1")
+    ok(end(client, "production", produced_qty=10))
+
+    # 設備は任意(設備が必要な再開理由でも、選ばなくてよい)
+    e = ok(start(client, "production", restart_reason_id=machine))["event"]
+    assert e["equipment_id"] is None and e["equipment_name"] is None
+    ok(end(client, "production", produced_qty=10))
+
+    plan = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))["plans"][0]
+    assert [x["equipment_name"] for x in plan["events"]] == [None, "マウンター1", None]
+
+
+def test_restart_equipment_is_part_of_request_content(client, staffed, equipment):
+    ok(start(client, "production"))
+    ok(end(client, "production", produced_qty=10))
+    request_id = rid()
+    body = {"request_id": request_id, "restart_reason_id": _reason_id("マシントラブル")}
+    first = ok(start(client, "production", equipment_id=equipment["own"], **body))
+    assert ok(start(client, "production", equipment_id=equipment["own"], **body)) == first
+    conflict(start(client, "production", **body), "同じリクエストIDで")  # 設備の有無が違う
+
+
 def test_different_steps_may_overlap(client, staffed):
     ok(start(client, "production"))
     ok(start(client, "first_article"))  # 生産中に初品チェック
