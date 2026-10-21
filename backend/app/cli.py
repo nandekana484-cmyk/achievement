@@ -31,6 +31,8 @@ from app.services.demo_seed import seed_demo
 from app.services.errors import NotFound, RuleViolation
 
 DEMO_REFUSED = "config.toml に paths.legacy_app_dir が設定されているため、確認用のデータは入れません(実データと混ざらないように)"
+OPERATOR_ADD_REFUSED = ("config.toml に paths.legacy_app_dir が設定されているため、作業者は追加できません"
+                        "(作業者は既存アプリの master.db から読み込みます)")
 
 
 def _yes(flag: bool) -> str:
@@ -45,6 +47,7 @@ def _parser() -> argparse.ArgumentParser:
     ops.add_parser("list", help="一覧")
     add = ops.add_parser("add", help="追加")
     add.add_argument("name")
+    add.add_argument("--id", default=None, help="作業者ID(32文字まで。画面でIDから呼び出すときに使う)")
     add.add_argument("--sort", type=int, default=None, help="表示順(省略すると最後)")
 
     eq = sub.add_parser("equipment", help="設備").add_subparsers(dest="action", required=True)
@@ -66,12 +69,13 @@ def _parser() -> argparse.ArgumentParser:
 
 def _list_operators(s: Session, _args: argparse.Namespace) -> None:
     for o in s.scalars(select(Operator).order_by(Operator.sort_order, Operator.id)):
-        print(f"{o.id}\t{o.name}\t表示順 {o.sort_order}\t{'' if o.active else '(無効)'}")
+        print(f"{o.id}\t{o.name}\t表示順 {o.sort_order}\t{'' if o.active else '(無効)'}\t"
+              f"作業者ID {o.worker_id or '-'}\t{o.role}\t{o.source}")
 
 
 def _add_operator(s: Session, args: argparse.Namespace) -> None:
-    o = masters.add_operator(s, args.name, args.sort)
-    print(f"作業者を追加しました: ID {o.id} {o.name}")
+    o = masters.add_operator(s, args.name, args.sort, worker_id=args.id)
+    print(f"作業者を追加しました: 番号 {o.id} {o.name}(作業者ID {o.worker_id or 'なし'})")
 
 
 def _list_equipment(s: Session, args: argparse.Namespace) -> None:
@@ -125,6 +129,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     config = get_config()
     if args.target == "demo-seed" and config.paths.legacy_app_dir is not None:
         print(f"エラー: {DEMO_REFUSED}", file=sys.stderr)
+        return 1
+    if (args.target, getattr(args, "action", None)) == ("operators", "add") and config.paths.legacy_app_dir is not None:
+        print(f"エラー: {OPERATOR_ADD_REFUSED}", file=sys.stderr)
         return 1
     engine = init_db(config.paths.database)
     upgrade_to_head(engine)

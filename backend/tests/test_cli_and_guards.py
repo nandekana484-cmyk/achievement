@@ -37,6 +37,29 @@ def test_cli_operators(cli_config, capsys):
     assert [line.split("\t")[1] for line in out] == ["佐藤", "山田"]  # 表示順
 
 
+def test_cli_operator_with_worker_id(cli_config, capsys):
+    assert cli.main(["operators", "add", "山田", "--id", "Y001"]) == 0
+    assert "作業者ID Y001" in capsys.readouterr().out
+    assert cli.main(["operators", "add", "別人", "--id", "ｙ００１"]) == 1  # 正規化すると重なる
+    assert "ほかの作業者と重なります" in capsys.readouterr().err
+
+
+def test_cli_operator_add_is_refused_with_legacy_app_dir(tmp_path, monkeypatch, capsys):
+    cfg = tmp_path / "config.toml"
+    db = tmp_path / "real.db"
+    cfg.write_text(f'[paths]\ndatabase = "{db.as_posix()}"\nlegacy_app_dir = "C:/work/inventory/dist"\n', encoding="utf-8")
+    monkeypatch.setenv("GENBA_CONFIG", str(cfg))
+    from app.core.config import get_config
+
+    get_config.cache_clear()
+    try:
+        assert cli.main(["operators", "add", "山田", "--id", "Y001"]) == 1
+    finally:
+        get_config.cache_clear()
+    assert "作業者は既存アプリの master.db から読み込みます" in capsys.readouterr().err
+    assert not db.exists()  # DBに触らない
+
+
 def test_cli_equipment_requires_registered_line(cli_config, capsys):
     assert cli.main(["equipment", "add", "S", "マウンター1"]) == 1
     assert "ライン「S」が登録されていません" in capsys.readouterr().err
@@ -71,7 +94,7 @@ def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys, fak
     from app.services.board import get_board
 
     with get_sessionmaker()() as s:
-        assert [o.name for o in s.scalars(select(Operator))] == ["山田", "佐藤"]
+        assert [(o.name, o.worker_id) for o in s.scalars(select(Operator))] == [("山田", "Y001"), ("佐藤", "S002"), ("山田", "Y015")]
         assert s.scalar(select(func.count()).select_from(Line)) == 1
         b = get_board(s, "S", date(2026, 10, 21), time(8, 15))
     plans = {p.plan.kitting_no: p.plan for p in b.plans}

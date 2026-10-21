@@ -94,6 +94,7 @@ class LegacySourceRead:
 
     dbs: list[MonthlyDbRead]
     skipped: list[SkippedDb]
+    workers: list | None = None  # master.db の作業者(LegacyWorker)。workers 表が無ければ None
 
 
 class LegacySourceError(Exception):

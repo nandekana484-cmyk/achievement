@@ -28,6 +28,7 @@ from app.db.models import (
     PlanSyncRun,
 )
 from app.db.session import is_busy_error, write_transaction
+from app.integration.legacy.workers import LegacyWorker
 from app.integration.legacy_plans import LegacyPlan, LegacySourceRead, ReadWarning, read_legacy_source
 from app.services.kitting_plans import group_lots
 from app.services.masters import register_lines
@@ -36,8 +37,11 @@ from app.services.plan_diff import CarryoverCandidate, PlanDiff, PlanKey, diff_p
 from app.services.plan_rows import apply_plan, apply_tracking, to_legacy
 from app.services.plan_source import SourceSelection, choose_sources
 from app.services.plan_sync_warnings import update_warnings
+from app.services.worker_sync import sync_operators
 
 logger = logging.getLogger(__name__)
+
+NO_WORKERS_TABLE = "master.db に作業者の表(workers)がありません。作業者は読み込みません"
 
 
 @dataclass(frozen=True)
@@ -82,7 +86,7 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
         sel = choose_sources(source.dbs)
         legacy_dbs = _legacy_dbs_json(source, sel)
         with write_transaction(session):
-            return _apply_selection(session, sel, cfg, started_at, legacy_dbs)
+            return _apply_selection(session, sel, cfg, started_at, legacy_dbs, source.workers)
     except Exception as e:  # noqa: BLE001  失敗を記録してアプリは止めない
         session.rollback()
         logger.exception("計画の同期に失敗しました")
@@ -103,6 +107,7 @@ def _record_error(session: Session, started_at: datetime, message: str, legacy_d
 
 def _apply_selection(
     session: Session, sel: SourceSelection, cfg: SyncConfig, started_at: datetime, legacy_dbs: str,
+    workers: list[LegacyWorker] | None = None,
 ) -> PlanSyncResult:
     """正とするDBの計画を本アプリの plans に反映し、コミットまで行う(write_transaction の中で呼ぶ)。"""
     changes = _plan_changes(session, sel, cfg)
@@ -119,6 +124,10 @@ def _apply_selection(
     new_lines = register_lines(session, {p.line_code for p in sel.plans})
     if new_lines:
         logger.info("新しいラインを登録しました: %s", ", ".join(new_lines))
+    if workers is None:
+        changes.warnings.append(ReadWarning(None, None, NO_WORKERS_TABLE))
+    else:
+        changes.warnings.extend(sync_operators(session, workers))
     update_warnings(session, changes.warnings, now)
 
     run = PlanSyncRun(

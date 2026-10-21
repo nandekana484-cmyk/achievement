@@ -15,7 +15,7 @@ def test_masters(client, staffed, equipment):
 
     m = ok(client.get("/api/masters"))
     assert [x["line_code"] for x in m["lines"]] == ["S", "T"]
-    assert [x["name"] for x in m["operators"]] == ["山田", "佐藤"]
+    assert [x["name"] for x in m["operators"]] == ["佐藤", "山田"]  # 名前順
     assert [x["name"] for x in m["equipment"]] == ["マウンター1", "マウンター9"]  # 無効なものは出さない
     assert "計画切替" not in [x["name"] for x in m["reasons"]]
     assert m["reasons"][0]["name"] == "部品探し" and m["reasons"][0]["category"] == "loss"
