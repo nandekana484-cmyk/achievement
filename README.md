@@ -73,7 +73,7 @@ cd backend
 ```powershell
 cd frontend
 npm run gen:api   # APIの型を作り直す(バックエンドの OpenAPI → src/api/schema.ts)。APIを変えたら必ず実行する
-npm test          # vitest(UUID、時刻と位置の変換、工程の状態、送り直し)
+npm test          # vitest(UUID、時刻と位置の変換、工程の状態、送り直し、言語の切り替え、画面の文言の漏れ)
 npm run build
 npx playwright install chromium   # 初回だけ(ブラウザをユーザーのフォルダに入れる)
 npm run e2e       # Playwright。確認用のデータを入れたDBで画面を操作し、frontend/test-results/screens/ にスクリーンショットを撮る
