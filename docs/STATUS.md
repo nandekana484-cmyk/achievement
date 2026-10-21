@@ -1,0 +1,75 @@
+# 開発の状況(引き継ぎ)
+
+作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
+
+- 最終更新: 2026-10-21
+- main の最新: `a012a8b` Merge branch 'feature/legacy-workers'(この文書を足すコミットの1つ前)
+
+## 進め方
+
+指示書(人とレビュー役のAIが作る)→ 実装(VS Code のAI)→ 完了報告 → レビュー → main に取り込み
+
+- 作業は `feature/<内容>` のブランチで行う。main への取り込みはレビューのあと([AGENTS.md](../AGENTS.md) の「2拠点での作業ルール」)
+
+## できていること
+
+- 計画の同期: すべての月次DBを読む、ロットごとに正とするDBを決める、取消にしない条件と一括取消の安全装置([spec 6.1](spec.md#61-計画の取得既存--本アプリ)、[legacy-integration.md](design/legacy-integration.md))
+- 実績の記録: 工程、生産の区切り、NG、備考、完了、付帯作業([spec 5.4〜5.7](spec.md#54-回の工程)、[run-records.md](design/run-records.md))
+- 計画のまとまり: キッティングNo.の単位で画面と実績を扱う
+- NG: ロットと面ごとに入力する
+- 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す([spec 5.6](spec.md#56-誰がやったか))
+- ライン画面: 48時間のタイムテーブル、計画の検索([spec 7.1](spec.md#71-現場画面タブレット)、[line-screen.md](design/line-screen.md))
+- 書き込みのロック([db-writes.md](design/db-writes.md))
+- コードの大きさのチェック(`tools/check_code_size.py`)
+
+## 次にやること(この順番の予定)
+
+1. 表示言語の切り替え(日本語とベトナム語)。ベトナム語の文言はレビュー役が用意する。エラーの文は日本語のまま
+2. 実際のタブレットでの試用
+3. 管理画面(ログイン、実績の訂正、マスタ、24時間の日報)
+4. 既存アプリへの実績の反映
+   - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
+   - 生産数をロットに分けるかは未決定
+5. 記録用紙の印刷(A4、1回目と2回目)
+6. 本番への配置(exe化、担当者PCでの自動起動)
+7. 依存ライブラリの更新
+   - 先に NANJYOU-H の Node を 22 に上げる
+   - そのあと vite・vitest・esbuild を更新し、pytest の httpx の警告に対応する
+
+## 決まっていないこと
+
+一覧は [spec 11. 未確定事項](spec.md#11-未確定事項)。特に大事なもの:
+
+- 稼働率の定義
+- 想定タクトの単位(仮置き: 1枚あたりの秒)
+- 生産数のロットへの分け方
+- 実績の取込口の仕様(列、文字コード、実績日の定義)
+
+## 既知の問題
+
+- npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 7 で対応する
+- 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
+- `backend/app/services/views.py` が287行で、目安の300行に近い
+
+## PCごとに用意が必要なもの(Git に入らないもの)
+
+- Python 3.14 と venv(`backend/.venv`)
+- Node.js(22 推奨)と `npm ci`
+- Playwright のブラウザ(`npx playwright install chromium`)
+- `backend/data/config.toml`(`config.example.toml` からコピーして、PCに合わせて直す)
+- 開発用DB(`backend/data/genba.db`。起動すると自動で作られ、最新の形になる)
+
+## 各PCの状況
+
+| PC | Python | Node.js | config.toml |
+| --- | --- | --- | --- |
+| MSI | 3.14.4 | 22.23.2 | `legacy_app_dir = "C:/work/inventory/dist"`。ただし master.db には workers だけがあり、月次DBも想定タクトの表も無いので、計画の同期は error になる |
+| NANJYOU-H | 3.14.7 | 20.19.6 | 実データを読む設定 |
+
+## 別のPCで再開する手順
+
+1. `git switch main` → `git pull`
+2. `cd backend` → venv の中で `pip install -r requirements-dev.txt`
+3. 開発サーバーを止める → `cd frontend` → `npm ci`
+4. 起動する(DBは自動で最新の形になる)。`/api/health` が ok を返すことを確かめる
+5. `backend/data/config.toml` の設定を確かめる(`config.example.toml` と見比べ、増えた項目を足す)

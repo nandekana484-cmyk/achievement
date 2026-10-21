@@ -1,5 +1,7 @@
 # 現場実績入力・稼働率可視化Webアプリ
 
+作業の再開は [docs/STATUS.md](docs/STATUS.md) から。
+
 仕様は [docs/spec.md](docs/spec.md) を参照。
 
 ## 開発環境の準備(Windows、開発者PC)

@@ -45,6 +45,21 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
 - 依存ライブラリを追加・変更したら、`backend/requirements.txt`(`requirements-dev.txt`)/ `frontend/package-lock.json` を必ずコミットする
 - pull して依存が変わっていたら、`pip install -r requirements-dev.txt`(venv の中で)と `npm ci` をやり直す
 
+## 作業の決まり
+
+- 完了報告は次の形式で書く
+  1. Python と Node のバージョン
+  2. テストとビルドの結果(警告も)
+  3. git status
+  4. 迷った点・確認したい点
+  5. 指示に応じた追加の項目
+  6. docs/spec.md と違う判断
+  7. 作業したPC名(`$env:COMPUTERNAME`)と push したブランチ
+  8. `tools/check_code_size.py` の結果
+- PowerShell 5.1 でコミットするときは、メッセージをファイルに書いて `git commit -F <ファイル>` で渡す(日本語や複数行の引数が崩れるため)。commit と push は分け、間で `git log` を見て確かめる
+- `npm ci` の前に、開発サーバー(`npm run dev`)を止める(動いていると node_modules のファイルを消せずに失敗する)
+- `uvicorn --reload` は、環境変数と config.toml の変更を読み直さない。変えたら止めて起動し直す
+
 ## 書き方の約束
 
 - 現在時刻は `app.core.clock.now()` を使う(`datetime.now()` を直接使わない)
