@@ -72,6 +72,18 @@ powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1 -Console   # ウ�
 - 世代: `backup.keep`(既定 30)を超えたら古い順に消す。消すのは、保存先の中の、上の名前の形のファイルだけ(共有フォルダにほかのファイルがあっても消さない)
 - 戻すとき: アプリを止める → `data\genba.db` を、選んだバックアップのファイルで置き換える(`genba.db-wal`、`genba.db-shm` があれば消す)→ 起動する
 
+## 開発用コマンド(GenbaCli.exe)
+
+- exe のフォルダには、GenbaApp.exe と並んで GenbaCli.exe(開発用コマンド `python -m app.cli` と同じもの)を入れる。GenbaApp.exe はウィンドウを出さない形なので、入力の要るコマンドは GenbaCli.exe(いつもコンソールを出す形)で動かす
+- 基準のフォルダ(GENBA_HOME)の決め方は GenbaApp.exe と同じ(exe の2つ上)。担当者PCでは C:\GenbaApp\data\genba.db が対象になる
+- 管理者のパスワードの設定(最初とリセット)は、担当者PCで PowerShell かコマンドプロンプトを開いて実行する。入力した文字は画面に出ない
+
+```powershell
+C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
+```
+
+- GenbaApp.exe が動いていても実行できる(書き込みは短く、ほかの書き込みと順番に行う)
+
 ## 担当者PCで使うスクリプト(packaging/)
 
 どれも管理者権限が要る(スクリプトの先頭に `#Requires -RunAsAdministrator`)。PowerShell を「管理者として実行」してから動かす。
@@ -113,5 +125,7 @@ PowerShell 5.1 が日本語を正しく読めるよう、.ps1 は UTF-8(BOM 付�
 - 2回目の起動で、`backup\genba_<日時>_startup.db` ができた
 - `GENBA_TEST_MODE=1` と `GENBA_CLOCK_START` を設定しても、本物の時計を使った
 - 大きさ: フォルダ 39.3 MB(GenbaApp.exe 単体 13.0 MB)、zip 23.3 MB。起動(/api/health が返るまで)は約1.5秒
+  - GenbaCli.exe を足したあと(2026-10-21): フォルダ 51.8 MB(GenbaCli.exe 12.5 MB)、zip 35.6 MB
+- GenbaCli.exe で管理者を足し、PowerShell から `--stdin` でパスワードを設定して、GenbaApp.exe の管理画面にログインできた
 - ウィンドウを出さない形: ウィンドウは出ずに起動し、/api/health が ok を返した。同じポートでもう1つ起動すると止まり、config.toml の書き方を誤らせると終了コード 1 で止まり、どちらも理由が `logs\genba.log` に残った
 - 1つ目が動いている間に同じフォルダで2つ目を起動すると、終了コード 2 で止まり、バックアップのファイルは増えなかった。1つ目を強制終了したあとは起動し直せた(ロックは残らない)。ほかのプログラムがポートを使っているときは終了コード 4 で止まり、バックアップは増えなかった

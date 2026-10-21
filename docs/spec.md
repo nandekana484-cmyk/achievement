@@ -407,6 +407,30 @@ API:
 - マスタ: ライン、設備、理由(停止理由・付帯作業の種類)、作業者、管理者
 - 記録用紙の印刷
 
+実装済み(1回目: ログインとマスタ。詳細: docs/design/admin.md):
+
+- 管理画面に入れるのは、作業者(operators)のうち役割が admin で有効な人だけ。既存アプリで admin でなくなった・無効になったら、ログイン中でも次の操作で締め出す
+- ログインは作業者IDとパスワード。パスワードは本アプリで持ち(ハッシュ。8文字以上)、最初の設定とリセットは開発用コマンド(`admin set-password`)、自分での変更は管理画面で行う。同じ作業者IDで続けて5回間違えたら5分ログインできない。失敗の理由は区別しない
+- 操作が無い30分、またはログインから12時間でログインが切れる(config.toml の `[admin]` で変えられる)
+- マスタ: 設備と理由の追加・変更・無効化、ラインの名前・並び順の変更と無効化、作業者の一覧(見るだけ)。行は消さず、変更はすべて audit_log に残す。無効にした理由・設備は現場の画面で選べなくなるが、過去の記録の表示は変わらない
+- 管理画面は日本語だけ。PC(幅 1280px 以上)で使う。ライン選択の画面の隅から入る
+
+| メソッド | パス | 説明 |
+| --- | --- | --- |
+| POST | `/api/admin/login` | ログイン(本文: worker_id、password) |
+| POST | `/api/admin/logout` | ログアウト |
+| GET | `/api/admin/me` | ログイン中の管理者 |
+| PUT | `/api/admin/password` | 自分のパスワードの変更(本文: current_password、new_password) |
+| GET・POST | `/api/admin/equipment` | 設備の一覧・追加 |
+| PATCH | `/api/admin/equipment/{id}` | 設備の変更・無効化(active) |
+| GET・POST | `/api/admin/reasons` | 理由の一覧・追加 |
+| PATCH | `/api/admin/reasons/{id}` | 理由の変更・無効化 |
+| GET | `/api/admin/lines` | ラインの一覧 |
+| PATCH | `/api/admin/lines/{line_code}` | ラインの名前・並び順の変更・無効化 |
+| GET・POST | `/api/admin/operators` | 作業者の一覧・開発用の作業者の追加(legacy_app_dir が無いときだけ) |
+
+`/api/admin/` の下は、すべてサーバーでセッションと管理者であることを確かめる(無ければ 401)。データを変える要求は、Cookie に加えて `X-Genba-Admin: 1` のヘッダーが要る(無ければ 403)。
+
 ### 7.3 記録用紙
 
 - A4縦1枚に、上半分が1回目、下半分が2回目
@@ -451,8 +475,9 @@ API:
 | api_requests | request_id(主キー)、operation、payload、response、created_at | ボタン操作の冪等性(再送に最初の応答を返す) |
 | result_exports / result_export_items | 出力ID、ファイル名、日時 / 製品、完成数、回ごとのNG数、区分(新規・訂正) | 既存への反映の記録 |
 | print_logs | 製品、印刷日時、印刷時の計画の値のハッシュ | 再印刷の判定 |
-| audit_log | 対象、項目、訂正前、訂正後、訂正者、日時、理由 | 訂正履歴 |
-| マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name、name_vi)、reasons(name、name_vi、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。admins は管理画面と一緒に作る | 選択肢と利用者 |
+| audit_log | changed_at、changed_by、target_table、target_key、action(create / update)、before_json、after_json(変わった項目だけ)、reason | 変更と訂正の履歴(マスタの変更は実装済み) |
+| admin_credentials / admin_sessions / admin_login_attempts | 管理者のパスワードのハッシュ / セッション(値のハッシュ)/ 作業者IDごとの続けて間違えた回数と締め出しの期限 | 管理画面のログイン |
+| マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name、name_vi)、reasons(name、name_vi、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。管理者は operators の role=admin(パスワードは admin_credentials) | 選択肢と利用者 |
 
 - 時刻はサーバーが記録し、タイムゾーン付き(日本時間)で保存する
 - 削除はしない。取り消しは状態で表す
@@ -469,7 +494,7 @@ API:
 | 同時アクセス | uvicornは1プロセス。SQLiteはWAL。端末数台を想定 |
 | 書き込みのロック | SQLite は古い読み取りにもとづく書き込みを拒否する(busy_timeout があっても即座に database is locked になる)ため、本アプリのDBに書き込む処理(ボタン操作、計画の同期、開発用コマンド)は、処理の最初に書き込みのロックを取る(BEGIN IMMEDIATE)。あわせて、同じプロセス内の書き込みは1つのロックで1つずつ行う(`app/db/session.py` の `write_transaction`)。計画の同期は、既存DBの読み取りと正とするDBの決定をロックの外で行い、本アプリのDBに反映する部分だけをロックする。それでもロックが取れなかったとき(ほかのプロセスが書き込み中など)は 503「他の処理と重なったため、記録できませんでした。もう一度押してください」を返し、冪等性の記録(api_requests)には残さない(同じ request_id で送り直せば記録される) |
 | 認証(現場) | 現場端末はライン単位で使い、記録者は「今の担当者」で特定する(PINの要否は未確定) |
-| 認証(管理) | 個人アカウントとパスワード(ハッシュで保存) |
+| 認証(管理) | 作業者IDとパスワード(標準ライブラリの scrypt のハッシュで保存。8文字以上)。セッションは Cookie(HttpOnly、SameSite=Strict。社内LANの HTTP なので Secure は付けない)。操作が無い30分・最長12時間で切れる。続けて5回間違えたら5分ログインできない。データを変える要求には X-Genba-Admin ヘッダーが要る(詳細: docs/design/admin.md) |
 | HTTPS | フェーズ1は不要(カメラもPWAも使わないため)。必要になったら社内用の証明書を導入する |
 | 時刻 | サーバーの時刻で記録する。担当者PCのWindows時刻同期を有効にする |
 | バックアップ | SQLiteのバックアップ機能(`backup()`)で、起動時(DBの構造の更新の前)と毎日決まった時刻(既定 12:30)に、config.toml の backup_dir(共有フォルダ)へ保存する。起動中のファイルコピーはしない。世代は既定30で、古い順に消す(本アプリが作ったファイルだけ)。保存できなくてもアプリは止めず、警告をログに出す(`services/backup.py`。詳細: docs/design/packaging.md) |
@@ -524,6 +549,7 @@ C:\GenbaApp\         基準のフォルダ(GENBA_HOME。exe の2つ上。環境�
 | タブレットのWi-Fiが担当者PCと同じ社内LANか | 接続 | 同じLAN |
 | キッティングNo.の各部分の桁数 | 番号の解析 | 例から推定 |
 | 一括取消の判定の閾値 | 計画の同期 | 10件以上 かつ 有効な計画(計画終了が今日以降)の30%以上 |
+| 管理画面のログインの時間と締め出し | 管理画面 | 操作が無い30分・最長12時間で切る。続けて5回間違えたら5分ログインできない。パスワードは8文字以上(config.toml の `[admin]`) |
 
 解決済み(2026-10-21、既存アプリの調査結果):
 

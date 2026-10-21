@@ -3,7 +3,7 @@
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
 - 最終更新: 2026-10-21
-- main の最新: Merge branch 'feature/packaging'(この文書を直したコミットを含む)
+- main の最新: `6db9e45` Merge branch 'fix/single-instance'(feature/admin-login は取り込み前)
 
 ## 進め方
 
@@ -19,6 +19,7 @@
 - NG: ロットと面ごとに入力する
 - 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す。計画の同期がエラーでも読み込む([spec 5.6](spec.md#56-誰がやったか))
 - ライン画面: 48時間のタイムテーブル、計画の検索([spec 7.1](spec.md#71-現場画面タブレット)、[line-screen.md](design/line-screen.md))
+- 管理画面(1回目): ログイン(作業者IDとパスワード、セッション、締め出し)、設備・理由・ラインの管理、作業者の一覧、audit_log([spec 7.2](spec.md#72-管理画面pc)、[admin.md](design/admin.md))
 - 表示言語の切り替え: 日本語とベトナム語(訳の初版を取り込み済み)。選んだ言語は端末に記憶。理由と設備はベトナム語の名前(name_vi)を出す([spec 7.5](spec.md#75-表示言語の切り替え)、[i18n.md](design/i18n.md))
 - 書き込みのロック([db-writes.md](design/db-writes.md))
 - コードの大きさのチェック(`tools/check_code_size.py`)
@@ -29,7 +30,7 @@
 ## 次にやること(この順番の予定)
 
 1. 実際のタブレットでの試用(ベトナム語の訳も、現場で使いながら直す)
-2. 管理画面(ログイン、実績の訂正、マスタ(ベトナム語の名前、ラインの名前を含む)、24時間の日報)
+2. 管理画面の2回目(実績の訂正、24時間の日報)。ログインとマスタはできた
 3. 既存アプリへの実績の反映
    - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
    - 生産数をロットに分けるかは未決定
