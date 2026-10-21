@@ -3,7 +3,7 @@
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
 - 最終更新: 2026-10-21
-- main の最新: `a012a8b` Merge branch 'feature/legacy-workers'(この文書を足すコミットの1つ前)
+- main の最新: `49b09b9` Merge branch 'feature/i18n'(この文書を直すコミットの1つ前)
 
 ## 進め方
 
@@ -17,22 +17,22 @@
 - 実績の記録: 工程、生産の区切り、NG、備考、完了、付帯作業([spec 5.4〜5.7](spec.md#54-回の工程)、[run-records.md](design/run-records.md))
 - 計画のまとまり: キッティングNo.の単位で画面と実績を扱う
 - NG: ロットと面ごとに入力する
-- 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す([spec 5.6](spec.md#56-誰がやったか))
+- 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す。計画の同期がエラーでも読み込む([spec 5.6](spec.md#56-誰がやったか))
 - ライン画面: 48時間のタイムテーブル、計画の検索([spec 7.1](spec.md#71-現場画面タブレット)、[line-screen.md](design/line-screen.md))
+- 表示言語の切り替え: 日本語とベトナム語(訳の初版を取り込み済み)。選んだ言語は端末に記憶。理由と設備はベトナム語の名前(name_vi)を出す([spec 7.5](spec.md#75-表示言語の切り替え)、[i18n.md](design/i18n.md))
 - 書き込みのロック([db-writes.md](design/db-writes.md))
 - コードの大きさのチェック(`tools/check_code_size.py`)
 
 ## 次にやること(この順番の予定)
 
-1. 表示言語の切り替え(日本語とベトナム語)。ベトナム語の文言はレビュー役が用意する。エラーの文は日本語のまま
-2. 実際のタブレットでの試用
-3. 管理画面(ログイン、実績の訂正、マスタ、24時間の日報)
-4. 既存アプリへの実績の反映
+1. 実際のタブレットでの試用(ベトナム語の訳も、現場で使いながら直す)
+2. 管理画面(ログイン、実績の訂正、マスタ(ベトナム語の名前、ラインの名前を含む)、24時間の日報)
+3. 既存アプリへの実績の反映
    - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
    - 生産数をロットに分けるかは未決定
-5. 記録用紙の印刷(A4、1回目と2回目)
-6. 本番への配置(exe化、担当者PCでの自動起動)
-7. 依存ライブラリの更新
+4. 記録用紙の印刷(A4、1回目と2回目)
+5. 本番への配置(exe化、担当者PCでの自動起動)
+6. 依存ライブラリの更新
    - 先に NANJYOU-H の Node を 22 に上げる
    - そのあと vite・vitest・esbuild を更新し、pytest の httpx の警告に対応する
 
@@ -47,9 +47,8 @@
 
 ## 既知の問題
 
-- npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 7 で対応する
+- npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 6 で対応する
 - 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
-- `backend/app/services/views.py` が287行で、目安の300行に近い
 
 ## PCごとに用意が必要なもの(Git に入らないもの)
 
