@@ -30,6 +30,8 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
 - フロントエンドの依存の導入: `cd frontend` → `npm ci`(`package-lock.json` のとおりに入れる)
 - フロントエンドの開発: `cd frontend` → `npm run dev`(`/api` は8000番へ転送)
 - フロントエンドのビルド: `cd frontend` → `npm run build`
+- 本番の版(exe と zip)を作る: リポジトリ直下で `powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1`(`-SkipTests` でテストを省く)。できたものは `packaging\dist\`(詳細: docs/design/packaging.md)
+  - `packaging\*.ps1` は UTF-8(BOM 付き)・改行 CRLF で保存する(PowerShell 5.1 が日本語を読めるように)
 - APIの型の生成: `cd frontend` → `npm run gen:api`(APIを変えたら必ず実行し、`src/api/schema.ts` もコミットする。手書きの fetch は使わない)
 - フロントエンドのテスト: `cd frontend` → `npm test`(vitest)。画面の確認: `npm run build` → `npm run e2e`(Playwright)
 - 画面の確認用のデータ: `cd backend` → `python -m app.cli demo-seed --line S --date YYYY-MM-DD`(`legacy_app_dir` が設定されていると止まる)

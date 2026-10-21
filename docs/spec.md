@@ -472,8 +472,8 @@ API:
 | 認証(管理) | 個人アカウントとパスワード(ハッシュで保存) |
 | HTTPS | フェーズ1は不要(カメラもPWAも使わないため)。必要になったら社内用の証明書を導入する |
 | 時刻 | サーバーの時刻で記録する。担当者PCのWindows時刻同期を有効にする |
-| バックアップ | SQLiteのバックアップ機能(`backup()` または `VACUUM INTO`)で、毎日定時と更新前に共有フォルダへ保存する。起動中のファイルコピーはしない |
-| ログ | アプリのログはファイルに日ごとに分けて保存する |
+| バックアップ | SQLiteのバックアップ機能(`backup()`)で、起動時(DBの構造の更新の前)と毎日決まった時刻(既定 12:30)に、config.toml の backup_dir(共有フォルダ)へ保存する。起動中のファイルコピーはしない。世代は既定30で、古い順に消す(本アプリが作ったファイルだけ)。保存できなくてもアプリは止めず、警告をログに出す(`services/backup.py`。詳細: docs/design/packaging.md) |
+| ログ | アプリのログはファイル(`logs\genba.log`)に日ごとに分けて保存する(90日分。`app/server.py`) |
 | 障害時 | 担当者PCが止まっている間、現場は紙に記録し、復旧後に管理者が代理入力する(入力者と入力日時を残す) |
 | 常時稼働 | タスクスケジューラ(またはWindowsサービス)で自動起動。稼働時間中はスリープ無効。IPアドレス固定。ファイアウォールはアプリのポートだけ許可 |
 
@@ -481,20 +481,27 @@ API:
 
 ## 10. 開発・配布・運用
 
+詳細: docs/design/packaging.md(ビルドの中身、担当者PCで使うスクリプト、初めて置くとき・更新するときの手順)
+
 担当者PCのフォルダ構成:
 
 ```
-C:\GenbaApp\
-  app\v1.0.0\        実行ファイル(版ごとにフォルダを分ける)
+C:\GenbaApp\         基準のフォルダ(GENBA_HOME。exe の2つ上。環境変数で変えられる)
+  app\v1.0.0\        実行ファイル(GenbaApp.exe。版ごとにフォルダを分ける)
   data\genba.db      本番DB
-  data\config.toml   ポート、既存DBのパス、連携フォルダ、バックアップ先、同期間隔
+  data\config.toml   ポート、既存アプリのフォルダ、連携フォルダ、バックアップ先、同期間隔、バックアップの時刻と世代
   exchange\          連携フォルダ
-  logs\
+  logs\              ログ(日ごと)
 ```
 
-ビルド(開発者PC): フロントエンドをビルド → テスト → PyInstallerでまとめる → 版番号付きのzip
+- exe は `<基準>\data\config.toml` を読み、config.toml の相対パスは基準のフォルダから見た位置にする(開発中は起動したフォルダが基準)
+- exe では、画面の確認用の時計(GENBA_CLOCK_START / GENBA_TEST_MODE)は常に無効
 
-更新(担当者PC): 停止 → 新しい版のフォルダを置く(旧版は残す)→ 起動(起動時にバックアップとAlembicを自動実行)→ 稼働確認の画面で確認。問題があれば旧版と更新前のバックアップに戻す。
+ビルド(開発者PC): `packaging\build.ps1` を実行する。画面のビルド → テスト(pytest・vitest)→ PyInstaller(フォルダ形式)→ `packaging\dist\v<版>\` と `GenbaApp-v<版>.zip`。版は `backend/app/__init__.py` の `__version__`
+
+自動起動とファイアウォール(担当者PC、管理者権限): `packaging\install-autostart.ps1`(タスクスケジューラ。PCの起動時に SYSTEM で起動)と `packaging\firewall-allow.ps1`(アプリのポートだけ受信を許可)。解除は `uninstall-autostart.ps1`、`firewall-remove.ps1`
+
+更新(担当者PC): 停止 → 新しい版のフォルダを置く(旧版は残す)→ 新しい版で自動起動を登録し直す → 起動(起動時にバックアップとAlembicを自動実行)→ 稼働確認の画面(/api/health)で確認。問題があれば旧版と更新前のバックアップ(`*_startup.db`)に戻す。
 
 ---
 
