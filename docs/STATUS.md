@@ -52,7 +52,6 @@
 
 ## 既知の問題
 
-- ベトナム語の訳がまだの文言(「(未翻訳)」+ 日本語): 実績の訂正の画面の 71 キー(2026-10-22 に追加)
 
 - npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 6 で対応する
 - 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
