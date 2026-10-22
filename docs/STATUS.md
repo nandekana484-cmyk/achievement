@@ -28,6 +28,7 @@
 - 本番の形(exe): `packaging\build.ps1` でフォルダ形式の exe(ウィンドウを出さない形)と zip を作れる。基準のフォルダ(GENBA_HOME)から config.toml とDBを読む。起動の失敗はログのファイルに残る。担当者PCで使う自動起動(担当者のアカウントで、ログオンしているかどうかにかかわらず実行)とファイアウォールのスクリプト([spec 10](spec.md#10-開発配布運用)、[packaging.md](design/packaging.md))
 - DBのバックアップ: 起動時(更新の前)と毎日 12:30 に backup_dir へ。世代は30([spec 9](spec.md#9-非機能要件))
 - ログ: `logs\genba.log` に日ごとに分けて保存
+- 依存ライブラリの更新(2026-10-22): vite 7.3.7、vitest 5.0.3、react-router-dom 7.18.4、httpx → httpx2。npm audit 0件、pytest の警告 0件。更新後の exe の動作確認(起動、2つ目の停止、GenbaCli、バックアップ、自動起動とファイアウォールのスクリプト)の結果は [packaging.md](design/packaging.md) の末尾([dependencies.md](design/dependencies.md))
 
 ## 次にやること(この順番の予定)
 
@@ -37,10 +38,8 @@
    - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
    - 生産数をロットに分けるかは未決定
 4. 記録用紙の印刷(A4、1回目と2回目)
-5. 本番への配置: exe化とバックアップはできた。残りは担当者PCでの登録と確認(zip の展開、config.toml、自動起動とファイアウォールのスクリプトの実行、共有フォルダへのバックアップの書き込み、タブレットからの接続)
-6. 依存ライブラリの更新
-   - 先に NANJYOU-H の Node を 22 に上げる
-   - そのあと vite・vitest・esbuild を更新し、pytest の httpx の警告に対応する
+5. 本番への配置: exe化とバックアップはできた。スクリプトは確認用の名前で SYSTEM の形まで確かめた。残りは担当者PCでの登録と確認(zip の展開、config.toml、担当者のアカウントでの自動起動(パスワードの入力が要る)、共有フォルダへのバックアップの書き込み、毎日 12:30 のバックアップ、タブレットからの接続)
+6. NANJYOU-H の Node.js を 22 に上げる(今は 20.19.6。vitest 5 が動かないので、上げるまでは `C:\work\tools\node-v22.23.2-win-x64` を一時的に PATH の先頭に足して使う)
 
 ## 決まっていないこと
 
@@ -54,14 +53,14 @@
 
 ## 既知の問題
 
-
-- npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 6 で対応する
+- npm 10 は、依存を足す・変える(`npm install`)ときに `edgesOut` のエラーで止まる。`npx -y npm@11.21.0 install ...` を使う(`npm ci` は npm 10 で通る。[dependencies.md](design/dependencies.md))
+- `build.ps1` の zip の段階が、作った直後のファイルを開けずに1回失敗した(やり直すと通った)
 - 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
 
 ## PCごとに用意が必要なもの(Git に入らないもの)
 
 - Python 3.14 と venv(`backend/.venv`)
-- Node.js(22 推奨)と `npm ci`
+- Node.js 22.12 以上(vitest 5 が要る)と `npm ci`
 - Playwright のブラウザ(`npx playwright install chromium`)
 - `backend/data/config.toml`(`config.example.toml` からコピーして、PCに合わせて直す)
 - 開発用DB(`backend/data/genba.db`。起動すると自動で作られ、最新の形になる)
@@ -72,12 +71,12 @@
 | PC | Python | Node.js | config.toml |
 | --- | --- | --- | --- |
 | MSI | 3.14.4 | 22.23.2 | `legacy_app_dir` は設定しない(このPCの既存アプリのフォルダには月次DBと想定タクトの表が無いため)。確認用データ(`python -m app.cli demo-seed`)を使う |
-| NANJYOU-H | 3.14.7 | 20.19.6 | 実データを読む設定 |
+| NANJYOU-H | 3.14.7 | 20.19.6(PATH)。テストとビルドは 22.23.2(`C:\work\tools` に置いた、PATH に入れない版)で行った | 実データを読む設定 |
 
 ## 別のPCで再開する手順
 
 1. `git switch main` → `git pull`
-2. `cd backend` → venv の中で `pip install -r requirements-dev.txt`
+2. `cd backend` → venv の中で `pip install -r requirements-dev.txt`(2026-10-22 から httpx の代わりに httpx2。古い httpx は `pip uninstall -y httpx httpcore` で消してよい)
 3. 開発サーバーを止める → `cd frontend` → `npm ci`
 4. 起動する(DBは自動で最新の形になる)。`/api/health` が ok を返すことを確かめる
 5. `backend/data/config.toml` の設定を確かめる(`config.example.toml` と見比べ、増えた項目を足す)
