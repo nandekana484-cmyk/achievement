@@ -2,7 +2,7 @@
 
 開発指針(docs/spec.md)の 7.2 と 9(認証(管理))の、実装の判断の理由。
 対象は `backend/app/api/admin.py`・`admin_masters.py`、`backend/app/services/admin_auth.py`・`admin_masters.py`・`audit.py`、`backend/app/domain/passwords.py`、`frontend/src/admin/`。
-実績の訂正と24時間の日報は、次の回で作る。
+日報と区間の CSV は docs/design/reports.md。管理画面からの実績の訂正は、次の回で作る。
 
 ## 管理者
 
@@ -75,7 +75,7 @@ C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
 
 ## 画面(frontend/src/admin/)
 
-- `/admin/login` でログイン。`/admin` の下は、左にメニュー(設備、理由、ライン、作業者、パスワードの変更、ログアウト)、右に内容
+- `/admin/login` でログイン。`/admin` の下は、左にメニュー(日報、設備、理由、ライン、作業者、パスワードの変更、ログアウト)、右に内容
 - 開いたときに `/api/admin/me` で確かめ、401 ならログイン画面に戻す。どの操作でも 401 が返ったら、ログイン画面に戻す(「ログインが切れました」を出す)
 - 管理画面は日本語だけ(言語を切り替えない)。文言は `src/admin/messages.ts` にまとめ、vi.ts には足さない。画面のファイルに日本語を直接書かないテスト(`scripts/no-hardcoded-text.test.ts`)は管理画面にも当てる(辞書のファイルは除く)
 - PC で使う前提(幅 1280px 以上)。タブレット向けの大きさにはしない

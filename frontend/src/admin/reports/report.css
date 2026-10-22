@@ -1,0 +1,56 @@
+/* 日報(A4 横向き)。画面で見るときも、印刷と同じ大きさ・形で出す。余白はページの中(.report-sheet の padding)で取る */
+@page { size: A4 landscape; margin: 0; }
+
+.report-preview { overflow-x: auto; padding: 8px 0; }
+.report-pages { display: flex; flex-direction: column; gap: 16px; width: max-content; }
+.report-sheet {
+  box-sizing: border-box; width: 297mm; height: 210mm; padding: 10mm; overflow: hidden;
+  display: flex; flex-direction: column; gap: 3mm;
+  background: #fff; color: #000; font-size: 9pt; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+/* ブラウザの「背景のグラフィック」の設定が無くても、棒の色を印刷する(内側の要素にも付ける) */
+.report-sheet, .report-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.report-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 6mm; }
+.report-title { margin: 0; font-size: 16pt; }
+.report-total { font-weight: 700; font-size: 11pt; }
+.report-generated, .report-pageno { color: #444; }
+.report-pageno { margin-left: auto; }
+.report-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1mm 4mm; width: 100%; font-size: 8pt; }
+.report-legend-item { display: inline-flex; align-items: center; gap: 1mm; }
+.report-swatch { display: inline-block; padding: 0 1.5mm; border-radius: 1mm; color: #fff; font-weight: 700; background: #888; }
+.report-empty { margin: 2mm 0; color: #444; }
+
+.report-half { display: flex; flex-direction: column; border: 0.3mm solid #999; }
+.report-axis, .report-row { display: grid; grid-template-columns: 48mm 1fr; }
+.report-axis { height: 6mm; background: #f2f2f2; border-bottom: 0.3mm solid #999; font-weight: 700; }
+.report-row { height: 7mm; border-bottom: 0.2mm solid #ccc; }
+.report-row:last-child { border-bottom: 0; }
+.report-rowhead {
+  display: flex; flex-direction: column; justify-content: center; padding: 0 1.5mm; overflow: hidden; white-space: nowrap;
+  border-right: 0.3mm solid #999; line-height: 1.15;
+}
+.report-rowhead small { font-size: 7pt; color: #444; overflow: hidden; text-overflow: ellipsis; }
+.report-track { position: relative; margin: 0 4mm 0 3mm; }
+.report-tick { position: absolute; top: 1mm; transform: translateX(-50%); font-size: 7pt; font-weight: 400; }
+.report-grid { position: absolute; top: 0; bottom: 0; border-left: 0.2mm solid #ddd; }
+.report-bar {
+  position: absolute; top: 1mm; bottom: 1mm; overflow: hidden; white-space: nowrap; padding: 0 0.5mm;
+  color: #fff; font-size: 7pt; font-weight: 700; line-height: 5mm; border-radius: 0.6mm;
+}
+.report-row-events { height: 10mm; }
+.report-event { position: absolute; top: 1mm; bottom: 0; }
+.report-event-bar { position: absolute; top: 0; left: 0; right: 0; height: 3.5mm; border-radius: 0.6mm; }
+.report-event-label { position: absolute; top: 4mm; left: 0; white-space: nowrap; font-size: 7pt; font-weight: 700; }
+.report-swatch-open { color: #000; background: #fff; outline: 0.3mm dashed #000; }
+.report-open { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.35) 0 1mm, transparent 1mm 2mm); outline: 0.3mm dashed #000; }
+
+@media print {
+  body { background: #fff; }
+  .admin { display: block; }
+  .admin-menu, .report-controls { display: none !important; }
+  .admin-main { padding: 0; }
+  .report-preview { overflow: visible; padding: 0; }
+  .report-pages { gap: 0; }
+  .report-sheet { box-shadow: none; break-after: page; page-break-after: always; }
+  .report-sheet:last-child { break-after: auto; page-break-after: auto; }
+}

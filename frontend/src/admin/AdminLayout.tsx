@@ -5,6 +5,7 @@ import { type AdminMe, adminApi, useAdminCall } from "./adminApi";
 import { type AdminKey, at } from "./messages";
 
 const MENU: [string, AdminKey][] = [
+  ["reports", "menu.reports"],
   ["equipment", "menu.equipment"],
   ["reasons", "menu.reasons"],
   ["lines", "menu.lines"],

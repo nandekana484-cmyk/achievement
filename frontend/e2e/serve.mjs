@@ -30,6 +30,8 @@ const env = {
   GENBA_CLOCK_START: CLOCK_START, GENBA_TEST_MODE: "1",
 };
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
+// 日報が2ページ以上になる確認用(e2e/reports.spec.ts)。ラインSのテストに影響しないよう、別のラインTに同じ計画を入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "T", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

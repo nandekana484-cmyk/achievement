@@ -675,6 +675,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/reports/intervals.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Intervals Csv
+         * @description 区間の CSV(1行 = 1つの区間。BOM 付きの UTF-8、CRLF)。期間の上限は config.toml の [reports] max_days。
+         */
+        get: operations["intervals_csv_api_admin_reports_intervals_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Daily
+         * @description 日報の表示に要る値(区間、上段・下段の棒、生産数とNG数の合計)。
+         */
+        get: operations["daily_api_admin_reports_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -694,6 +734,32 @@ export interface components {
              * Format: date-time
              */
             server_time: string;
+            /**
+             * Workday
+             * Format: date
+             */
+            workday: string;
+        };
+        /** BarOut */
+        BarOut: {
+            /** Half */
+            half: number;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Step Type */
+            step_type: string | null;
+            /** Label */
+            label: string;
+            /** Open */
+            open: boolean;
         };
         /** BoardOut */
         BoardOut: {
@@ -848,6 +914,40 @@ export interface components {
             /** Operator Worker Id */
             operator_worker_id?: string | null;
         };
+        /** DailyReportOut */
+        DailyReportOut: {
+            line: components["schemas"]["LineOut"];
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Workday Start
+             * Format: date-time
+             */
+            workday_start: string;
+            /**
+             * Workday End
+             * Format: date-time
+             */
+            workday_end: string;
+            /** Halves */
+            halves: components["schemas"]["HalfOut"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Produced Total */
+            produced_total: number;
+            /** Ng Total */
+            ng_total: number;
+            /** Rows */
+            rows: components["schemas"]["RowOut"][];
+            /** Intervals */
+            intervals: components["schemas"]["IntervalOut"][];
+        };
         /** EquipmentAdminOut */
         EquipmentAdminOut: {
             /** Id */
@@ -902,6 +1002,81 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HalfOut */
+        HalfOut: {
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+        };
+        /** IntervalOut */
+        IntervalOut: {
+            /**
+             * Workday
+             * Format: date
+             */
+            workday: string;
+            /** Line Code */
+            line_code: string;
+            /** Kind */
+            kind: string;
+            /** Event Id */
+            event_id: number;
+            /** Kitting No */
+            kitting_no: string | null;
+            /** Lot Nos */
+            lot_nos: string;
+            /** File No */
+            file_no: string | null;
+            /** Product Names */
+            product_names: string;
+            /** Run No */
+            run_no: number | null;
+            /** Step Type */
+            step_type: string | null;
+            /** What */
+            what: string;
+            /** Restart Reason */
+            restart_reason: string | null;
+            /** Equipment */
+            equipment: string | null;
+            /** Reason Text */
+            reason_text: string | null;
+            /**
+             * Original Start
+             * Format: date-time
+             */
+            original_start: string;
+            /** Original End */
+            original_end: string | null;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** End */
+            end: string | null;
+            /** Minutes */
+            minutes: number;
+            /** Produced Qty */
+            produced_qty: number | null;
+            /** Started By */
+            started_by: string;
+            /** Ended By */
+            ended_by: string | null;
+            /** Added Later */
+            added_later: boolean;
+            /** Corrected */
+            corrected: boolean;
+            /** Open */
+            open: boolean;
         };
         /**
          * KittingPlanOut
@@ -1388,6 +1563,17 @@ export interface components {
             request_id: string;
             /** Text */
             text: string;
+        };
+        /** RowOut */
+        RowOut: {
+            /** Kind */
+            kind: string;
+            /** Kitting No */
+            kitting_no: string | null;
+            /** Product Names */
+            product_names: string;
+            /** Bars */
+            bars: components["schemas"]["BarOut"][];
         };
         /** RunCompletionOut */
         RunCompletionOut: {
@@ -2849,6 +3035,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OperatorAdminOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    intervals_csv_api_admin_reports_intervals_csv_get: {
+        parameters: {
+            query: {
+                /** @description 稼働日の始め(YYYY-MM-DD) */
+                from: string;
+                /** @description 稼働日の終わり(YYYY-MM-DD。含む) */
+                to: string;
+                /** @description 省略するとすべてのライン */
+                line_code?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    daily_api_admin_reports_daily_get: {
+        parameters: {
+            query: {
+                /** @description 稼働日(YYYY-MM-DD) */
+                date: string;
+                /** @description ライン */
+                line_code: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyReportOut"];
                 };
             };
             /** @description Validation Error */

@@ -184,3 +184,10 @@ def test_cli_set_password(client, people, monkeypatch, capsys):
 def test_unencodable_password_is_refused(people):
     with get_sessionmaker()() as s, pytest.raises(RuleViolation, match="使えない文字"):
         admin_auth.set_password(s, "K0042", "\udcefbroken-pass")
+
+
+def test_me_returns_server_workday(client, logged_in, fake_clock):
+    # テストの時計は 10/21 8:00(8:15 より前 = 前の稼働日)。8:15 になれば 10/21
+    assert client.get("/api/admin/me").json()["workday"] == "2026-10-20"
+    fake_clock.advance(minutes=15)
+    assert client.get("/api/admin/me").json()["workday"] == "2026-10-21"

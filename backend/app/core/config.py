@@ -83,6 +83,11 @@ class CorrectionsConfig:
 
 
 @dataclass(frozen=True)
+class ReportsConfig:
+    max_days: int = 93  # 管理画面から出す CSV の期間の上限(日数)
+
+
+@dataclass(frozen=True)
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
@@ -91,6 +96,7 @@ class AppConfig:
     backup: BackupConfig = field(default_factory=BackupConfig)
     admin: AdminConfig = field(default_factory=AdminConfig)
     corrections: CorrectionsConfig = field(default_factory=CorrectionsConfig)
+    reports: ReportsConfig = field(default_factory=ReportsConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
 
@@ -141,6 +147,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
     b = raw.get("backup", {})
     a = raw.get("admin", {})
     c = raw.get("corrections", {})
+    r = raw.get("reports", {})
     for old in _REMOVED_PATH_KEYS & p.keys():
         logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
     defaults = PathsConfig()
@@ -170,6 +177,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
         corrections=CorrectionsConfig(
             field_margin_hours=int(c.get("field_margin_hours", CorrectionsConfig.field_margin_hours)),
         ),
+        reports=ReportsConfig(max_days=int(r.get("max_days", ReportsConfig.max_days))),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     ), home)
 
@@ -182,7 +190,7 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
     return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
-                     corrections=cfg.corrections, timezone=cfg.timezone, home=home)
+                     corrections=cfg.corrections, reports=cfg.reports, timezone=cfg.timezone, home=home)
 
 
 @lru_cache

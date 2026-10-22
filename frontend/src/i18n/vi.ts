@@ -9,7 +9,7 @@ export const vi: Messages = {
 
   "common.loading": "Đang tải…",
   "common.sending": "Đang gửi…",
-  "common.cancel": "Hủy",
+  "common.cancel": "Thôi",
   "common.close": "Đóng",
   "common.start": "Bắt đầu",
   "common.end": "Kết thúc",

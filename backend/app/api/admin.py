@@ -57,13 +57,17 @@ class AdminMeOut(BaseModel):
     name: str
     idle_minutes: int  # 操作が無いとログインが切れるまでの分
     server_time: dt.datetime
+    workday: dt.date  # サーバーの今の稼働日(8:15 より前なら前の日)。日報や CSV の日付の初期値に使う
 
 
 def _me(op: Operator) -> AdminMeOut:
     from app.core import clock
+    from app.domain.workday import workday_of
 
+    now = clock.now()
     return AdminMeOut(operator_id=op.id, worker_id=op.worker_id, name=op.name,
-                      idle_minutes=get_config().admin.idle_minutes, server_time=clock.now())
+                      idle_minutes=get_config().admin.idle_minutes, server_time=now,
+                      workday=workday_of(now, get_config().schedule.day_start))
 
 
 @router.post("/login", response_model=AdminMeOut)
