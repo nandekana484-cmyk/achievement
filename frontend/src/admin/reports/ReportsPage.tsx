@@ -7,13 +7,28 @@ import { DailyReportView } from "./DailyReportView";
 import type { DailyReport } from "./gantt";
 
 const loadLines = () => adminApi.GET("/api/admin/lines");
-const todayJst = () => new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+
+/** サーバーの今の稼働日(8:15 より前なら前の日)。ブラウザの日付は使わない。 */
+function useServerWorkday(): string | null {
+  const call = useAdminCall();
+  const [workday, setWorkday] = useState<string | null>(null);
+  useEffect(() => {
+    void call(() => adminApi.GET("/api/admin/me")).then((r) => r.ok && setWorkday(r.data.workday));
+  }, [call]);
+  return workday;
+}
 
 export function ReportsPage() {
+  const workday = useServerWorkday();
+  if (!workday) return <p className="admin-loading">{at("loading")}</p>;
+  return <ReportsContent workday={workday} />;
+}
+
+function ReportsContent({ workday }: { workday: string }) {
   const call = useAdminCall();
   const { rows: lines, error: linesError } = useAdminList<LineRow>(loadLines);
   const [lineCode, setLineCode] = useState("");
-  const [date, setDate] = useState(todayJst);
+  const [date, setDate] = useState(workday);
   const [report, setReport] = useState<DailyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +62,7 @@ export function ReportsPage() {
           <span className="admin-note">{at("reports.printNote")}</span>
         </div>
         <Feedback error={error ?? linesError} />
-        <CsvExport lines={lines ?? []} defaultDate={date} />
+        <CsvExport lines={lines ?? []} defaultDate={workday} />
       </div>
       {report && <div className="report-preview"><DailyReportView report={report} /></div>}
     </section>

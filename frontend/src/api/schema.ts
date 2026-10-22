@@ -734,6 +734,11 @@ export interface components {
              * Format: date-time
              */
             server_time: string;
+            /**
+             * Workday
+             * Format: date
+             */
+            workday: string;
         };
         /** BarOut */
         BarOut: {

@@ -1,7 +1,8 @@
-// 管理画面の日報を操作し、スクリーンショットを撮る(⑳ 日報の画面、㉑ 印刷のプレビュー。PDF も作る)。
+// 管理画面の日報を操作し、スクリーンショットを撮る(⑳ 日報の画面、㉑ 印刷のプレビュー。PDF も作る)。9行を超える日(2ページ)も確かめる。
 // 記録は「押し忘れの追加」で過去の時刻に入れる(サーバーの時計は 10/21 10:00 から進む)。screens.spec.ts が使う計画と、
 // ラインの今の担当者には触れない(記録した人は worker_id で指定する)。
 import { expect, type Page, test } from "@playwright/test";
+import { pdfContent, pdfPageCount } from "./pdf";
 
 const SCREENS = "test-results/screens";
 const NIGHT = "0930-1-S-261014-05"; // 10/20 の夜から 10/21 の朝(稼働日の境目 8:15 をまたぐ片付け)
@@ -52,7 +53,10 @@ test("⑳㉑ 日報の画面と印刷のプレビュー", async ({ page }) => {
   await openReports(page);
 
   // ⑳ 稼働日 10/21: 上段に朝の記録、境目をまたぐ片付けは 8:15 からの分だけ
-  await page.getByLabel("稼働日", { exact: true }).fill("2026-10-21");
+  // 日付の初期値は、サーバーの今の稼働日(確認用の時計は 10/21 10:00。ブラウザの日付ではない)
+  await expect(page.getByLabel("稼働日", { exact: true })).toHaveValue("2026-10-21");
+  await expect(page.getByLabel("期間の始め(稼働日)")).toHaveValue("2026-10-21");
+  await expect(page.getByLabel("期間の終わり(稼働日)")).toHaveValue("2026-10-21");
   const sheet = page.locator(".report-sheet").first();
   await expect(sheet).toContainText("生産日報");
   await expect(sheet).toContainText("生産数の合計: 120");
@@ -68,7 +72,10 @@ test("⑳㉑ 日報の画面と印刷のプレビュー", async ({ page }) => {
   await expect(page.getByRole("navigation", { name: "管理画面" })).toBeHidden(); // 印刷ではメニューと操作の欄を出さない
   await page.setViewportSize({ width: 1123, height: 794 }); // A4 横向き(96dpi)
   await page.screenshot({ path: `${SCREENS}/21-daily-report-print.png`, fullPage: true });
-  await page.pdf({ path: `${SCREENS}/21-daily-report-print.pdf`, preferCSSPageSize: true, printBackground: true });
+  // 「背景のグラフィック」を付けない(printBackground: false)PDF でも、棒の色(生産の緑 #1a7f37)が出る
+  const pdf = await page.pdf({ path: `${SCREENS}/21-daily-report-print.pdf`, preferCSSPageSize: true, printBackground: false });
+  expect(pdfContent(pdf)).toMatch(/\.102 \.498 \.2157 rg/); // #1a7f37(PDF では先頭の 0 を省いて書く)
+  expect(await page.locator(".report-bar").first().evaluate((el) => getComputedStyle(el).getPropertyValue("print-color-adjust"))).toBe("exact");
 
   // CSV(期間とライン)を出せる
   await page.emulateMedia({ media: "screen" });
@@ -77,4 +84,33 @@ test("⑳㉑ 日報の画面と印刷のプレビュー", async ({ page }) => {
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "CSV を出す" }).click();
   expect((await download).suggestedFilename()).toBe("intervals_2026-10-20_2026-10-21_all.csv");
+});
+
+test("日報は9行を超えると2ページになり、見出しが2ページ目にも出る", async ({ page }) => {
+  // ラインTの10件の計画(demo-seed の計画)すべてに、10/21 の朝の段取りを後から追加する → 10行
+  const knos = ["0722-1-T-261014-01", "0722-2-T-261014-02", "0800-1-T-261014-03", "0915-1-T-261014-04", "0930-1-T-261014-05",
+    "0940-1-T-261014-06", "0950-1-T-261014-07", "0960-1-T-261014-08", "1000-1-T-261014-09", "1000-2-T-261014-10"];
+  for (const kno of knos) await add(page, kno, "setup", "21T08:30", "21T08:50");
+  await openReports(page);
+  await page.getByLabel("ライン", { exact: true }).first().selectOption("T");
+  await page.getByLabel("稼働日", { exact: true }).fill("2026-10-21");
+
+  const sheets = page.locator(".report-sheet");
+  await expect(sheets).toHaveCount(2);
+  for (const [i, sheet] of [sheets.nth(0), sheets.nth(1)].entries()) {
+    await expect(sheet.getByRole("heading", { name: "生産日報" })).toBeVisible(); // 見出し(最上部)を繰り返す
+    await expect(sheet).toContainText("生産数の合計");
+    await expect(sheet.locator(".report-legend")).toBeVisible();
+    await expect(sheet.getByRole("table", { name: "上段 8:15〜20:15" })).toBeVisible(); // 上段・下段の目盛りも繰り返す
+    await expect(sheet.getByRole("table", { name: "下段 20:15〜翌8:15" })).toBeVisible();
+    await expect(sheet).toContainText(`${i + 1} / 2 ページ`);
+  }
+  await expect(sheets.nth(0).getByRole("table", { name: "上段 8:15〜20:15" }).getByRole("row")).toHaveCount(10); // 軸 + 9行
+  await expect(sheets.nth(1).getByRole("table", { name: "上段 8:15〜20:15" }).getByRole("row")).toHaveCount(2); // 軸 + 1行
+  await page.screenshot({ path: `${SCREENS}/22-daily-report-2pages.png`, fullPage: true });
+
+  // 印刷でも2ページ(A4 横向き)
+  await page.emulateMedia({ media: "print" });
+  const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: false });
+  expect(pdfPageCount(pdf)).toBe(2);
 });
