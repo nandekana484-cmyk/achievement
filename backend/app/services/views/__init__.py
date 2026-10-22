@@ -4,6 +4,13 @@
 時刻はすべて日本時間(+09:00)付き。中身は責務ごとのモジュールに分け、ここから同じ名前で使えるようにする。
 """
 
+from app.services.views.corrections import (
+    CorrectionChangeOut,
+    CorrectionOut,
+    LineEventCorrectionResultOut,
+    RunCorrectionResultOut,
+    correction_out,
+)
 from app.services.views.line_events import (
     LineEventOut,
     line_event_out,
@@ -38,6 +45,11 @@ from app.services.views.runs import (
 )
 
 __all__ = [
+    "correction_out",
+    "CorrectionChangeOut",
+    "CorrectionOut",
+    "LineEventCorrectionResultOut",
+    "RunCorrectionResultOut",
     "current_operator_out",
     "CurrentOperatorOut",
     "EquipmentOut",

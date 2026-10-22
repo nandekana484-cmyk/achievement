@@ -13,7 +13,16 @@ from app.db.models.plans import (
     PlanSyncRun,
     PlanSyncWarning,
 )
-from app.db.models.records import ApiRequest, LineEvent, LineOperator, RunCompletion, RunEvent, RunInput, RunNgInput
+from app.db.models.records import (
+    ApiRequest,
+    LineEvent,
+    LineOperator,
+    RunCompletion,
+    RunCorrection,
+    RunEvent,
+    RunInput,
+    RunNgInput,
+)
 
 __all__ = [
     "AdminCredential",
@@ -37,6 +46,7 @@ __all__ = [
     "PlanSyncWarning",
     "Reason",
     "RunCompletion",
+    "RunCorrection",
     "RunEvent",
     "RunInput",
     "RunNgInput",

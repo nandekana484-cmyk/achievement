@@ -170,7 +170,7 @@ def test_db_prevents_second_open_event(session_factory, legacy_app, legacy_db, f
         op = masters.add_operator(s, "山田").id
         run_records.start_step(s, "0722-1-S-251014-01", StepType.SETUP, "r1", operator_id=op)
 
-    monkeypatch.setattr(run_records, "_open_event", lambda *_: None)  # 確認をすり抜けたことにする
+    monkeypatch.setattr(run_records, "open_event", lambda *_: None)  # 確認をすり抜けたことにする
     with session_factory() as s, pytest.raises(RuleViolation) as e:
         run_records.start_step(s, "0722-1-S-251014-01", StepType.SETUP, "r2", operator_id=op)
 

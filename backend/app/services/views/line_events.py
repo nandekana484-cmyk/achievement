@@ -29,6 +29,10 @@ class LineEventOut(BaseModel):
     ended_by_name: str | None
     started_by_worker_id: str | None = None
     ended_by_worker_id: str | None = None
+    voided_at: dt.datetime | None = None  # 取り消し(タイムテーブルからは外し、履歴に出す)
+    voided_by_name: str | None = None
+    voided_by_worker_id: str | None = None
+    void_reason: str | None = None
 
 
 def line_event_out(session: Session, e: LineEvent) -> LineEventOut:
@@ -42,4 +46,6 @@ def line_event_out(session: Session, e: LineEvent) -> LineEventOut:
         started_by=e.started_by, started_by_name=operator_name(session, e.started_by) or "",
         ended_by=e.ended_by, ended_by_name=operator_name(session, e.ended_by),
         started_by_worker_id=worker_id_of(session, e.started_by), ended_by_worker_id=worker_id_of(session, e.ended_by),
+        voided_at=e.voided_at, voided_by_name=operator_name(session, e.voided_by),
+        voided_by_worker_id=worker_id_of(session, e.voided_by), void_reason=e.void_reason,
     )

@@ -33,6 +33,12 @@ class RunEventOut(BaseModel):
     equipment_name: str | None = None
     restart_reason_name_vi: str | None = None
     equipment_name_vi: str | None = None
+    # 取り消し(計算とタイムテーブルからは外し、履歴に出す)と、後からの追加の印
+    voided_at: dt.datetime | None = None
+    voided_by_name: str | None = None
+    voided_by_worker_id: str | None = None
+    void_reason: str | None = None  # 訂正の理由(domain/corrections.py の CorrectionReason)
+    added_later: bool = False
 
 
 class LotOut(BaseModel):
@@ -65,6 +71,8 @@ class RunCompletionOut(BaseModel):
     lots_snapshot: list[LotOut]
     ng_snapshot: list[NgEntryOut]
     utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
+    kind: str = "cleanup"  # cleanup(片付けの終了で作った)/ correction(訂正による作り直し)
+    correction_id: int | None = None  # 作り直しの元になった訂正
 
 
 class StepResultOut(BaseModel):
@@ -115,6 +123,8 @@ def run_event_out(session: Session, e: RunEvent) -> RunEventOut:
         restart_reason_id=e.restart_reason_id, restart_reason_name=reason.name if reason else None,
         equipment_id=e.equipment_id, equipment_name=equipment.name if equipment else None,
         restart_reason_name_vi=reason.name_vi if reason else None, equipment_name_vi=equipment.name_vi if equipment else None,
+        voided_at=e.voided_at, voided_by_name=operator_name(session, e.voided_by),
+        voided_by_worker_id=worker_id_of(session, e.voided_by), void_reason=e.void_reason, added_later=bool(e.added_later),
     )
 
 
@@ -124,7 +134,7 @@ def run_completion_out(c: RunCompletion) -> RunCompletionOut:
         produced_qty=c.produced_qty, plan_qty_snapshot=c.plan_qty_snapshot, takt_sec_snapshot=c.takt_sec_snapshot,
         lots_snapshot=[LotOut(**x) for x in json.loads(c.lots_snapshot or "[]")],
         ng_snapshot=[NgEntryOut(**x) for x in json.loads(c.ng_snapshot or "[]")],
-        utilization=c.utilization,
+        utilization=c.utilization, kind=c.kind, correction_id=c.correction_id,
     )
 
 

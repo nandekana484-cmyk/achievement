@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -52,11 +52,17 @@ class RunEvent(Base):
     start_request_id: Mapped[str] = mapped_column(String, unique=True)
     end_request_id: Mapped[str | None] = mapped_column(String, unique=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime)
+    # 取り消し(行は消さない)。取り消した記録は生産数・進捗・完了・タイムテーブルの計算から外す
+    voided_at: Mapped[datetime | None] = mapped_column(TZDateTime)
+    voided_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("operators.id", name="fk_run_events_voided_by"))
+    void_reason: Mapped[str | None] = mapped_column(String)  # 訂正の理由(domain/corrections.py)
+    added_later: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("0"))  # 押し忘れの後からの追加
 
     __table_args__ = (
         UniqueConstraint("kitting_no", "step_type", "seq", name="uq_run_events_seq"),
-        # 同じキッティングNo.の同じ工程で、終了していない記録は1件まで(二重開始をDBでも防ぐ)
-        Index("ux_run_events_open", "kitting_no", "step_type", unique=True, sqlite_where=text("end_at IS NULL")),
+        # 同じキッティングNo.の同じ工程で、終了していない記録は1件まで(二重開始をDBでも防ぐ。取り消した記録は除く)
+        Index("ux_run_events_open", "kitting_no", "step_type", unique=True,
+              sqlite_where=text("end_at IS NULL AND voided_at IS NULL")),
     )
 
 
@@ -95,13 +101,18 @@ class RunNgInput(Base):
 
 
 class RunCompletion(Base):
-    """完了時点の確定値(キッティングNo.の単位)。片付けの終了で1件作る(やり直したらもう1件。最新を有効とする)。"""
+    """完了時点の確定値(キッティングNo.の単位)。片付けの終了で1件作る(やり直したらもう1件。最新を有効とする)。
+
+    完了した計画の記録を訂正したら、作り直した行を足す(kind=correction)。完了にした片付けを取り消した行は無効。
+    """
 
     __tablename__ = "run_completions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     kitting_no: Mapped[str] = mapped_column(String)
-    cleanup_event_id: Mapped[int] = mapped_column(Integer, ForeignKey("run_events.id"), unique=True)
+    cleanup_event_id: Mapped[int] = mapped_column(Integer, ForeignKey("run_events.id"))
+    kind: Mapped[str] = mapped_column(String, default="cleanup", server_default="cleanup")  # cleanup / correction
+    correction_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("run_corrections.id"))  # 作り直しの元の訂正
     completed_at: Mapped[datetime] = mapped_column(TZDateTime)
     produced_qty: Mapped[int] = mapped_column(Integer)  # 生産の区切りの合計
     plan_qty_snapshot: Mapped[int] = mapped_column(Integer)  # ロットの数量の合計
@@ -130,11 +141,40 @@ class LineEvent(Base):
     ended_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("operators.id"))
     start_request_id: Mapped[str] = mapped_column(String, unique=True)
     end_request_id: Mapped[str | None] = mapped_column(String, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(TZDateTime)  # 取り消し(行は消さない)
+    voided_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("operators.id", name="fk_line_events_voided_by"))
+    void_reason: Mapped[str | None] = mapped_column(String)
 
     __table_args__ = (
         Index("ix_line_events_line_start", "line_code", "start_at"),
-        # 同じラインで同じ理由の付帯作業は、終了していないものが1件まで
-        Index("ux_line_events_open", "line_code", "reason_id", unique=True, sqlite_where=text("end_at IS NULL")),
+        # 同じラインで同じ理由の付帯作業は、終了していないものが1件まで(取り消した記録は除く)
+        Index("ux_line_events_open", "line_code", "reason_id", unique=True,
+              sqlite_where=text("end_at IS NULL AND voided_at IS NULL")),
+    )
+
+
+class RunCorrection(Base):
+    """実績の訂正の履歴(工程の記録と付帯作業)。訂正のたびに1行。行は消さない。"""
+
+    __tablename__ = "run_corrections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_table: Mapped[str] = mapped_column(String)  # run_events / line_events
+    target_id: Mapped[int] = mapped_column(Integer)
+    kitting_no: Mapped[str | None] = mapped_column(String)  # 工程の記録のとき
+    line_code: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String)  # update / void / add
+    changes_json: Mapped[str] = mapped_column(Text)  # JSON: [{field, before, after}](変わった項目だけ)
+    reason: Mapped[str] = mapped_column(String)  # domain/corrections.py の CorrectionReason
+    note: Mapped[str | None] = mapped_column(Text)  # 記入(その他では必須)
+    corrected_by: Mapped[int] = mapped_column(Integer, ForeignKey("operators.id"))
+    corrected_at: Mapped[datetime] = mapped_column(TZDateTime)
+    source: Mapped[str] = mapped_column(String)  # field / admin
+    request_id: Mapped[str] = mapped_column(String, unique=True)
+
+    __table_args__ = (
+        Index("ix_run_corrections_kitting", "kitting_no"),
+        Index("ix_run_corrections_target", "target_table", "target_id"),
     )
 
 

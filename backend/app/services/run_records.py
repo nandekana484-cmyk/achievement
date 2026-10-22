@@ -5,46 +5,41 @@ NG数は ng_inputs.py。詳細: docs/design/run-records.md
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import PLAN_CANCELLED, Equipment, Reason, RunCompletion, RunEvent, RunInput
+from app.db.models import PLAN_CANCELLED, Equipment, Reason, RunEvent, RunInput
 from app.domain.steps import InputKind, StepType
+from app.services.completions import create_completion
 from app.services.errors import RuleViolation
 from app.services.idempotency import run_idempotent
 from app.services.kitting_plans import KittingGroup, load_group
 from app.services.line_operators import resolve_recorder
-from app.services.ng_inputs import latest_ng
-from app.services.plan_views import lot_out
 from app.services.views import RunInputOut, StepResultOut, run_completion_out, run_event_out, run_input_out
 
 
-def _open_event(session: Session, kitting_no: str, step: StepType) -> RunEvent | None:
+def open_event(session: Session, kitting_no: str, step: StepType) -> RunEvent | None:
+    """終了していない記録(取り消した記録は除く)。"""
     return session.scalars(select(RunEvent).where(
         RunEvent.kitting_no == kitting_no, RunEvent.step_type == step.value, RunEvent.end_at.is_(None),
+        RunEvent.voided_at.is_(None),
     )).first()
 
 
-def _last_seq(session: Session, kitting_no: str, step: StepType) -> int:
-    return session.scalar(select(func.max(RunEvent.seq)).where(
+def next_seq(session: Session, kitting_no: str, step: StepType) -> int:
+    """次の記録の番号。取り消した記録の番号も使わない(キッティングNo.×工程×番号は一意)。"""
+    return (session.scalar(select(func.max(RunEvent.seq)).where(
         RunEvent.kitting_no == kitting_no, RunEvent.step_type == step.value,
-    )) or 0
+    )) or 0) + 1
 
 
-def produced_total(session: Session, kitting_no: str) -> int:
-    """生産の区切りの生産数の合計(終了した区切りだけ)。"""
-    return session.scalar(select(func.coalesce(func.sum(RunEvent.produced_qty), 0)).where(
-        RunEvent.kitting_no == kitting_no,
-        RunEvent.step_type == StepType.PRODUCTION.value, RunEvent.end_at.is_not(None),
-    )) or 0
-
-
-def latest_completion(session: Session, kitting_no: str) -> RunCompletion | None:
-    return session.scalars(select(RunCompletion).where(RunCompletion.kitting_no == kitting_no)
-                           .order_by(RunCompletion.completed_at.desc(), RunCompletion.id.desc())).first()
+def _has_production(session: Session, kitting_no: str) -> bool:
+    """取り消していない生産の区切りがあるか(あれば、次の生産の開始は2回目以降)。"""
+    return session.scalars(select(RunEvent.id).where(
+        RunEvent.kitting_no == kitting_no, RunEvent.step_type == StepType.PRODUCTION.value, RunEvent.voided_at.is_(None),
+    )).first() is not None
 
 
 def start_step(
@@ -60,10 +55,10 @@ def start_step(
         group = load_group(session, kitting_no)
         if group.status == PLAN_CANCELLED:
             raise RuleViolation("取消になった計画は開始できません")
-        if _open_event(session, kitting_no, step) is not None:
+        if open_event(session, kitting_no, step) is not None:
             raise RuleViolation(f"{step.label}は開始されたまま終了していません。先に終了してください")
-        seq = _last_seq(session, kitting_no, step) + 1
-        reason = _check_restart_reason(session, step, seq, restart_reason_id)
+        seq = next_seq(session, kitting_no, step)
+        reason = _check_restart_reason(session, step, _has_production(session, kitting_no), restart_reason_id)
         _check_restart_equipment(session, group, reason, equipment_id)
         recorder = resolve_recorder(session, group.line_code, operator_id)
 
@@ -78,13 +73,13 @@ def start_step(
     return run_idempotent(session, request_id, "run.step.start", payload, StepResultOut, action)
 
 
-def _check_restart_reason(session: Session, step: StepType, seq: int, reason_id: int | None) -> Reason | None:
-    """再開理由を確かめ、2回目以降の生産の開始なら選んだ理由を返す。"""
+def _check_restart_reason(session: Session, step: StepType, restarting: bool, reason_id: int | None) -> Reason | None:
+    """再開理由を確かめ、2回目以降の生産の開始(restarting)なら選んだ理由を返す。"""
     if step != StepType.PRODUCTION:
         if reason_id is not None:
             raise RuleViolation(f"{step.label}の開始では、再開理由は受け付けません")
         return None
-    if seq == 1:
+    if not restarting:
         if reason_id is not None:
             raise RuleViolation("1回目の生産の開始では、再開理由は受け付けません")
         return None
@@ -115,7 +110,7 @@ def end_step(
 
     def action(now: datetime) -> StepResultOut:
         group = load_group(session, kitting_no)
-        event = _open_event(session, kitting_no, step)
+        event = open_event(session, kitting_no, step)
         if event is None:
             raise RuleViolation(f"{step.label}は開始されていません")
         _check_produced_qty(step, produced_qty)
@@ -127,7 +122,7 @@ def end_step(
         event.end_request_id = request_id
         session.flush()
 
-        completion = _complete(session, group, event, now) if step == StepType.CLEANUP else None
+        completion = create_completion(session, group, event) if step == StepType.CLEANUP else None
         return StepResultOut(
             event=run_event_out(session, event),
             completion=run_completion_out(completion) if completion is not None else None,
@@ -144,22 +139,6 @@ def _check_produced_qty(step: StepType, produced_qty: int | None) -> None:
             raise RuleViolation("生産数は0以上の整数で入力してください")
     elif produced_qty is not None:
         raise RuleViolation(f"{step.label}の終了では、生産数は受け付けません")
-
-
-def _complete(session: Session, group: KittingGroup, cleanup: RunEvent, now: datetime) -> RunCompletion:
-    """片付けの終了 = その回の完了。その時点の計画数・想定タクト・ロットの一覧・NG数を写して残す。"""
-    c = RunCompletion(
-        kitting_no=group.kitting_no, cleanup_event_id=cleanup.id, completed_at=now,
-        produced_qty=produced_total(session, group.kitting_no),
-        plan_qty_snapshot=group.planned_qty, takt_sec_snapshot=group.takt_sec,
-        lots_snapshot=json.dumps([lot_out(lot).model_dump() for lot in group.lots], ensure_ascii=False),
-        ng_snapshot=json.dumps([n.model_dump(mode="json") for n in latest_ng(session, group.kitting_no)], ensure_ascii=False),
-        # TODO(要確認): 稼働率の定義(定義が決まったらここで計算して保存する)
-        utilization=None,
-    )
-    session.add(c)
-    session.flush()
-    return c
 
 
 def add_remark(session: Session, kitting_no: str, text: str, request_id: str, operator_id: int | None = None) -> RunInputOut:
