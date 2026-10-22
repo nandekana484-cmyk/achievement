@@ -2,6 +2,7 @@
 import { useI18n } from "../../i18n/I18nProvider";
 import type { Board, BoardPlan, Masters, Reason } from "../../shared/api";
 import type { RunResult } from "../../shared/useOperation";
+import { type CorrectionDialogState, CorrectionDialogs } from "./CorrectionDialogs";
 import { ConfirmDialog } from "./dialogs/ConfirmDialog";
 import { LineEventStartDialog } from "./dialogs/LineEventStartDialog";
 import { NgDialog } from "./dialogs/NgDialog";
@@ -19,11 +20,12 @@ export type DialogState =
   | { kind: "confirm"; plan: BoardPlan; status: StepStatus }
   | { kind: "ng"; plan: BoardPlan }
   | { kind: "remark"; plan: BoardPlan }
-  | { kind: "lineEvent"; reason: Reason };
+  | { kind: "lineEvent"; reason: Reason }
+  | CorrectionDialogState;
 
-type Props = { dialog: DialogState; board: Board; masters: Masters; actions: LineActions; close: () => void };
+type Props = { dialog: DialogState; board: Board; masters: Masters; actions: LineActions; nowMs: number; close: () => void };
 
-export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
+export function LineDialogs({ dialog, board, masters, actions, nowMs, close }: Props) {
   const { t } = useI18n();
   // 選ぶだけのダイアログはすぐ閉じ、結果は画面のお知らせと board の読み直しで分かるようにする
   const then = (send: () => void) => () => {
@@ -99,5 +101,7 @@ export function LineDialogs({ dialog, board, masters, actions, close }: Props) {
           onCancel={close}
         />
       );
+    default:
+      return <CorrectionDialogs dialog={dialog} board={board} masters={masters} actions={actions} nowMs={nowMs} close={close} />;
   }
 }

@@ -101,3 +101,8 @@ export function assignLanes(items: { startMin: number; endMin: number }[]): { la
   }
   return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
+
+/** ミリ秒を、サーバーに送る形(日本時間の +09:00 付きの ISO 文字列。秒まで)にする。 */
+export function toJstIso(ms: number): string {
+  return new Date(Math.floor(ms / 1000) * 1000 + JST_OFFSET_MS).toISOString().replace(/\.\d{3}Z$/, "+09:00");
+}

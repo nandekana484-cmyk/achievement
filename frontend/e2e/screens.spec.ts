@@ -1,4 +1,4 @@
-// ライン画面を操作し、確認用のスクリーンショットを test-results/screens/ に撮る(①〜⑭)。
+// ライン画面を操作し、確認用のスクリーンショットを test-results/screens/ に撮る(①〜⑭、⑱⑲)。
 // サーバーの時計は 2026-10-21 10:00 から進む(e2e/serve.mjs)。確認用の計画は app/services/demo_seed.py。
 import { expect, type Page, test } from "@playwright/test";
 
@@ -177,7 +177,7 @@ for (const width of [1024, 1366]) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     // 押す部分は高さ 56px 以上
-    for (const sel of [".step-button", ".reason-button", ".menu-item", ".kpi-button", ".search-input"]) {
+    for (const sel of [".step-button", ".step-fix", ".reason-button", ".menu-item", ".kpi-button", ".search-input"]) {
       const heights = await page.locator(sel).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
       expect(Math.min(...heights), sel).toBeGreaterThanOrEqual(56);
     }
@@ -208,4 +208,76 @@ test("⑭ ベトナム語に切り替えたライン画面", async ({ page }) =>
   await page.locator(".lang-switch").getByRole("button", { name: "日本語" }).click();
   await expect(page.getByRole("button", { name: "タイムテーブル", exact: true })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+});
+
+// 実績の訂正(⑱⑲)。上のテストの計画と重ならないよう、別の計画(0800。10:30〜12:30)を使う。担当者を設定するので最後に置く
+const PLAN = KNO("0800", 3);
+
+async function record(page: Page, stepType: string, id: string, endBody: object = {}) {
+  const base = `/api/runs/${PLAN}/steps/${stepType}`;
+  expect((await page.request.post(`${base}/start`, { data: { request_id: `${id}-s`, worker_id: "Y001" } })).status()).toBe(200);
+  expect((await page.request.post(`${base}/end`, { data: { request_id: `${id}-e`, worker_id: "Y001", ...endBody } })).status()).toBe(200);
+}
+
+test("⑱⑲ 実績の訂正(時刻を直す・取り消す・押し忘れの追加・訂正の履歴)", async ({ page }) => {
+  // 担当者と、直す元の記録(段取り、生産 1回目)。どちらもほかの端末で押したことにする
+  expect((await page.request.put("/api/lines/S/operator", { data: { request_id: "e2e-corr-op", worker_id: "Y001" } })).status()).toBe(200);
+  await record(page, "setup", "e2e-corr-setup");
+  await record(page, "production", "e2e-corr-prod", { produced_qty: 50 });
+
+  await page.goto("/field/lines/S");
+  await page.locator(".tt-plan", { hasText: PLAN }).click();
+  await expect(step(page, "段取り")).toContainText("済");
+
+  // ⑱ 段取りの開始を10分早める(キーボードを使わず、大きなボタンで)
+  await page.getByRole("button", { name: "段取りの記録を直す" }).click();
+  const fix = page.getByRole("dialog", { name: "段取りの記録を直す" });
+  const startTime = fix.getByRole("group", { name: "開始の時刻" });
+  const before = await startTime.locator("output").textContent();
+  await startTime.getByRole("button", { name: "−10分" }).click();
+  await expect(startTime.locator("output")).not.toHaveText(before ?? "");
+  await expect(startTime).toContainText(`元: ${before}`);
+  await expect(fix.getByRole("button", { name: "訂正を記録" })).toBeDisabled(); // 理由が必須
+  await fix.getByRole("group", { name: "訂正の理由(必須)" }).getByRole("button", { name: "押し間違い" }).click();
+  await shot(page, "18-correction-time");
+  await fix.getByRole("button", { name: "訂正を記録" }).click();
+  await expect(fix).toBeHidden();
+
+  // 生産 1回目を取り消す → タイムテーブルと生産数から外れる
+  await page.getByRole("button", { name: "生産の記録を直す" }).click();
+  const prod = page.getByRole("dialog", { name: "生産の記録を直す" });
+  await prod.getByRole("button", { name: "この記録を取り消す" }).click();
+  await prod.getByRole("button", { name: "押し間違い" }).click();
+  await prod.getByRole("button", { name: "取り消す", exact: true }).click();
+  await expect(prod).toBeHidden();
+  await expect(page.locator(".fact", { hasText: "生産数の合計" })).toContainText("0");
+  await expect(step(page, "生産 1回目")).toContainText("未着手");
+
+  // 押し忘れの追加: 初品チェック(既定は30分前〜今)
+  await page.getByRole("button", { name: "押し忘れの追加" }).click();
+  const addDialog = page.getByRole("dialog", { name: "押し忘れの追加" });
+  await addDialog.getByRole("button", { name: "初品チェック" }).click();
+  await addDialog.getByRole("button", { name: "記録を追加" }).click();
+  await expect(addDialog).toBeHidden();
+  await expect(step(page, "初品チェック")).toContainText("済");
+
+  // ⑲ 訂正の履歴: 取り消した記録は取り消し線、訂正は新しい順
+  await page.getByRole("button", { name: "訂正の履歴" }).first().click();
+  const history = page.getByRole("dialog", { name: `訂正の履歴(${PLAN})` });
+  await expect(history.getByRole("list", { name: "訂正の履歴(新しい順)" }).getByRole("listitem")).toHaveCount(3);
+  await expect(history.locator(".correction-item").first()).toContainText("追加");
+  await expect(history.locator(".record-voided")).toContainText("取消");
+  await expect(history.locator(".record-row", { hasText: "初品チェック" })).toContainText("後から追加");
+  await shot(page, "19-correction-history");
+  await history.getByRole("button", { name: "閉じる" }).click();
+
+  // 付帯作業も直せる(付帯作業を直す → 選ぶ → 時刻を直す)
+  await page.locator(".reason-button", { hasText: "欠品" }).click();
+  await expect(page.locator(".open-event", { hasText: "欠品" })).toBeVisible();
+  await page.getByRole("button", { name: "付帯作業を直す" }).click();
+  const lineFix = page.getByRole("dialog", { name: "付帯作業を直す" });
+  await lineFix.getByRole("group", { name: "開始の時刻" }).getByRole("button", { name: "−1分" }).click();
+  await lineFix.getByRole("button", { name: "押し忘れ" }).click();
+  await lineFix.getByRole("button", { name: "訂正を記録" }).click();
+  await expect(lineFix).toBeHidden();
 });

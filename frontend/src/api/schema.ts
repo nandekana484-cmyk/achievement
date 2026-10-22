@@ -303,6 +303,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{kitting_no}/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Correct Run Event
+         * @description 工程の記録の開始・終了の時刻と、生産の区切りの生産数を直す(理由が必須)。
+         */
+        patch: operations["correct_run_event_api_runs__kitting_no__events__event_id__patch"];
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/events/{event_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void Run Event
+         * @description 工程の記録を取り消す(記録は消さない。生産数・進捗・完了・タイムテーブルの計算から外す)。
+         */
+        post: operations["void_run_event_api_runs__kitting_no__events__event_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Run Event
+         * @description 押し忘れた工程を後から記録する(後から足した印が付く)。
+         */
+        post: operations["add_run_event_api_runs__kitting_no__events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kitting Corrections
+         * @description 計画のまとまりの工程の記録の訂正の履歴(新しい順)。
+         */
+        get: operations["kitting_corrections_api_runs__kitting_no__corrections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lines/{line_code}/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Correct Line Event
+         * @description 付帯作業の開始・終了の時刻と、理由(設備・記入)を直す(訂正の理由が必須)。
+         */
+        patch: operations["correct_line_event_api_lines__line_code__events__event_id__patch"];
+        trace?: never;
+    };
+    "/api/lines/{line_code}/events/{event_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void Line Event
+         * @description 付帯作業を取り消す(記録は消さない)。
+         */
+        post: operations["void_line_event_api_lines__line_code__events__event_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/lines/{line_code}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Line Event Corrections Of Day
+         * @description 付帯作業の訂正の履歴(付帯作業の開始がその稼働日にあるもの。新しい順)。
+         */
+        get: operations["line_event_corrections_of_day_api_lines__line_code__corrections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -631,6 +771,67 @@ export interface components {
              */
             worker_id?: string | null;
         };
+        /** CorrectionChangeOut */
+        CorrectionChangeOut: {
+            /** Field */
+            field: string;
+            /** Before */
+            before: string | number | boolean | null;
+            /** After */
+            after: string | number | boolean | null;
+            /** Before Name */
+            before_name?: string | null;
+            /** After Name */
+            after_name?: string | null;
+            /** Before Name Vi */
+            before_name_vi?: string | null;
+            /** After Name Vi */
+            after_name_vi?: string | null;
+        };
+        /** CorrectionOut */
+        CorrectionOut: {
+            /** Id */
+            id: number;
+            /** Target Table */
+            target_table: string;
+            /** Target Id */
+            target_id: number;
+            /** Kitting No */
+            kitting_no: string | null;
+            /** Line Code */
+            line_code: string;
+            /** Kind */
+            kind: string;
+            /** Changes */
+            changes: components["schemas"]["CorrectionChangeOut"][];
+            /** Reason */
+            reason: string;
+            /** Reason Label */
+            reason_label: string;
+            /** Note */
+            note: string | null;
+            /** Corrected By */
+            corrected_by: number;
+            /** Corrected By Name */
+            corrected_by_name: string;
+            /** Corrected By Worker Id */
+            corrected_by_worker_id: string | null;
+            /**
+             * Corrected At
+             * Format: date-time
+             */
+            corrected_at: string;
+            /** Source */
+            source: string;
+            /** Step Type */
+            step_type: string | null;
+            /** Seq */
+            seq: number | null;
+            /** Line Event Reason Name */
+            line_event_reason_name: string | null;
+            /** Line Event Reason Name Vi */
+            line_event_reason_name_vi: string | null;
+        };
         /** CurrentOperatorOut */
         CurrentOperatorOut: {
             /** Line Code */
@@ -756,6 +957,43 @@ export interface components {
             /** Auto Named */
             auto_named: boolean;
         };
+        /**
+         * LineEventCorrectIn
+         * @description 付帯作業の訂正。直す項目だけ送る。
+         */
+        LineEventCorrectIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /** Reason */
+            reason: string;
+            /** Note */
+            note?: string | null;
+            /** Start At */
+            start_at?: string | null;
+            /** End At */
+            end_at?: string | null;
+            /** Reason Id */
+            reason_id?: number | null;
+            /** Equipment Id */
+            equipment_id?: number | null;
+            /** Reason Text */
+            reason_text?: string | null;
+        };
+        /** LineEventCorrectionResultOut */
+        LineEventCorrectionResultOut: {
+            correction: components["schemas"]["CorrectionOut"];
+            event: components["schemas"]["LineEventOut"];
+        };
         /** LineEventEndIn */
         LineEventEndIn: {
             /** Operator Id */
@@ -810,6 +1048,14 @@ export interface components {
             started_by_worker_id?: string | null;
             /** Ended By Worker Id */
             ended_by_worker_id?: string | null;
+            /** Voided At */
+            voided_at?: string | null;
+            /** Voided By Name */
+            voided_by_name?: string | null;
+            /** Voided By Worker Id */
+            voided_by_worker_id?: string | null;
+            /** Void Reason */
+            void_reason?: string | null;
         };
         /** LineEventStartIn */
         LineEventStartIn: {
@@ -1166,6 +1412,87 @@ export interface components {
             ng_snapshot: components["schemas"]["NgEntryOut"][];
             /** Utilization */
             utilization: number | null;
+            /**
+             * Kind
+             * @default cleanup
+             */
+            kind: string;
+            /** Correction Id */
+            correction_id?: number | null;
+        };
+        /**
+         * RunCorrectionResultOut
+         * @description 工程の記録の訂正の結果。完了した計画なら、作り直した完了も返す。
+         */
+        RunCorrectionResultOut: {
+            correction: components["schemas"]["CorrectionOut"];
+            event: components["schemas"]["RunEventOut"];
+            /** Completed */
+            completed: boolean;
+            completion: components["schemas"]["RunCompletionOut"] | null;
+        };
+        /**
+         * RunEventAddIn
+         * @description 押し忘れた工程の後からの追加。
+         */
+        RunEventAddIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /** Reason */
+            reason: string;
+            /** Note */
+            note?: string | null;
+            step_type: components["schemas"]["StepType"];
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /**
+             * End At
+             * Format: date-time
+             */
+            end_at: string;
+            /** Produced Qty */
+            produced_qty?: number | null;
+        };
+        /**
+         * RunEventCorrectIn
+         * @description 工程の記録の訂正。直す項目だけ送る(時刻はタイムゾーン付き)。
+         */
+        RunEventCorrectIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /** Reason */
+            reason: string;
+            /** Note */
+            note?: string | null;
+            /** Start At */
+            start_at?: string | null;
+            /** End At */
+            end_at?: string | null;
+            /** Produced Qty */
+            produced_qty?: number | null;
         };
         /** RunEventOut */
         RunEventOut: {
@@ -1210,6 +1537,19 @@ export interface components {
             restart_reason_name_vi?: string | null;
             /** Equipment Name Vi */
             equipment_name_vi?: string | null;
+            /** Voided At */
+            voided_at?: string | null;
+            /** Voided By Name */
+            voided_by_name?: string | null;
+            /** Voided By Worker Id */
+            voided_by_worker_id?: string | null;
+            /** Void Reason */
+            void_reason?: string | null;
+            /**
+             * Added Later
+             * @default false
+             */
+            added_later: boolean;
         };
         /**
          * RunInputOut
@@ -1342,6 +1682,28 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VoidIn
+         * @description 記録の取り消し。
+         */
+        VoidIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /** Reason */
+            reason: string;
+            /** Note */
+            note?: string | null;
         };
     };
     responses: never;
@@ -1857,6 +2219,250 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MastersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_run_event_api_runs__kitting_no__events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunEventCorrectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCorrectionResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_run_event_api_runs__kitting_no__events__event_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCorrectionResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_run_event_api_runs__kitting_no__events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunEventAddIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunCorrectionResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    kitting_corrections_api_runs__kitting_no__corrections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_line_event_api_lines__line_code__events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_code: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LineEventCorrectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineEventCorrectionResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_line_event_api_lines__line_code__events__event_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                line_code: string;
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LineEventCorrectionResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    line_event_corrections_of_day_api_lines__line_code__corrections_get: {
+        parameters: {
+            query?: {
+                /** @description 稼働日(YYYY-MM-DD)。省略すると今の稼働日 */
+                date?: string | null;
+            };
+            header?: never;
+            path: {
+                line_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorrectionOut"][];
                 };
             };
             /** @description Validation Error */

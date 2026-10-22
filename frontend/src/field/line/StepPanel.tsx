@@ -1,7 +1,8 @@
-// 右のパネル: 選んだ計画(キッティングNo.)の見出しとロットの一覧、工程のボタン(押すたびに開始と終了が切り替わる)、NG数と備考。
+// 右のパネル: 選んだ計画(キッティングNo.)の見出しとロットの一覧、工程のボタン(押すたびに開始と終了が切り替わる)と
+// 工程の行の「直す」、NG数と備考、押し忘れの追加と訂正の履歴。
 import { useI18n } from "../../i18n/I18nProvider";
-import type { BoardPlan } from "../../shared/api";
-import { STATE_KEYS, STEP_COLORS, STEP_ORDER, type StepStatus, formatPercent, stepStatus } from "./steps";
+import type { BoardPlan, StepType } from "../../shared/api";
+import { STATE_KEYS, STEP_COLORS, STEP_LABEL_KEYS, STEP_ORDER, type StepStatus, formatPercent, stepStatus } from "./steps";
 
 type Props = {
   plan: BoardPlan;
@@ -9,11 +10,14 @@ type Props = {
   onStep: (status: StepStatus) => void;
   onNg: () => void;
   onRemark: () => void;
+  onFix: (step: StepType) => void;
+  onAdd: () => void;
+  onHistory: () => void;
 };
 
 export const stepKey = (p: BoardPlan, step: string) => `step:${p.plan.kitting_no}:${step}`;
 
-export function StepPanel({ plan, isBusy, onStep, onNg, onRemark }: Props) {
+export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
   return (
@@ -40,15 +44,21 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark }: Props) {
           const s = stepStatus(plan.events, step, t);
           const busy = isBusy(stepKey(plan, step));
           return (
-            <button key={step} type="button" className={`step-button step-${s.state}`} style={{ borderLeftColor: STEP_COLORS[step] }}
-              disabled={busy} onClick={() => onStep(s)}>
-              <span className="step-name">{s.label}</span>
-              <span className={`step-state state-${s.state}`}>{t(STATE_KEYS[s.state])}</span>
-              <span className="step-time">{s.timeText}</span>
-              <span className="step-action">
-                {busy ? t("common.sending") : s.action === "start" ? t("stepPanel.pressToStart") : t("stepPanel.pressToEnd")}
-              </span>
-            </button>
+            <div key={step} className="step-row">
+              <button type="button" className={`step-button step-${s.state}`} style={{ borderLeftColor: STEP_COLORS[step] }}
+                disabled={busy} onClick={() => onStep(s)}>
+                <span className="step-name">{s.label}</span>
+                <span className={`step-state state-${s.state}`}>{t(STATE_KEYS[s.state])}</span>
+                <span className="step-time">{s.timeText}</span>
+                <span className="step-action">
+                  {busy ? t("common.sending") : s.action === "start" ? t("stepPanel.pressToStart") : t("stepPanel.pressToEnd")}
+                </span>
+              </button>
+              <button type="button" className="btn step-fix" disabled={s.records.length === 0}
+                aria-label={t("stepPanel.fixAria", { step: t(STEP_LABEL_KEYS[step]) })} onClick={() => onFix(step)}>
+                {t("stepPanel.fix")}
+              </button>
+            </div>
           );
         })}
       </div>
@@ -56,6 +66,8 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark }: Props) {
       <div className="input-row">
         <button type="button" className="btn" onClick={onNg}>{t("stepPanel.ngInput")}</button>
         <button type="button" className="btn" onClick={onRemark} disabled={isBusy(`remark:${p.kitting_no}`)}>{t("stepPanel.remarkInput")}</button>
+        <button type="button" className="btn" onClick={onAdd}>{t("stepPanel.addForgotten")}</button>
+        <button type="button" className="btn" onClick={onHistory}>{t("stepPanel.history")}</button>
       </div>
     </section>
   );
