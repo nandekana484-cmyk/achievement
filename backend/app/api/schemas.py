@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+from app.domain.steps import StepType
 
 # 端末が操作ごとに作る一意のID(UUID など)
 RequestId = Annotated[str, Field(min_length=1, max_length=100, description="操作ごとに一意のID。再送には同じIDを使う")]
@@ -61,3 +63,45 @@ class LineEventStartIn(_Recorder):
 
 class LineEventEndIn(_Recorder):
     request_id: RequestId
+
+
+class _CorrectionIn(_Recorder):
+    """訂正の共通。理由は mistake(押し間違い)/ forgot(押し忘れ)/ wrong_qty(数の入力の誤り)/ other(その他。記入が必須)。"""
+
+    request_id: RequestId
+    reason: str = Field(max_length=20)
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class RunEventCorrectIn(_CorrectionIn):
+    """工程の記録の訂正。直す項目だけ送る(時刻はタイムゾーン付き)。"""
+
+    start_at: AwareDatetime | None = None
+    end_at: AwareDatetime | None = None
+    produced_qty: int | None = None  # 生産の区切りの生産数
+
+
+class RunEventAddIn(_CorrectionIn):
+    """押し忘れた工程の後からの追加。"""
+
+    step_type: StepType
+    start_at: AwareDatetime
+    end_at: AwareDatetime
+    produced_qty: int | None = None  # 生産では必須
+
+
+class LineEventCorrectIn(_CorrectionIn):
+    """付帯作業の訂正。直す項目だけ送る。"""
+
+    start_at: AwareDatetime | None = None
+    end_at: AwareDatetime | None = None
+    reason_id: int | None = None
+    equipment_id: int | None = None  # 設備をなくすときは null を送る
+    reason_text: str | None = Field(default=None, max_length=2000)
+
+
+class VoidIn(_CorrectionIn):
+    """記録の取り消し。"""
+
+
+CORRECTION_META = {"request_id", "reason", "note", "operator_id", "worker_id"}

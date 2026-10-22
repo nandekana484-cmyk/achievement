@@ -1,4 +1,5 @@
 // 右のパネルの下: 付帯作業。計画を選んでいなくても使える。終了していないものは経過時間と終了ボタンを出す。
+// 「付帯作業を直す」と「訂正の履歴」もここに置く。
 import { forwardRef } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import { localName } from "../../i18n/translate";
@@ -12,10 +13,12 @@ type Props = {
   isBusy: (key: string) => boolean;
   onStart: (reason: Reason) => void;
   onEnd: (event: LineEvent) => void;
+  onFix: () => void;
+  onHistory: () => void;
 };
 
 export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventPanel(
-  { reasons, openEvents, nowMs, isBusy, onStart, onEnd }, ref,
+  { reasons, openEvents, nowMs, isBusy, onStart, onEnd, onFix, onHistory }, ref,
 ) {
   const { t, lang } = useI18n();
   const openReasonIds = new Set(openEvents.map((e) => e.reason_id));
@@ -55,6 +58,10 @@ export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventP
             {openReasonIds.has(r.id) && <span className="reason-note">{t("common.doing")}</span>}
           </button>
         ))}
+      </div>
+      <div className="input-row">
+        <button type="button" className="btn" onClick={onFix}>{t("lineEvent.fix")}</button>
+        <button type="button" className="btn" onClick={onHistory}>{t("lineEvent.history")}</button>
       </div>
     </section>
   );

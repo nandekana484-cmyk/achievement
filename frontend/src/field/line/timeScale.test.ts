@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  assignLanes, clockOffset, formatElapsed, formatHM, formatMD, formatMDHM, hourTicks, minutesFrom, minutesToY, spanFor,
+  assignLanes, clockOffset, formatElapsed, formatHM, formatMD, formatMDHM, hourTicks, minutesFrom, minutesToY, spanFor, toJstIso,
 } from "./timeScale";
 import { makeTranslate } from "../../i18n/translate";
 
@@ -88,5 +88,12 @@ describe("assignLanes", () => {
 
   it("空なら1列", () => {
     expect(assignLanes([])).toEqual({ lanes: [], laneCount: 1 });
+  });
+});
+
+describe("toJstIso", () => {
+  it("日本時間の +09:00 付きにする(端末の時間帯によらない。秒より細かい分は切り捨てる)", () => {
+    expect(toJstIso(Date.parse("2026-10-21T00:05:30.900Z"))).toBe("2026-10-21T09:05:30+09:00");
+    expect(toJstIso(Date.parse("2026-10-21T23:30:00+09:00"))).toBe("2026-10-21T23:30:00+09:00");
   });
 });

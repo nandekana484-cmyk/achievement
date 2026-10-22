@@ -75,3 +75,36 @@ def ev_start(client, line="S", **body):
 def ev_end(client, event_id, line="S", **body):
     body.setdefault("request_id", rid())
     return client.post(f"/api/lines/{line}/events/{event_id}/end", json=body)
+
+
+def at(hm: str, day: int = 21) -> str:
+    """2026-10-<day> の日本時間の時刻(訂正で送る形)。"""
+    return f"2026-10-{day:02d}T{hm}:00+09:00"
+
+
+def fix(client, event_id, kitting_no=K1, **body):
+    """工程の記録の訂正(理由の既定は押し間違い)。"""
+    body.setdefault("request_id", rid())
+    body.setdefault("reason", "mistake")
+    return client.patch(f"/api/runs/{kitting_no}/events/{event_id}", json=body)
+
+
+def void(client, event_id, kitting_no=K1, **body):
+    body.setdefault("request_id", rid())
+    body.setdefault("reason", "mistake")
+    return client.post(f"/api/runs/{kitting_no}/events/{event_id}/void", json=body)
+
+
+def add(client, step, start_at, end_at, kitting_no=K1, **body):
+    body.setdefault("request_id", rid())
+    body.setdefault("reason", "forgot")
+    return client.post(f"/api/runs/{kitting_no}/events", json={"step_type": step, "start_at": start_at, "end_at": end_at, **body})
+
+
+def history(client, kitting_no=K1):
+    return ok(client.get(f"/api/runs/{kitting_no}/corrections"))
+
+
+def board_plan(client, kitting_no=K1, date="2026-10-21"):
+    plans = ok(client.get("/api/lines/S/board", params={"date": date}))["plans"]
+    return next(p for p in plans if p["plan"]["kitting_no"] == kitting_no)

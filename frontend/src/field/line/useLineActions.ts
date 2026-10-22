@@ -1,7 +1,14 @@
 // ライン画面のボタン操作(APIの呼び出し)。実績はキッティングNo.の単位。送り方は shared/useOperation.ts にまとめてある。
-import { api, type BoardPlan, type LineEvent, type StepType } from "../../shared/api";
+import { api, type BoardPlan, type LineEvent, type RunEvent, type StepType } from "../../shared/api";
 import type { Operation, RunOptions } from "../../shared/useOperation";
+import type { AddRecordInput } from "./corrections/AddRecordDialog";
+import type { RunEventFields } from "./corrections/CorrectionDialog";
+import type { LineEventFields } from "./corrections/LineEventFixDialog";
+import type { CorrectionReason } from "./corrections/ReasonPicker";
 import { stepKey } from "./StepPanel";
+
+// 訂正はダイアログの中に失敗の理由を出す(送信が成功するまで閉じない)
+const inDialog: RunOptions = { showError: false };
 
 const kittingPath = (p: BoardPlan) => ({ kitting_no: p.plan.kitting_no });
 
@@ -50,6 +57,42 @@ export function useLineActions(lineCode: string, op: Operation) {
         api.POST("/api/lines/{line_code}/events/{event_id}/end", {
           params: { path: { line_code: lineCode, event_id: e.id } }, body: { request_id },
         })),
+
+    /** 工程の記録の訂正(直す項目だけ送る)。 */
+    fixRunEvent: (p: BoardPlan, e: RunEvent, fields: RunEventFields, reason: CorrectionReason, note: string) =>
+      op.run(`fix:${e.id}`, { fields, reason, note }, (request_id) =>
+        api.PATCH("/api/runs/{kitting_no}/events/{event_id}", {
+          params: { path: { ...kittingPath(p), event_id: e.id } }, body: { request_id, reason, note: note || null, ...fields },
+        }), inDialog),
+
+    voidRunEvent: (p: BoardPlan, e: RunEvent, reason: CorrectionReason, note: string) =>
+      op.run(`void:${e.id}`, { reason, note }, (request_id) =>
+        api.POST("/api/runs/{kitting_no}/events/{event_id}/void", {
+          params: { path: { ...kittingPath(p), event_id: e.id } }, body: { request_id, reason, note: note || null },
+        }), inDialog),
+
+    /** 押し忘れた工程の後からの追加。 */
+    addRunEvent: (p: BoardPlan, input: AddRecordInput, reason: CorrectionReason, note: string) =>
+      op.run(`add:${p.plan.kitting_no}`, { input, reason, note }, (request_id) =>
+        api.POST("/api/runs/{kitting_no}/events", {
+          params: { path: kittingPath(p) },
+          body: {
+            request_id, reason, note: note || null, step_type: input.step, start_at: input.startAt, end_at: input.endAt,
+            produced_qty: input.producedQty,
+          },
+        }), inDialog),
+
+    fixLineEvent: (e: LineEvent, fields: LineEventFields, reason: CorrectionReason, note: string) =>
+      op.run(`lineFix:${e.id}`, { fields, reason, note }, (request_id) =>
+        api.PATCH("/api/lines/{line_code}/events/{event_id}", {
+          params: { path: { line_code: lineCode, event_id: e.id } }, body: { request_id, reason, note: note || null, ...fields },
+        }), inDialog),
+
+    voidLineEvent: (e: LineEvent, reason: CorrectionReason, note: string) =>
+      op.run(`lineVoid:${e.id}`, { reason, note }, (request_id) =>
+        api.POST("/api/lines/{line_code}/events/{event_id}/void", {
+          params: { path: { line_code: lineCode, event_id: e.id } }, body: { request_id, reason, note: note || null },
+        }), inDialog),
   };
 }
 

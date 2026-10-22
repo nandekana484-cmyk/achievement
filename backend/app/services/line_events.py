@@ -41,6 +41,7 @@ def start_line_event(
             raise RuleViolation(f"{reason.name}では、理由を記入してください")
         opened = session.scalars(select(LineEvent).where(
             LineEvent.line_code == line.line_code, LineEvent.reason_id == reason_id, LineEvent.end_at.is_(None),
+            LineEvent.voided_at.is_(None),
         )).first()
         if opened is not None:
             raise RuleViolation(f"{reason.name}は開始されたまま終了していません。先に終了してください")
@@ -67,6 +68,8 @@ def end_line_event(
         event = session.get(LineEvent, event_id)
         if event is None or event.line_code != line.line_code:
             raise NotFound(f"付帯作業(ID {event_id})が見つかりません")
+        if event.voided_at is not None:
+            raise RuleViolation("この付帯作業は取り消されています")
         if event.end_at is not None:
             raise RuleViolation("この付帯作業はすでに終了しています")
         recorder = resolve_recorder(session, line.line_code, operator_id)

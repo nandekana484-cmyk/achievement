@@ -77,6 +77,12 @@ class AdminConfig:
 
 
 @dataclass(frozen=True)
+class CorrectionsConfig:
+    # 現場の画面で直せる範囲 = 今の稼働日の前後にこの時間を足した範囲(既定はタイムテーブルの表示範囲と同じ12時間)
+    field_margin_hours: int = 12
+
+
+@dataclass(frozen=True)
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
@@ -84,6 +90,7 @@ class AppConfig:
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
     admin: AdminConfig = field(default_factory=AdminConfig)
+    corrections: CorrectionsConfig = field(default_factory=CorrectionsConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
 
@@ -133,6 +140,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
     y = raw.get("sync", {})
     b = raw.get("backup", {})
     a = raw.get("admin", {})
+    c = raw.get("corrections", {})
     for old in _REMOVED_PATH_KEYS & p.keys():
         logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
     defaults = PathsConfig()
@@ -159,6 +167,9 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
             keep=int(b.get("keep", BackupConfig.keep)),
         ),
         admin=AdminConfig(**{k: int(a.get(k, getattr(AdminConfig, k))) for k in AdminConfig.__dataclass_fields__}),
+        corrections=CorrectionsConfig(
+            field_margin_hours=int(c.get("field_margin_hours", CorrectionsConfig.field_margin_hours)),
+        ),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     ), home)
 
@@ -171,7 +182,7 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
     return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
-                     timezone=cfg.timezone, home=home)
+                     corrections=cfg.corrections, timezone=cfg.timezone, home=home)
 
 
 @lru_cache

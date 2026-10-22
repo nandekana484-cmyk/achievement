@@ -10,7 +10,7 @@
 
 1. **既存の生産管理アプリのDBには絶対に書き込まない。** 読み取りは「計画の取得」モジュールからだけ行い、読み取り専用で開く
 2. **時刻はすべてサーバーで記録する。** ブラウザやタブレットの時計を記録に使わない
-3. **実績は物理削除しない。** 誤りは訂正履歴(audit_log)を残して直し、取り消しは状態で表す
+3. **実績は物理削除しない。** 誤りは訂正履歴(run_corrections など)を残して直し、取り消しは取り消しの印で表す
 4. **権限はすべてのAPIでサーバー側が検査する。** 画面の表示制御だけに頼らない
 5. **ボタン操作は冪等にする。** 端末は操作ごとに一意のリクエストIDを送り、同じIDの再送は1件として扱う
 6. **「11. 未確定事項」に載っている内容は勝手に決めない。** 仮置きで実装する場合は、コードに `TODO(要確認): <項目名>` を残す
@@ -215,6 +215,26 @@ API:
 
 **冪等性**(0-5): すべての操作で request_id を送る。同じ request_id の再送には、最初の応答をそのまま返す(200)。同じ request_id で内容が違えば 409。ルール違反で失敗した操作は記録しないので、同じ request_id で送り直せる(`services/idempotency.py`、表 api_requests)。
 
+**訂正**(`services/run_corrections.py`、共通のルールは `services/correction_rules.py`。違反は 409 と日本語の理由):
+
+- 直せるもの: 工程の記録の開始・終了の時刻、生産の区切りの生産数。記録の**取り消し**(行は消さず、取り消しの印 voided_at・voided_by・void_reason を付ける)。押し忘れた工程の**後からの追加**(工程の種類、開始と終了の時刻、生産なら生産数。後から足した印 added_later を付ける)。NG数と備考は、今までどおり入力し直す(最新の値を有効とし、履歴が残る)
+- 取り消した記録は、生産数・進捗・完了・タイムテーブル・工程の状態・「始めた計画か」の判定から外す。画面の履歴には残す。取り消した記録の番号(seq)は使い回さない。取り消していない生産の区切りが無ければ、次の生産の開始は1回目の扱い(再開理由は要らない)
+- 理由が必須: 押し間違い(mistake)/ 押し忘れ(forgot)/ 数の入力の誤り(wrong_qty)/ その他(other。内容の記入が必須)。一覧は固定(`domain/corrections.py`)
+- 直した人は、ラインの今の担当者(operator_id か worker_id の指定でも可。5.6)
+- 時刻: 開始 < 終了、未来の時刻は不可、同じ計画の生産の区切りどうしは重ならない(端が接するのはよい)。終了していない記録は今も続いているとみなし、同じ工程のほかの記録と重ねない。終了していない記録の終了の時刻は直せない(終了のボタンで終える)。時刻はタイムゾーン付きで送る(無ければ 422)
+- 現場の画面から直せるのは、開始か終了が「今の稼働日の前後 `corrections.field_margin_hours`(既定12時間。タイムテーブルの表示範囲と同じ48時間)」にある記録だけ。入れる時刻も同じ範囲の中だけ。範囲の外は 409「管理画面から直してください」
+- 変更が無い訂正は 409。冪等性(request_id)と書き込みのロックは、ボタン操作と同じ
+- 訂正のたびに run_corrections に1行残す(対象、種類、変わった項目ごとの変更前と変更後、理由、記入、直した人、日時、どの画面から)。完了した計画の訂正では、完了の写しを作り直す(5.7)
+
+| メソッド | パス | 本文 |
+| --- | --- | --- |
+| PATCH | `/api/runs/{kitting_no}/events/{event_id}` | request_id、reason、note?、start_at?、end_at?、produced_qty?、operator_id? / worker_id?(直す項目だけ送る) |
+| POST | `/api/runs/{kitting_no}/events/{event_id}/void` | request_id、reason、note?、operator_id? / worker_id? |
+| POST | `/api/runs/{kitting_no}/events` | request_id、reason、note?、step_type、start_at、end_at、produced_qty?(生産では必須)、operator_id? / worker_id? |
+| GET | `/api/runs/{kitting_no}/corrections` | (その計画の訂正の履歴。新しい順) |
+
+訂正の応答は、訂正の記録(correction)、直したあとの記録(event)、完了しているか(completed)、作り直した完了(completion)。
+
 ### 5.5 付帯作業(ライン単位)
 
 計画の合間に起きる、ラインを止める出来事。**計画には結びつけず、ラインに記録する。**
@@ -251,13 +271,18 @@ API:
 | --- | --- | --- |
 | POST | `/api/lines/{line_code}/events/start` | request_id、reason_id、equipment_id?、reason_text?、operator_id? |
 | POST | `/api/lines/{line_code}/events/{event_id}/end` | request_id、operator_id? |
+| PATCH | `/api/lines/{line_code}/events/{event_id}` | 訂正: request_id、reason、note?、start_at?、end_at?、reason_id?、equipment_id?、reason_text?(直す項目だけ) |
+| POST | `/api/lines/{line_code}/events/{event_id}/void` | 取り消し: request_id、reason、note? |
+| GET | `/api/lines/{line_code}/corrections?date=YYYY-MM-DD` | 付帯作業の訂正の履歴(付帯作業の開始がその稼働日にあるもの。新しい順。省略すると今の稼働日) |
+
+付帯作業の訂正(`services/line_event_corrections.py`): 開始・終了の時刻、理由(設備・記入が必要な理由ならそれも。開始のときと同じルール)を直す、または取り消す。理由・直した人・範囲・冪等性・時刻のルールは工程の記録の訂正(5.4)と同じ。同じ理由の付帯作業のうち、終了していない記録とは重ねない(終了したものどうしは重なってよい)。取り消した付帯作業は、「同じ理由が終了していない」の判定とタイムテーブルから外す
 
 ### 5.6 誰がやったか
 
 - すべての記録に、開始した人と終了した人を別々に持つ(人員交代で変わるため)
 - ラインごとに「今の担当者」を設定し、ボタン操作の記録に自動で付ける。担当者は始業時と人員交代時に切り替える。1回の操作だけ別の人にすることもできる
 - 実装(`services/line_operators.py`): 表 line_operators に履歴を持つ。交代すると前の行に end_at を入れ、新しい行を足す(今の担当者はラインに1人。すでに同じ人なら何も変えない)
-- 記録者 = 本文の operator_id(本アプリの中の番号)か worker_id(作業者ID)のどちらか。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」
+- 記録者 = 本文の operator_id(本アプリの中の番号)か worker_id(作業者ID)のどちらか。指定が無ければラインの今の担当者。どちらも無ければ 409「担当者が設定されていません」。実績の訂正で「直した人」も同じ決め方(5.4)
 - **作業者は既存アプリの master.db の workers から読み込む**(計画の同期のたびに。読み取り専用。計画の表が無いなどで計画の同期がエラーになっても、workers が読めれば作業者は読み込む)。名前・役割(admin / operator)・有効/無効を既存アプリに合わせ、既存アプリから見えなくなった作業者は消さずに無効にする(過去の記録が参照しているため)。作業者IDは既存アプリの表記のまま持ち、全角・半角と大文字・小文字の違いを無視して比べる(`domain/worker_id.py`)。正規化すると重なるIDは、片方を取り込まずに警告を出す
 - legacy_app_dir が設定されていない環境(開発用)だけ、開発用コマンドで作業者を足せる(`python -m app.cli operators add <名前> --id <作業者ID>`。source=local)
 - 担当者は**作業者IDで呼び出す**(PIN は付けない。11. 未確定事項)。画面では作業者IDの入力欄を一番上に置き、Enter(または「呼び出し」)でIDと名前を表示して確かめてから決める。入力欄はタブレットの文字キーボードが出る形で、将来の社員証のバーコードリーダー(文字の入力 + Enter)でも動く。名前の一覧(名前順。IDも並べる)から選ぶ方法も補助として残す
@@ -281,6 +306,8 @@ API:
   - NG数は回ごとに分けて返す(既存アプリが回ごとに持っている)
 - 完了後の誤りは、管理者が訂正し(訂正履歴を残す)、区分「訂正」で再出力する
 - 実装済み(run_completions。キッティングNo.の単位): 片付けの終了で1件作る。生産数=区切りの合計、計画数(ロットの数量の合計)と想定タクトの写しに加えて、その時点のロットの一覧(ロットNo.・基板名・数量)と、ロットと面ごとの最新のNG数も写す。稼働率は定義が決まるまで空。片付けをやり直して終了したらもう1件作り、最新のものを有効とする。完了後も工程の記録は受け付ける
+- **訂正と完了**(`services/completions.py`): 完了した計画の工程の記録を直した・取り消した・足したときは、完了の写しを作り直す(新しい行を足し、kind=correction と元になった訂正 correction_id を記録する。最新の有効な行を正とする)。完了の時刻は片付けの終了の時刻。生産数とNG数は今の値、計画数・想定タクト・ロットの一覧は前の完了の写しを引き継ぐ。押し忘れた片付けを後から足したときも完了になる
+- 有効な完了 = 完了にした片付けが取り消されていない行。**片付けの終了を取り消すと**、ほかに終了した片付けが残っていればそれで作り直し、無ければ完了でない状態に戻る
 - 既存アプリはNGを「キッティングNo.+ロットNo.+面」で、面1 = 面1の欄 + 面2の欄 の形で持つ。この形への変換は、実績の反映の作業で作る(docs/design/run-records.md)
 - ライン画面用の取得: `GET /api/lines/{line_code}/board?date=YYYY-MM-DD`(計画ごとの工程の記録・生産数の合計・最新のNG数・完了・計画の進捗率と、その日の付帯作業、今の担当者、ラインの進捗率)、`GET /api/masters?line_code=`(有効なマスタ)
 
@@ -397,6 +424,7 @@ API:
 - **ラインの進捗率**は、計画開始〜終了が稼働日(8:15〜翌8:15)と重なる計画で計算する(画面に出さない未着手で過ぎた計画も含める)
 - **計画の検索**: 左のカラムの上の検索欄で、キッティングNo.・ロットNo.・基板名の一部で探す(`GET /api/plans/search?q=&line_code=`。英字の大文字・小文字と全角・半角の違いは無視。有効な計画のみ、計画開始が今に近い順に最大20件)。ロットNo.や基板名で当たっても、そのキッティングNo.のまとまりを返し、当たったところ(ロットNo.・基板名)を出す。結果を押すとその計画を選ぶ。キッティングNo.が完全に一致する計画が1件だけなら、Enter でそのまま選ぶ(将来のバーコードリーダーのため)。選んだ計画が表示範囲の外なら「表示範囲外の計画です(計画: 10/18 9:00〜)」と出す
 - 担当者が未設定のまま記録のボタンを押したら、サーバーに送らず、先に担当者を選ぶ画面を出す
+- **実績の訂正**(5.4、5.5): 右のパネルの工程の行に「直す」(記録が無い工程は押せない)。押すと訂正の画面: 記録を選ぶ(複数あるとき) → 開始・終了の時刻(±1時間・±10分・±1分の大きなボタン。今より後にはできない)、生産数(テンキー) → 理由(その他は記入) → 「訂正を記録」。「この記録を取り消す」で取り消し。右のパネルに「押し忘れの追加」(工程を選び、開始と終了の時刻と生産数を入れる。理由の既定は押し忘れ)と「訂正の履歴」(記録の一覧と訂正の履歴。取り消した記録は取り消し線)。付帯作業のパネルに「付帯作業を直す」と「訂正の履歴」。取り消した記録はタイムテーブルに出さない。生産の区切りの「何回目」は、取り消していない区切りを開始の順に数える
 - 詳細: docs/design/line-screen.md(実装した画面の作り、ボタン操作の送り方、稼働日と表示範囲の理由、タブレット向けの決まり)
 
 ### 7.2 管理画面(PC)
@@ -466,16 +494,17 @@ API:
 | plan_pairs | pair_id、lot_no、file_no、qty、run1_kitting_no、run2_kitting_no | 組 |
 | plan_sync_runs | 実行日時、件数(追加・変更・取消・引き継ぎ)、エラー、読んだ月次DBの一覧とDBごとの計画の件数(legacy_dbs) | 同期の記録 |
 | plan_carryovers | old_kitting_no、new_kitting_no、方法(自動・手動)、日時、実行者 | 引き継ぎの履歴 |
-| run_events | id、kitting_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at。(キッティングNo.×工程×seq)は一意、終了していない記録はキッティングNo.×工程で1件まで | 工程と生産の区切りの記録(キッティングNo.の単位) |
+| run_events | id、kitting_no、step_type、seq、start_at、end_at、started_by、ended_by、produced_qty、restart_reason_id、equipment_id(再開理由の設備。空を許す)、start_request_id(一意)、end_request_id(一意)、created_at、voided_at・voided_by・void_reason(取り消し)、added_later(後からの追加)。(キッティングNo.×工程×seq)は一意、終了していない記録(取り消したものを除く)はキッティングNo.×工程で1件まで | 工程と生産の区切りの記録(キッティングNo.の単位) |
 | run_inputs | id、kitting_no、kind(remark)、value、entered_by、entered_at、request_id(一意) | 時刻を持たない入力のうち、NG数以外(備考) |
 | run_ng_inputs | id、kitting_no(入力した画面の計画)、lot_no、side(NGが出た面)、side_kitting_no(NGが出た面の計画のキッティングNo.)、ng_qty、entered_by、entered_at、request_id(一意) | NG数(同じ kitting_no+lot_no+side は最新の値を有効とする) |
-| run_completions | id、kitting_no、cleanup_event_id(完了にした片付けの記録。一意)、completed_at、produced_qty、plan_qty_snapshot(ロットの数量の合計)、takt_sec_snapshot、lots_snapshot(ロットの一覧。JSON)、ng_snapshot(ロットと面ごとの最新のNG数。JSON)、utilization(稼働率。今は空) | 完了時点の確定値(最新のものを有効とする) |
-| line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、start_request_id(一意)、end_request_id(一意)。終了していない記録はライン×理由で1件まで | 付帯作業 |
+| run_completions | id、kitting_no、cleanup_event_id(完了にした片付けの記録)、kind(cleanup / correction=訂正による作り直し)、correction_id(作り直しの元の訂正)、completed_at、produced_qty、plan_qty_snapshot(ロットの数量の合計)、takt_sec_snapshot、lots_snapshot(ロットの一覧。JSON)、ng_snapshot(ロットと面ごとの最新のNG数。JSON)、utilization(稼働率。今は空) | 完了時点の確定値(片付けが取り消されていない行のうち、最新のものを有効とする) |
+| line_events | id、line_code、reason_id、equipment_id、reason_text、start_at、end_at、started_by、ended_by、start_request_id(一意)、end_request_id(一意)、voided_at・voided_by・void_reason(取り消し)。終了していない記録(取り消したものを除く)はライン×理由で1件まで | 付帯作業 |
+| run_corrections | id、target_table(run_events / line_events)、target_id、kitting_no、line_code、kind(update / void / add)、changes_json(変わった項目ごとの変更前と変更後)、reason、note、corrected_by、corrected_at、source(field / admin)、request_id(一意) | 実績の訂正の履歴 |
 | line_operators | id、line_code、operator_id、start_at、end_at、request_id。今の担当者(end_at が空)はラインに1人 | 今の担当者とその履歴 |
 | api_requests | request_id(主キー)、operation、payload、response、created_at | ボタン操作の冪等性(再送に最初の応答を返す) |
 | result_exports / result_export_items | 出力ID、ファイル名、日時 / 製品、完成数、回ごとのNG数、区分(新規・訂正) | 既存への反映の記録 |
 | print_logs | 製品、印刷日時、印刷時の計画の値のハッシュ | 再印刷の判定 |
-| audit_log | changed_at、changed_by、target_table、target_key、action(create / update)、before_json、after_json(変わった項目だけ)、reason | 変更と訂正の履歴(マスタの変更は実装済み) |
+| audit_log | changed_at、changed_by、target_table、target_key、action(create / update)、before_json、after_json(変わった項目だけ)、reason | マスタの変更の履歴(実績の訂正の履歴は run_corrections) |
 | admin_credentials / admin_sessions / admin_login_attempts | 管理者のパスワードのハッシュ / セッション(値のハッシュ)/ 作業者IDごとの続けて間違えた回数と締め出しの期限 | 管理画面のログイン |
 | マスタ | lines(line_code=正規化した記号、name)、operators(name、worker_id=作業者ID(既存アプリの表記のまま。一意)、worker_key=正規化した作業者ID(一意)、role(admin / operator)、source(legacy=既存アプリから読み込み / local=開発用コマンドで追加))、equipment(line_code、name、name_vi)、reasons(name、name_vi、category、counts_in_utilization、requires_equipment、requires_text、usable_as_line_event、usable_as_restart)。どれも active、sort_order を持つ。管理者は operators の role=admin(パスワードは admin_credentials) | 選択肢と利用者 |
 

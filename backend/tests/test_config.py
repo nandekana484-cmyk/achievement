@@ -129,3 +129,12 @@ def test_admin_settings(tmp_path):
     assert (cfg.idle_minutes, cfg.max_hours, cfg.lockout_failures, cfg.lockout_minutes) == (10, 12, 3, 5)
     example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").admin
     assert (example.idle_minutes, example.max_hours) == (30, 12)
+
+
+def test_corrections_settings(tmp_path):
+    assert load_config(tmp_path / "none.toml").corrections.field_margin_hours == 12  # 既定はタイムテーブルの表示範囲と同じ
+    p = tmp_path / "c.toml"
+    p.write_text("[corrections]\nfield_margin_hours = 24\n", encoding="utf-8")
+    assert load_config(p).corrections.field_margin_hours == 24
+    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").corrections
+    assert example.field_margin_hours == 12

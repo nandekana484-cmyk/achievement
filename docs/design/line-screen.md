@@ -11,6 +11,7 @@
 | `Timetable.tsx` | 中央のタイムテーブル(計画の枠・実績・付帯作業の3列) |
 | `StepPanel.tsx` / `LineEventPanel.tsx` | 右のパネル(工程のボタン・NG数・備考)と付帯作業 |
 | `LineDialogs.tsx`、`dialogs/`、`OperatorPicker.tsx` | ダイアログ(テンキー、再開理由、確認、文字入力、付帯作業の設備・理由、担当者の交代) |
+| `CorrectionDialogs.tsx`、`corrections/` | 実績の訂正のダイアログ(工程の記録を直す、押し忘れの追加、訂正の履歴、付帯作業を直す・その履歴)。判断の理由は docs/design/run-records.md の「実績の訂正」 |
 | `useBoard.ts` / `useLineActions.ts` / `useNow.ts` | board の読み直し、APIの呼び出し、今の時刻 |
 | `timeScale.ts` / `steps.ts` | 表示から分けた計算(時刻と位置の変換、重なりの列、工程の状態)。vitest でテストする |
 
@@ -75,3 +76,4 @@
   - 本番で誤って設定されると、すべての実績の時刻がずれて記録されるため、二重に歯止めをかける: `GENBA_TEST_MODE=1` も設定されているときだけ有効(片方だけなら無視して警告)。exe(PyInstaller、`sys.frozen`)では設定に関わらず常に無効
 - 画面の大きさは 1280×800(タブレットの横向き)。スクリーンショットは `frontend/test-results/screens/`(Git の対象外)
 - 画面の文言は辞書(`src/i18n/`)から出す。Playwright は既定の日本語の文言で要素を探す。⑭ はベトナム語に切り替えた画面(詳細: docs/design/i18n.md)
+- ⑱⑲(実績の訂正)は担当者を設定するので、`screens.spec.ts` の最後のテストに置く(Playwright はファイルの名前順・中の順に動くため、前に置くと「担当者が未設定」の画面の確認が崩れる)。ほかのテストの計画と重ならないよう、別の計画(0800)を使う

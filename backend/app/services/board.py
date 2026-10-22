@@ -19,7 +19,7 @@ from app.services.masters import get_line
 from app.services.ng_inputs import latest_ng, ng_choices
 from app.services.plan_query import board_kitting_nos, kitting_nos_overlapping
 from app.services.plan_views import BoardOut, BoardPlanOut, kitting_plan_out
-from app.services.run_records import latest_completion, produced_total
+from app.services.completions import latest_completion, produced_total
 from app.services.views import current_operator_out, line_event_out, run_completion_out, run_event_out
 
 
@@ -73,7 +73,7 @@ def get_board(session: Session, line_code: str, day: dt.date | None, day_start: 
 
 def _line_events(session: Session, line_code: str, start: dt.datetime, end: dt.datetime, now: dt.datetime) -> list[LineEvent]:
     """表示範囲に重なる付帯作業。終了していないものは今まで続いているとみなす。"""
-    still_open = LineEvent.end_at.is_(None) if now >= start else false()
+    still_open = LineEvent.end_at.is_(None) if now >= start else false()  # 取り消した記録も返す(画面の履歴に出す)
     return list(session.scalars(
         select(LineEvent).where(
             LineEvent.line_code == line_code, LineEvent.start_at < end, or_(still_open, LineEvent.end_at > start),

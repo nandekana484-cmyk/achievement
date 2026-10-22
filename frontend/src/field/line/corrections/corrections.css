@@ -1,0 +1,46 @@
+/* 実績の訂正(工程の記録・付帯作業を直す画面、押し忘れの追加、訂正の履歴)。押す部分は 56px 以上 */
+.step-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px; gap: 6px; }
+.step-fix { padding: 4px 6px; font-size: 18px; }
+
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.fix-section-title { margin: 12px 0 4px; font-size: 18px; font-weight: 700; }
+.fix-note { margin: 6px 0; font-size: 16px; color: var(--muted); }
+.fix-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.fix-layout-single .fix-times { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fix-layout-single .fix-times > .fix-section-title { grid-column: 1 / -1; margin-bottom: 0; }
+.fix-times { display: flex; flex-direction: column; gap: 10px; }
+.fix-qty .pad-display { margin-top: 0; }
+.fix-reasons, .fix-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fix-steps { grid-template-columns: repeat(3, 1fr); }
+.fix-records { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 6px 0 4px; }
+
+/* 時刻を大きなボタンで変える */
+.time-stepper { padding: 8px 10px; border: 2px solid var(--border); border-radius: 10px; background: #f6f8fa; }
+.time-stepper-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 6px; }
+.time-stepper-label { font-size: 18px; font-weight: 700; }
+.time-stepper-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.time-changed { color: var(--accent); }
+.time-stepper-original { font-size: 16px; color: var(--muted); }
+.time-stepper-hours, .time-stepper-minutes { display: grid; gap: 6px; margin-top: 6px; }
+.time-stepper-hours { grid-template-columns: 1fr 1fr; }
+.time-stepper-minutes { grid-template-columns: repeat(4, 1fr); }
+.time-stepper .btn { padding: 4px 6px; font-size: 18px; }
+
+/* 訂正の履歴 */
+.record-list, .correction-list { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.record-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; }
+.record-main { display: flex; gap: 12px; font-variant-numeric: tabular-nums; }
+.record-label { font-weight: 700; }
+.record-voided { background: #f6f8fa; color: var(--muted); }
+.record-voided .record-main { text-decoration: line-through; }
+.record-void-note { display: flex; align-items: center; gap: 6px; }
+.correction-item { padding: 8px 10px; border: 1px solid var(--border); border-left: 6px solid var(--accent); border-radius: 8px; font-size: 16px; }
+.correction-void { border-left-color: var(--danger); }
+.correction-add { border-left-color: #1a7f37; }
+.correction-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-weight: 700; }
+.correction-reason { font-weight: 400; }
+.correction-change { margin-top: 2px; font-variant-numeric: tabular-nums; }
+.correction-meta { margin-top: 2px; color: var(--muted); }
+.badge-update { color: var(--accent); border-color: var(--accent); }
+.badge-void { color: var(--danger); border-color: var(--danger); }
+.badge-add { color: #1a7f37; border-color: #1a7f37; }

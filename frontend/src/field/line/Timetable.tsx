@@ -4,7 +4,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { localName } from "../../i18n/translate";
 import type { Board, BoardPlan } from "../../shared/api";
 import { planSummary } from "./planMatch";
-import { STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
+import { activeEvents, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
 import { assignLanes, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
 
 export const PX_PER_HOUR = 90;
@@ -51,18 +51,23 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     }];
   });
 
-  const eventBlocks: Block[] = board.plans.flatMap((p) => p.events.flatMap((e) => {
-    const s = span(e.start_at, e.end_at);
-    if (!s) return [];
-    const step = e.step_type as keyof typeof STEP_LABEL_KEYS;
-    return [{
-      key: `e${e.id}`, span: s, label: step === "production" ? t("step.productionShort", { seq: e.seq }) : t(STEP_LABEL_KEYS[step]),
-      sub: e.end_at ? p.plan.kitting_no : t("plan.summaryWithState", { summary: p.plan.kitting_no, state: t("common.doing") }),
-      color: STEP_COLORS[step], className: `tt-event${e.end_at ? "" : " tt-open"}`,
-    }];
-  }));
+  // 取り消した記録はタイムテーブルに出さない(訂正の履歴に出す)
+  const eventBlocks: Block[] = board.plans.flatMap((p) => {
+    const numbers = recordNumbers(p.events);
+    return activeEvents(p.events).flatMap((e) => {
+      const s = span(e.start_at, e.end_at);
+      if (!s) return [];
+      const step = e.step_type as keyof typeof STEP_LABEL_KEYS;
+      const n = numbers.get(e.id) ?? e.seq;
+      return [{
+        key: `e${e.id}`, span: s, label: step === "production" ? t("step.productionShort", { seq: n }) : t(STEP_LABEL_KEYS[step]),
+        sub: e.end_at ? p.plan.kitting_no : t("plan.summaryWithState", { summary: p.plan.kitting_no, state: t("common.doing") }),
+        color: STEP_COLORS[step], className: `tt-event${e.end_at ? "" : " tt-open"}`,
+      }];
+    });
+  });
 
-  const lineEventBlocks: Block[] = board.line_events.flatMap((e) => {
+  const lineEventBlocks: Block[] = board.line_events.filter((e) => !e.voided_at).flatMap((e) => {
     const s = span(e.start_at, e.end_at);
     if (!s) return [];
     return [{

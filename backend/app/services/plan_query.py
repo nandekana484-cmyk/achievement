@@ -11,6 +11,7 @@ from sqlalchemy import and_, exists, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import PLAN_ACTIVE, Plan, RunCompletion, RunEvent
+from app.services.completions import valid_completion
 
 
 def _overlaps(start: datetime, end: datetime):  # noqa: ANN202
@@ -35,13 +36,13 @@ def board_kitting_nos(session: Session, line_code: str, display_start: datetime,
     2. 表示範囲の中に実績の記録がある(先行して始めた計画)
     3. 作業を始めたが、片付けが終わっていない(日付は問わない。遅れている計画)
     """
-    same_kitting = RunEvent.kitting_no == Plan.kitting_no
+    same_kitting = and_(RunEvent.kitting_no == Plan.kitting_no, RunEvent.voided_at.is_(None))  # 取り消した記録は数えない
     has_events = exists().where(same_kitting)
     events_in_range = exists().where(
         same_kitting, RunEvent.start_at < display_end,
         or_(RunEvent.end_at.is_(None), RunEvent.end_at > display_start),
     )
-    completed = exists().where(RunCompletion.kitting_no == Plan.kitting_no)
+    completed = exists().where(RunCompletion.kitting_no == Plan.kitting_no, valid_completion())
     in_range = and_(_overlaps(display_start, display_end), or_(has_events, Plan.planned_end >= now))
     stmt = select(Plan.kitting_no).distinct().where(
         Plan.line_code == line_code, Plan.status == PLAN_ACTIVE,

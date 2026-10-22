@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
-import type { BoardPlan, LineEvent, Plan, Reason } from "../../shared/api";
+import type { BoardPlan, LineEvent, Plan, Reason, StepType } from "../../shared/api";
 import { lineName as displayLineName } from "../../shared/lineName";
 import { Notice } from "../../shared/Notice";
 import { useMasters } from "../../shared/useMasters";
@@ -63,6 +63,8 @@ export function LineScreen() {
     else void actions.startLineEvent(reason.id, null, null);
   })();
   const onLineEventEnd = (e: LineEvent) => withOperator(() => void actions.endLineEvent(e))();
+  // 訂正も、直した人はラインの今の担当者(未設定なら先に選んでもらう)
+  const open = (state: DialogState) => withOperator(() => setDialog(state));
 
   return (
     <div className="line-screen">
@@ -96,8 +98,11 @@ export function LineScreen() {
             plan={selected}
             isBusy={op.isBusy}
             onStep={(status) => onStep(selected, status)}
-            onNg={withOperator(() => setDialog({ kind: "ng", plan: selected }))}
-            onRemark={withOperator(() => setDialog({ kind: "remark", plan: selected }))}
+            onNg={open({ kind: "ng", plan: selected })}
+            onRemark={open({ kind: "remark", plan: selected })}
+            onFix={(step: StepType) => open({ kind: "fix", plan: selected, step })()}
+            onAdd={open({ kind: "add", plan: selected })}
+            onHistory={() => setDialog({ kind: "history", plan: selected })}
           />
         ) : (
           <p className="placeholder select-hint">{t("lineScreen.selectHint")}</p>
@@ -106,16 +111,18 @@ export function LineScreen() {
           <LineEventPanel
             ref={lineEvents}
             reasons={masters.reasons.filter((r) => r.usable_as_line_event)}
-            openEvents={board.line_events.filter((e) => !e.end_at)}
+            openEvents={board.line_events.filter((e) => !e.end_at && !e.voided_at)}
             nowMs={nowMs}
             isBusy={op.isBusy}
             onStart={onLineEventStart}
             onEnd={onLineEventEnd}
+            onFix={open({ kind: "lineFix" })}
+            onHistory={() => setDialog({ kind: "lineHistory" })}
           />
         )}
       </aside>
       {dialog && board && masters && (
-        <LineDialogs dialog={dialog} board={board} masters={masters} actions={actions} close={() => setDialog(null)} />
+        <LineDialogs dialog={dialog} board={board} masters={masters} actions={actions} nowMs={nowMs} close={() => setDialog(null)} />
       )}
     </div>
   );

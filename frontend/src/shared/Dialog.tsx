@@ -8,9 +8,10 @@ type Props = {
   onCancel: () => void;
   actions?: ReactNode;
   wide?: boolean;
+  cancelLabel?: string; // 見るだけの画面では「閉じる」にする
 };
 
-export function Dialog({ title, children, onCancel, actions, wide }: Props) {
+export function Dialog({ title, children, onCancel, actions, wide, cancelLabel }: Props) {
   const { t } = useI18n();
   return (
     <div className="dialog-backdrop">
@@ -19,7 +20,7 @@ export function Dialog({ title, children, onCancel, actions, wide }: Props) {
         <div className="dialog-body">{children}</div>
         <div className="dialog-actions">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            {t("common.cancel")}
+            {cancelLabel ?? t("common.cancel")}
           </button>
           {actions}
         </div>
