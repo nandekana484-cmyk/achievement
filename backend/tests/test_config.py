@@ -138,3 +138,11 @@ def test_corrections_settings(tmp_path):
     assert load_config(p).corrections.field_margin_hours == 24
     example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").corrections
     assert example.field_margin_hours == 12
+
+
+def test_reports_settings(tmp_path):
+    assert load_config(tmp_path / "none.toml").reports.max_days == 93
+    p = tmp_path / "r.toml"
+    p.write_text("[reports]\nmax_days = 31\n", encoding="utf-8")
+    assert load_config(p).reports.max_days == 31
+    assert load_config(Path(__file__).resolve().parents[2] / "config.example.toml").reports.max_days == 93
