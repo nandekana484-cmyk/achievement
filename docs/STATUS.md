@@ -2,8 +2,8 @@
 
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
-- 最終更新: 2026-10-21
-- main の最新: `6db9e45` Merge branch 'fix/single-instance'(feature/admin-login は取り込み前)
+- 最終更新: 2026-10-22
+- main の最新: `e5916a1` Merge branch 'feature/admin-login'(feature/corrections は取り込み前)
 
 ## 進め方
 
@@ -15,6 +15,7 @@
 
 - 計画の同期: すべての月次DBを読む、ロットごとに正とするDBを決める、取消にしない条件と一括取消の安全装置([spec 6.1](spec.md#61-計画の取得既存--本アプリ)、[legacy-integration.md](design/legacy-integration.md))
 - 実績の記録: 工程、生産の区切り、NG、備考、完了、付帯作業([spec 5.4〜5.7](spec.md#54-回の工程)、[run-records.md](design/run-records.md))
+- 実績の訂正(現場の画面から): 工程の記録の時刻・生産数の変更、取り消し(印を付けて計算から外す)、押し忘れの後からの追加、付帯作業の時刻・理由の変更と取り消し、訂正の履歴(run_corrections)、完了の写しの作り直し。現場で直せるのはタイムテーブルの表示範囲の記録だけ(config.toml の `[corrections]`)([spec 5.4](spec.md#54-回の工程)、[run-records.md](design/run-records.md))
 - 計画のまとまり: キッティングNo.の単位で画面と実績を扱う
 - NG: ロットと面ごとに入力する
 - 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す。計画の同期がエラーでも読み込む([spec 5.6](spec.md#56-誰がやったか))
@@ -30,7 +31,7 @@
 ## 次にやること(この順番の予定)
 
 1. 実際のタブレットでの試用(ベトナム語の訳も、現場で使いながら直す)
-2. 管理画面の2回目(実績の訂正、24時間の日報)。ログインとマスタはできた
+2. 管理画面の2回目(実績の訂正、24時間の日報)。ログインとマスタ、訂正のサーバーの仕組みと現場の画面はできた。管理画面からの訂正は、範囲の制限なし・source=admin で同じサービスを呼ぶ
 3. 既存アプリへの実績の反映
    - NG は「面1 = 面1の欄 + 面2の欄」の形への変換が必要([run-records.md](design/run-records.md))
    - 生産数をロットに分けるかは未決定
@@ -50,6 +51,8 @@
 - 実績の取込口の仕様(列、文字コード、実績日の定義)
 
 ## 既知の問題
+
+- ベトナム語の訳がまだの文言(「(未翻訳)」+ 日本語): 実績の訂正の画面の 71 キー(2026-10-22 に追加)
 
 - npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 6 で対応する
 - 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
