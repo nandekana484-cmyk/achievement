@@ -3,7 +3,7 @@
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
 - 最終更新: 2026-10-22
-- main の最新: `3a8d2a0` Merge branch 'feature/corrections'(feature/daily-report は取り込み前)
+- main の最新: Merge branch 'feature/daily-report'(`git log -1 main` で確かめる)
 
 ## 進め方
 
@@ -21,7 +21,7 @@
 - 作業者: 既存アプリ(master.db の workers)から読み込み、作業者IDで呼び出す。計画の同期がエラーでも読み込む([spec 5.6](spec.md#56-誰がやったか))
 - ライン画面: 48時間のタイムテーブル、計画の検索([spec 7.1](spec.md#71-現場画面タブレット)、[line-screen.md](design/line-screen.md))
 - 管理画面(1回目): ログイン(作業者IDとパスワード、セッション、締め出し)、設備・理由・ラインの管理、作業者の一覧、audit_log([spec 7.2](spec.md#72-管理画面pc)、[admin.md](design/admin.md))
-- 日報と区間の CSV(管理画面): ラインと稼働日の日報(A4 横向きの印刷。上段 8:15〜20:15・下段 20:15〜翌8:15 のガントチャート)、稼働日をまたぐ記録を分けた「時間の区間」の CSV(BOM 付き UTF-8、CRLF。期間の上限は `[reports] max_days`)。集計はアプリでは行わず CSV で行う([spec 7.2](spec.md#72-管理画面pc)、[reports.md](design/reports.md))
+- 日報と区間の CSV(管理画面): ラインと稼働日の日報(A4 横向きの印刷。上段 8:15〜20:15・下段 20:15〜翌8:15 のガントチャート)、稼働日をまたぐ記録を分けた「時間の区間」の CSV(BOM 付き UTF-8、CRLF。期間の上限は `[reports] max_days`)。日付の初期値はサーバーの今の稼働日。9行を超えると2ページ以上に続ける。集計はアプリでは行わず CSV で行う([spec 7.2](spec.md#72-管理画面pc)、[reports.md](design/reports.md))
 - 表示言語の切り替え: 日本語とベトナム語(訳の初版を取り込み済み)。選んだ言語は端末に記憶。理由と設備はベトナム語の名前(name_vi)を出す([spec 7.5](spec.md#75-表示言語の切り替え)、[i18n.md](design/i18n.md))
 - 書き込みのロック([db-writes.md](design/db-writes.md))
 - コードの大きさのチェック(`tools/check_code_size.py`)
