@@ -8,6 +8,7 @@ import { LinesPage } from "./admin/LinesPage";
 import { OperatorsPage } from "./admin/OperatorsPage";
 import { PasswordPage } from "./admin/PasswordPage";
 import { ReasonsPage } from "./admin/ReasonsPage";
+import { ReportsPage } from "./admin/reports/ReportsPage";
 import { Dashboard } from "./field/Dashboard";
 import { LineScreen } from "./field/line/LineScreen";
 import { I18nProvider } from "./i18n/I18nProvider";
@@ -15,6 +16,7 @@ import "./shared/base.css";
 import "./field/line/line.css";
 import "./field/line/corrections/corrections.css";
 import "./admin/admin.css";
+import "./admin/reports/report.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -27,6 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="equipment" replace />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="equipment" element={<EquipmentPage />} />
             <Route path="reasons" element={<ReasonsPage />} />
             <Route path="lines" element={<LinesPage />} />
