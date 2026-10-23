@@ -6,6 +6,7 @@ import { type AdminKey, at } from "./messages";
 
 const MENU: [string, AdminKey][] = [
   ["reports", "menu.reports"],
+  ["actuals", "menu.actuals"],
   ["equipment", "menu.equipment"],
   ["reasons", "menu.reasons"],
   ["lines", "menu.lines"],

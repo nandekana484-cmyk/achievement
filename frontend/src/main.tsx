@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ActualsPage } from "./admin/actuals/ActualsPage";
 import { AdminLayout } from "./admin/AdminLayout";
 import { AdminLogin } from "./admin/AdminLogin";
 import { EquipmentPage } from "./admin/EquipmentPage";
@@ -30,6 +31,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="equipment" replace />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="actuals" element={<ActualsPage />} />
             <Route path="equipment" element={<EquipmentPage />} />
             <Route path="reasons" element={<ReasonsPage />} />
             <Route path="lines" element={<LinesPage />} />

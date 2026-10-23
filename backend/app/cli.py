@@ -78,6 +78,7 @@ def _parser() -> argparse.ArgumentParser:
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
     demo.add_argument("--date", required=True, type=dt.date.fromisoformat, help="YYYY-MM-DD")
+    demo.add_argument("--lot-suffix", default="", help="ロットNo.の末尾に付ける文字(ほかのラインの確認用のデータとロットを分けるとき)")
     return p
 
 
@@ -154,7 +155,7 @@ def _list_lines(s: Session, _args: argparse.Namespace) -> None:
 
 
 def _demo_seed(s: Session, args: argparse.Namespace) -> None:
-    knos = seed_demo(s, args.line, args.date)
+    knos = seed_demo(s, args.line, args.date, args.lot_suffix)
     unique = list(dict.fromkeys(knos))
     print(f"確認用のデータを入れました({args.date}、ライン {normalize_mounting_line(args.line)}): "
           f"計画 {len(knos)}件(キッティングNo. {len(unique)}件)")

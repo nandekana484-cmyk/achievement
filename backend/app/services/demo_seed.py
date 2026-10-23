@@ -62,8 +62,11 @@ PLANS = (
 )
 
 
-def seed_demo(session: Session, line_code: str, day: dt.date) -> list[str]:
-    """確認用の計画・作業者・設備を入れ、入れた(または更新した)計画のキッティングNo.を返す。"""
+def seed_demo(session: Session, line_code: str, day: dt.date, lot_suffix: str = "") -> list[str]:
+    """確認用の計画・作業者・設備を入れ、入れた(または更新した)計画のキッティングNo.を返す。
+
+    lot_suffix はロットNo.の末尾に付ける(ほかのラインと同じロットNo.にならないように。面1と面2のひも付けの確認用)。
+    """
     line = normalize_mounting_line(line_code)
     issue = day - dt.timedelta(days=7)
     with write_transaction(session):
@@ -77,18 +80,19 @@ def seed_demo(session: Session, line_code: str, day: dt.date) -> list[str]:
             exists = session.scalars(select(Equipment).where(Equipment.line_code == line, Equipment.name == name)).first()
             if exists is None:
                 session.add(Equipment(line_code=line, name=name, active=True, sort_order=(i + 1) * 10))
-        knos = [_upsert_plan(session, p, line, day, issue) for p in PLANS]
+        knos = [_upsert_plan(session, p, line, day, issue, lot_suffix) for p in PLANS]
         session.commit()
     return knos
 
 
-def _upsert_plan(session: Session, p: _DemoPlan, line: str, day: dt.date, issue: dt.date) -> str:
+def _upsert_plan(session: Session, p: _DemoPlan, line: str, day: dt.date, issue: dt.date, lot_suffix: str) -> str:
     kno = f"{p.file_no}-{p.run_no}-{line}-{issue:%y%m%d}-{p.seq:02d}"
     parsed = parse_kitting_no(kno)
     now = clock.now()
-    row = session.get(Plan, (kno, p.lot_no))
+    lot_no = p.lot_no + lot_suffix
+    row = session.get(Plan, (kno, lot_no))
     if row is None:
-        row = Plan(kitting_no=kno, lot_no=p.lot_no, first_seen_at=now)
+        row = Plan(kitting_no=kno, lot_no=lot_no, first_seen_at=now)
         session.add(row)
     row.file_no, row.line_code, row.product_name, row.run_no = p.file_no, line, p.product_name, p.run_no
     row.planned_qty, row.cumulative_qty, row.order_qty, row.takt_sec = p.qty, 0, p.qty, p.takt_sec

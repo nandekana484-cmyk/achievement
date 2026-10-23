@@ -47,3 +47,14 @@
 
 /* ライン選択の画面の隅の、管理画面への小さなリンク */
 .admin-entry { position: fixed; right: 16px; bottom: 12px; font-size: 14px; color: var(--muted); }
+
+/* 実績の書き出し */
+.actuals-table td { vertical-align: top; }
+.actuals-table input.admin-num { width: 90px; min-width: 0; }
+/* キッティングNo.・ロットNo.・ファイルNo.・担当者・完了日は折り返さない */
+.actuals-table td:nth-child(-n+3), .actuals-table td:nth-child(10), .actuals-table td:nth-child(11) { white-space: nowrap; }
+.actuals-total { display: block; color: var(--muted); font-size: 12px; }
+.actuals-changed { background: #fff8e1; }
+.actuals-warning { color: var(--danger); font-size: 13px; }
+.actuals-noteline { color: var(--muted); font-size: 13px; }
+.actuals-history { margin-top: 24px; }
