@@ -9,7 +9,7 @@
 必要なもの:
 
 - Python 3.14(`.python-version`)。`py -3.14` で起動できること
-- Node.js 22(`frontend/.nvmrc`)
+- Node.js 22.12 以上(`frontend/.nvmrc`)
 - Git
 
 PATH の `python` は既存アプリが使う別の版(3.10 など)の可能性があるため、PATH は変えずに venv で 3.14 を使う。

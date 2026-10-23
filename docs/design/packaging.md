@@ -83,6 +83,7 @@ C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
 ```
 
 - GenbaApp.exe が動いていても実行できる(書き込みは短く、ほかの書き込みと順番に行う)
+- 注意: GenbaCli.exe の日本語の出力は、PowerShell 5.1 でパイプや変数に渡すと(`| Select-Object`、`> log.txt`、`$x = ...` など)文字化けする(2026-10-22・23、NANJYOU-H で確認。`[Console]::OutputEncoding` を UTF-8 にしても直らなかった)。コマンドの成否は終了コード(`$LASTEXITCODE`。0 なら成功)で確かめる。コンソールのウィンドウにそのまま出したときの表示は、まだ確かめていない
 
 ## 担当者PCで使うスクリプト(packaging/)
 
@@ -129,3 +130,18 @@ PowerShell 5.1 が日本語を正しく読めるよう、.ps1 は UTF-8(BOM 付�
 - GenbaCli.exe で管理者を足し、PowerShell から `--stdin` でパスワードを設定して、GenbaApp.exe の管理画面にログインできた
 - ウィンドウを出さない形: ウィンドウは出ずに起動し、/api/health が ok を返した。同じポートでもう1つ起動すると止まり、config.toml の書き方を誤らせると終了コード 1 で止まり、どちらも理由が `logs\genba.log` に残った
 - 1つ目が動いている間に同じフォルダで2つ目を起動すると、終了コード 2 で止まり、バックアップのファイルは増えなかった。1つ目を強制終了したあとは起動し直せた(ロックは残らない)。ほかのプログラムがポートを使っているときは終了コード 4 で止まり、バックアップは増えなかった
+
+## このPCでの確認の結果(2026-10-22、NANJYOU-H。依存を更新したあと)
+
+依存の更新(vite 7.3.7、vitest 5.0.3、react-router-dom 7.18.4、httpx2)のあとに `build.ps1` で作り直し、確認用の別のフォルダ(`C:\work\tools\genba-check`。本番と同じ `app\v0.1.0\` の形、ポート 8791)で確かめた。確認後にフォルダは消した。
+
+- 大きさ: フォルダ 53.5 MB(GenbaApp.exe 13.8 MB、GenbaCli.exe 13.1 MB)、zip 36.2 MB。起動(/api/health が返るまで)は約1.6秒。httpx・httpx2・pytest は同梱されていない
+- `/field`、`/admin`、`/admin/login`、`/field/lines/S` と画面の js が 200 を返した
+- 2つ目を起動すると終了コード 2 で止まり、バックアップは増えず、1つ目は動き続けた。理由は `logs\genba.log` に残った
+- GenbaCli.exe で管理者を足し(DBができる)、GenbaApp.exe の動いている間に `admin set-password --stdin` でパスワードを設定して、`/api/admin/login` に通った(誤ったパスワードは 401)
+- バックアップ: 起動のたびに `backup\genba_<日時>_startup.db` ができた。毎日の時刻(12:30)のバックアップは、時刻を待つ必要があるため確かめていない
+- 自動起動とファイアウォール: 管理者の PowerShell で、確認用の名前(タスク・規則とも `GenbaApp-Check`)と確認用のフォルダを指定して流した。確認後に `uninstall-autostart.ps1` と `firewall-remove.ps1` で消し、本番の名前(`GenbaApp`)のタスク・規則が無いままであることを確かめた
+  - `install-autostart.ps1 -RunAsSystem`: PCの起動時のトリガー、止まったら1分後に起動し直す(999回)、実行時間の上限なし、で登録された。`Start-ScheduledTask` で起動し、/api/health が ok、プロセスの所有者は SYSTEM だった。解除するとプロセスも止まった
+  - 担当者のアカウントで動かす標準の形(`-User`)は、パスワードの入力が要るため流していない(担当者PCに置くときに確かめる)
+  - `firewall-allow.ps1`: 受信・許可・TCP 8791・ドメインとプライベート、の規則ができた
+- `build.ps1` の zip の段階で1回、`base_library.zip` が「ほかのプロセスが使用中」で失敗した。zip だけをやり直すと通った(作った直後のファイルを、ウイルス対策などが一時的に開いていたためと考えられる)

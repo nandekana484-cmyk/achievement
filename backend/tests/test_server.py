@@ -9,6 +9,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import time
 from contextlib import closing
 from pathlib import Path
 
@@ -154,6 +155,14 @@ def test_lock_does_not_remain_after_a_crash(tmp_path):
         if child.poll() is None:
             child.kill()
         child.stdout.close()
-    lock = InstanceLock(path)
-    lock.acquire()  # OS がロックを外している
-    lock.release()
+    # OS がロックを外している。Windows は、終了したプロセスのロックを少し遅れて外す
+    # (venv の python.exe は本体を子プロセスで動かすので、本体の終了も少し遅れる)ため、数秒は待つ
+    deadline = time.monotonic() + 10
+    while True:
+        try:
+            InstanceLock(path).acquire()
+            break
+        except AlreadyRunning:
+            if time.monotonic() > deadline:
+                raise
+            time.sleep(0.1)
