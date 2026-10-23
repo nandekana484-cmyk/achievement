@@ -55,13 +55,15 @@ test("㉒㉓ 実績の書き出し(一覧・数を直す・書き出し)", async
   await expect(page.getByRole("status")).toContainText(/actuals_\d{8}_\d{6}_\d{4}\.csv に書き出しました\(3行\)/);
   const history = page.getByRole("table", { name: "書き出しの履歴" });
   await expect(history.locator("tbody tr")).toHaveCount(1);
+  await expect(page.getByRole("note")).toContainText("Excel で保存せずに");
   await shot(page, "23-actuals-exported");
 
   const [download] = await Promise.all([page.waitForEvent("download"), history.getByRole("button", { name: "ダウンロード" }).click()]);
   const text = (await readFile(await download.path())).toString("utf-8");
-  expect(text.startsWith("﻿書き出し日時,元のDB,キッティングNo.,ロットNo.,ファイルNo.,面,日付,生産数(累計),NG面1,NG面2,担当者ID\r\n")).toBe(true);
-  const lines = text.trim().split("\r\n").slice(1).map((l) => l.split(",").slice(1));
-  expect(lines).toEqual([
+  expect(text.startsWith("﻿書式版,書き出し日時,元のDB(フォルダ名),キッティングNo.,ロットNo.,ファイルNo.,面,日付,生産数(累計),NG面1,NG面2,担当者ID\r\n")).toBe(true);
+  const lines = text.trim().split("\r\n").slice(1).map((l) => l.split(","));
+  expect(lines.every((l) => l.length === 12 && l[0] === "1")).toBe(true);
+  expect(lines.map((l) => l.slice(2))).toEqual([
     ["demo", SIDE2, "DEMO-101U", "1000", "2", "2026-10-21", "140", "2", "1", "Y001"],
     ["demo", SIDE2, "DEMO-102U", "1000", "2", "2026-10-21", "100", "0", "0", "Y001"],
     ["demo", SIDE2, "DEMO-103U", "1000", "2", "2026-10-21", "70", "0", "0", "Y001"],

@@ -58,3 +58,4 @@
 .actuals-warning { color: var(--danger); font-size: 13px; }
 .actuals-noteline { color: var(--muted); font-size: 13px; }
 .actuals-history { margin-top: 24px; }
+.actuals-excel { color: var(--danger); }

@@ -189,9 +189,10 @@ def test_export_writes_csv_and_history_without_changing_records(client, two_lots
     assert first["file_name"].startswith("actuals_20261021_") and first["file_name"].endswith(f"_{first['id']:04d}.csv")
     saved = two_lots["exchange"] / "actuals" / first["file_name"]
     rows = _csv_rows(saved.read_bytes())
-    assert rows[0] == ["書き出し日時", "元のDB", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
+    assert rows[0] == ["書式版", "書き出し日時", "元のDB(フォルダ名)", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
                        "NG面1", "NG面2", "担当者ID"]
-    assert [r[1:] for r in rows[1:]] == [
+    assert all(r[0] == "1" for r in rows[1:]) and len(rows[0]) == 12
+    assert [r[2:] for r in rows[1:]] == [
         ["2026-10", K4, "A", "0900", "1", "2026-10-21", "90", "0", "0", "Y100"],
         ["2026-10", K4, "B", "0900", "1", "2026-10-21", "70", "0", "0", "Y100"],
     ]
@@ -238,3 +239,12 @@ def test_save_failure_leaves_no_history(client, two_lots):
     r = export(client)
     assert r.status_code == 409 and "書き出し先に保存できませんでした" in r.json()["detail"]
     assert count_rows(ActualsExport) == 0
+
+
+def test_worker_id_is_exported_as_written_in_the_legacy_app(client, admin, fake_clock):
+    with new_session() as s:
+        tanaka = masters.add_operator(s, "田中", worker_id="ｔ０１").id  # 既存アプリの表記(全角・小文字)のまま持つ
+    set_operator(client, tanaka)
+    produce(client, fake_clock, K2, 300)
+    finish(client, fake_clock, K2)
+    assert listing(client)[0]["worker_id"] == "ｔ０１"  # 正規化した値(T01)ではなく、workers の worker_id と同じもの

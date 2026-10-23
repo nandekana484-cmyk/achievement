@@ -99,6 +99,7 @@ function ActualsContent({ workday }: { workday: string }) {
         </>
       )}
       <Feedback message={message} />
+      <p className="admin-note actuals-excel" role="note">{at("actuals.excelNote")}</p>
       <ExportHistory reloadKey={historyKey} />
     </section>
   );

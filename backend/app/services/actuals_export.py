@@ -23,7 +23,8 @@ from app.services.actuals_rows import ActualsListOut, ActualsRowOut, build_rows
 from app.services.errors import NotFound, RuleViolation
 
 ACTUALS_FOLDER = "actuals"
-HEADERS = ["書き出し日時", "元のDB", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
+FORMAT_VERSION = 1  # 書式版。列を変えたら上げる(既存アプリの取込口が、知らない版を断れるように)
+HEADERS = ["書式版", "書き出し日時", "元のDB(フォルダ名)", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
            "NG面1", "NG面2", "担当者ID"]
 
 
@@ -85,7 +86,7 @@ def actuals_csv(rows: list[ActualsRowOut], exported_at: dt.datetime) -> str:
     w = csv.writer(buf, lineterminator="\r\n")
     w.writerow(HEADERS)
     for r in rows:
-        w.writerow([stamp, r.source_db or "", r.kitting_no, r.lot_no, r.file_no, r.side, r.completed_on.isoformat(),
+        w.writerow([FORMAT_VERSION, stamp, r.source_db or "", r.kitting_no, r.lot_no, r.file_no, r.side, r.completed_on.isoformat(),
                     r.produced_qty, r.ng_side1, r.ng_side2, r.worker_id or ""])
     return buf.getvalue()
 
