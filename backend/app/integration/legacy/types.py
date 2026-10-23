@@ -29,8 +29,7 @@ class LegacyPlan:
     status: str | None
     legacy_plan_item_id: int
     legacy_version: int
-    # TODO(要確認): 想定タクトの単位(今は「1枚あたりの秒」と仮定)
-    takt_sec: float | None = None
+    takt_sec: float | None = None  # 想定タクト(1枚あたりの秒)
 
     @property
     def key(self) -> tuple[str, str]:
