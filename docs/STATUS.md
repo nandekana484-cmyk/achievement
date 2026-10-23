@@ -2,8 +2,8 @@
 
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
-- 最終更新: 2026-10-22
-- main の最新: Merge branch 'feature/daily-report'(`git log -1 main` で確かめる)
+- 最終更新: 2026-10-23
+- main の最新: Merge branch 'feature/deps-and-exe-check'(`git log -1 main` で確かめる)
 
 ## 進め方
 
@@ -29,6 +29,7 @@
 - DBのバックアップ: 起動時(更新の前)と毎日 12:30 に backup_dir へ。世代は30([spec 9](spec.md#9-非機能要件))
 - ログ: `logs\genba.log` に日ごとに分けて保存
 - 実績の書き出し(管理画面): 片付けが終わった計画を、1行 = キッティングNo.+ロットNo.(面2の計画があるロットは面2の行にまとめる)の CSV(BOM 付きの UTF-8)で `exchange_dir\actuals` に書き出す。生産数はキッティングNo.の累計をロットに割り振り、画面で直せる(合計が合わないと書き出せない)。面1と面2のひも付けが決まらないものは警告を付けて外す。書き出しの履歴とダウンロード([spec 5.9](spec.md#59-実績の書き出し既存アプリに戻すための-csv)、[actuals-export.md](design/actuals-export.md))
+- 依存ライブラリの更新(2026-10-22): vite 7.3.7、vitest 5.0.3、react-router-dom 7.18.4、httpx → httpx2。npm audit 0件、pytest の警告 0件。更新後の exe の動作確認(起動、2つ目の停止、GenbaCli、バックアップ、自動起動とファイアウォールのスクリプト)の結果は [packaging.md](design/packaging.md) の末尾([dependencies.md](design/dependencies.md))
 
 ## 次にやること(この順番の予定)
 
@@ -36,10 +37,9 @@
 2. 管理画面からの実績の訂正(範囲の制限なし・source=admin で同じサービスを呼ぶ)。日報と区間の CSV はできた
 3. 既存アプリへの実績の反映: 本アプリの書き出し(CSV)はできた。残りは既存アプリ側の取込口(NG の足し込み「面1 = 面1の欄 + 面2の欄」は取込口が行う)
 4. 記録用紙の印刷(A4、1回目と2回目)
-5. 本番への配置: exe化とバックアップはできた。残りは担当者PCでの登録と確認(zip の展開、config.toml、自動起動とファイアウォールのスクリプトの実行、共有フォルダへのバックアップの書き込み、タブレットからの接続)
-6. 依存ライブラリの更新
-   - 先に NANJYOU-H の Node を 22 に上げる
-   - そのあと vite・vitest・esbuild を更新し、pytest の httpx の警告に対応する
+5. 本番への配置: exe化とバックアップはできた。スクリプトは確認用の名前で SYSTEM の形まで確かめた([packaging.md](design/packaging.md) の末尾)。残りは担当者PCでの登録と確認(zip の展開、config.toml、共有フォルダへのバックアップの書き込み、タブレットからの接続)
+   - **未確認**: 担当者のアカウントでの自動起動(`install-autostart.ps1 -User`。パスワードの入力が要るため流していない)
+   - **未確認**: 毎日 12:30 のバックアップ(起動時のバックアップは確かめた)
 
 ## 決まっていないこと
 
@@ -52,14 +52,14 @@
 
 ## 既知の問題
 
-
-- npm audit の残り: 7件(critical 2: vitest・tinypool、high 1: vite、moderate 4: esbuild・@vitest/mocker・react-router・react-router-dom)。「次にやること」の 6 で対応する
+- npm 10 は、依存を足す・変える(`npm install`)ときに `edgesOut` のエラーで止まる。`npx -y npm@11.21.0 install ...` を使う(`npm ci` は npm 10 で通る。[dependencies.md](design/dependencies.md))
+- `build.ps1` の zip の段階が、作った直後のファイルを開けずに1回失敗した(やり直すと通った)
 - 実データで、ラインの食い違いが20件、想定タクトの無い計画が2件ある。どちらも既存アプリ側の問題
 
 ## PCごとに用意が必要なもの(Git に入らないもの)
 
 - Python 3.14 と venv(`backend/.venv`)
-- Node.js(22 推奨)と `npm ci`
+- Node.js 22.12 以上(vitest 5 が要る)と `npm ci`
 - Playwright のブラウザ(`npx playwright install chromium`)
 - `backend/data/config.toml`(`config.example.toml` からコピーして、PCに合わせて直す)
 - 開発用DB(`backend/data/genba.db`。起動すると自動で作られ、最新の形になる)
@@ -70,12 +70,12 @@
 | PC | Python | Node.js | config.toml |
 | --- | --- | --- | --- |
 | MSI | 3.14.4 | 22.23.2 | `legacy_app_dir` は設定しない(このPCの既存アプリのフォルダには月次DBと想定タクトの表が無いため)。確認用データ(`python -m app.cli demo-seed`)を使う |
-| NANJYOU-H | 3.14.7 | 20.19.6 | 実データを読む設定 |
+| NANJYOU-H | 3.14.7 | 22.23.2(2026-10-23 に nvm で入れ替え) | 実データを読む設定 |
 
 ## 別のPCで再開する手順
 
 1. `git switch main` → `git pull`
-2. `cd backend` → venv の中で `pip install -r requirements-dev.txt`
+2. `cd backend` → venv の中で `pip install -r requirements-dev.txt`(2026-10-22 から httpx の代わりに httpx2。古い httpx は `pip uninstall -y httpx httpcore` で消してよい)
 3. 開発サーバーを止める → `cd frontend` → `npm ci`
 4. 起動する(DBは自動で最新の形になる)。`/api/health` が ok を返すことを確かめる
 5. `backend/data/config.toml` の設定を確かめる(`config.example.toml` と見比べ、増えた項目を足す)

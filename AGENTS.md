@@ -15,7 +15,7 @@
 
 ## コマンド
 
-Python は 3.14(`.python-version`)、Node.js は 22(`frontend/.nvmrc`)。
+Python は 3.14(`.python-version`)、Node.js は 22.12 以上(`frontend/.nvmrc`。vitest 5 が 22.12 以上を要る。20 ではテストが動かない)。
 PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**Python のコマンドはすべて venv の中で実行する**。
 
 - venv の作成(初回のみ): `cd backend` → `py -3.14 -m venv .venv` → `.\.venv\Scripts\Activate.ps1` → `pip install -r requirements-dev.txt`
@@ -28,6 +28,7 @@ PATH の `python` は既存アプリ用の 3.10 の可能性があるため、**
 - DBの構造の変更: モデル(`app/db/models.py`)を変えたら、マイグレーションを `app/db/migrations/versions/` に追加する。起動時に自動で最新に更新される(`tests/test_db.py` がモデルとマイグレーションの食い違いを検出する)
   - **Alembic を手で使う**(`python -m alembic ...`)**ときの対象は、config.toml(`GENBA_CONFIG`)の `paths.database`**。本番のDBを指していないか確認してから実行する
 - フロントエンドの依存の導入: `cd frontend` → `npm ci`(`package-lock.json` のとおりに入れる)
+  - 依存を足す・変える(`npm install`)ときは npm 11 を使う: `npx -y npm@11.21.0 install ...`(npm 10 は vitest 5 の peer を解けずに `edgesOut` のエラーで止まる。詳細: docs/design/dependencies.md)
 - フロントエンドの開発: `cd frontend` → `npm run dev`(`/api` は8000番へ転送)
 - フロントエンドのビルド: `cd frontend` → `npm run build`
 - 本番の版(exe と zip)を作る: リポジトリ直下で `powershell -ExecutionPolicy Bypass -File .\packaging\build.ps1`(`-SkipTests` でテストを省く)。できたものは `packaging\dist\`(詳細: docs/design/packaging.md)

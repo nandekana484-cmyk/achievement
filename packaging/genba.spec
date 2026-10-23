@@ -29,7 +29,7 @@ a = Analysis(  # noqa: F821
     pathex=[str(BACKEND)],
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["tkinter", "pytest", "_pytest", "httpx"],
+    excludes=["tkinter", "pytest", "_pytest", "httpx", "httpx2", "httpcore2"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)  # noqa: F821
@@ -48,7 +48,7 @@ cli = Analysis(  # noqa: F821
     pathex=[str(BACKEND)],
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["tkinter", "pytest", "_pytest", "httpx"],
+    excludes=["tkinter", "pytest", "_pytest", "httpx", "httpx2", "httpcore2"],
 )
 cli_exe = EXE(PYZ(cli.pure), cli.scripts, [], exclude_binaries=True, name="GenbaCli", console=True, upx=False)  # noqa: F821
 coll = COLLECT(  # noqa: F821
