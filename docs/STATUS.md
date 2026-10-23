@@ -2,8 +2,8 @@
 
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
-- 最終更新: 2026-10-22
-- main の最新: Merge branch 'feature/daily-report'(`git log -1 main` で確かめる)
+- 最終更新: 2026-10-23
+- main の最新: Merge branch 'feature/deps-and-exe-check'(`git log -1 main` で確かめる)
 
 ## 進め方
 
@@ -41,7 +41,6 @@
 5. 本番への配置: exe化とバックアップはできた。スクリプトは確認用の名前で SYSTEM の形まで確かめた([packaging.md](design/packaging.md) の末尾)。残りは担当者PCでの登録と確認(zip の展開、config.toml、共有フォルダへのバックアップの書き込み、タブレットからの接続)
    - **未確認**: 担当者のアカウントでの自動起動(`install-autostart.ps1 -User`。パスワードの入力が要るため流していない)
    - **未確認**: 毎日 12:30 のバックアップ(起動時のバックアップは確かめた)
-6. NANJYOU-H の Node.js を 22 に上げる(2026-10-23 の時点で nvm には 20.19.6 だけ。vitest 5 は 22.12 以上が要るので、上げるまで NANJYOU-H では `npm test` と `build.ps1` が動かない)
 
 ## 決まっていないこと
 
@@ -73,7 +72,7 @@
 | PC | Python | Node.js | config.toml |
 | --- | --- | --- | --- |
 | MSI | 3.14.4 | 22.23.2 | `legacy_app_dir` は設定しない(このPCの既存アプリのフォルダには月次DBと想定タクトの表が無いため)。確認用データ(`python -m app.cli demo-seed`)を使う |
-| NANJYOU-H | 3.14.7 | 20.19.6(PATH)。テストとビルドは 22.23.2(`C:\work\tools` に置いた、PATH に入れない版)で行った | 実データを読む設定 |
+| NANJYOU-H | 3.14.7 | 22.23.2(2026-10-23 に nvm で入れ替え) | 実データを読む設定 |
 
 ## 別のPCで再開する手順
 
