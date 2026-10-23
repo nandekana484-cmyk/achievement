@@ -83,6 +83,7 @@ C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
 ```
 
 - GenbaApp.exe が動いていても実行できる(書き込みは短く、ほかの書き込みと順番に行う)
+- 注意: GenbaCli.exe の日本語の出力は、PowerShell 5.1 でパイプや変数に渡すと(`| Select-Object`、`> log.txt`、`$x = ...` など)文字化けする(2026-10-22・23、NANJYOU-H で確認。`[Console]::OutputEncoding` を UTF-8 にしても直らなかった)。コマンドの成否は終了コード(`$LASTEXITCODE`。0 なら成功)で確かめる。コンソールのウィンドウにそのまま出したときの表示は、まだ確かめていない
 
 ## 担当者PCで使うスクリプト(packaging/)
 
