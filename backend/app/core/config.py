@@ -135,43 +135,49 @@ def _opt_path(v: str | None) -> Path | None:
     return Path(v) if v else None
 
 
+def _read_toml(path: Path) -> dict:
+    try:
+        # メモ帳や PowerShell が付ける BOM があっても読めるように utf-8-sig で読む
+        return tomllib.loads(path.read_bytes().decode("utf-8-sig"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+        raise ConfigError(f"config.toml の書き方に誤りがあります({path}): {e}") from e
+
+
+def _paths_from(p: dict) -> PathsConfig:
+    for old in _REMOVED_PATH_KEYS & p.keys():
+        logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
+    defaults = PathsConfig()
+    return PathsConfig(
+        database=Path(p.get("database", defaults.database)),
+        legacy_app_dir=_opt_path(p.get("legacy_app_dir")),
+        exchange_dir=Path(p.get("exchange_dir", defaults.exchange_dir)),
+        backup_dir=_opt_path(p.get("backup_dir")),
+        log_dir=Path(p.get("log_dir", defaults.log_dir)),
+    )
+
+
+def _sync_from(y: dict) -> SyncConfig:
+    return SyncConfig(
+        plan_interval_sec=int(y.get("plan_interval_sec", 60)),
+        cancel_guard_min=int(y.get("cancel_guard_min", SyncConfig.cancel_guard_min)),
+        cancel_guard_ratio=float(y.get("cancel_guard_ratio", SyncConfig.cancel_guard_ratio)),
+        legacy_db_max_age_days=int(y.get("legacy_db_max_age_days", SyncConfig.legacy_db_max_age_days)),
+    )
+
+
 def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig:
     path = path or config_path(home=home)
     if not path.exists():
         return _resolve(AppConfig(), home)
 
-    try:
-        # メモ帳や PowerShell が付ける BOM があっても読めるように utf-8-sig で読む
-        raw = tomllib.loads(path.read_bytes().decode("utf-8-sig"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
-        raise ConfigError(f"config.toml の書き方に誤りがあります({path}): {e}") from e
-
-    s = raw.get("server", {})
-    p = raw.get("paths", {})
-    y = raw.get("sync", {})
-    b = raw.get("backup", {})
-    a = raw.get("admin", {})
-    c = raw.get("corrections", {})
-    r = raw.get("reports", {})
-    for old in _REMOVED_PATH_KEYS & p.keys():
-        logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
-    defaults = PathsConfig()
+    raw = _read_toml(path)
+    s, b, a = raw.get("server", {}), raw.get("backup", {}), raw.get("admin", {})
+    c, r = raw.get("corrections", {}), raw.get("reports", {})
     return _resolve(AppConfig(
         server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
                             expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
-        paths=PathsConfig(
-            database=Path(p.get("database", defaults.database)),
-            legacy_app_dir=_opt_path(p.get("legacy_app_dir")),
-            exchange_dir=Path(p.get("exchange_dir", defaults.exchange_dir)),
-            backup_dir=_opt_path(p.get("backup_dir")),
-            log_dir=Path(p.get("log_dir", defaults.log_dir)),
-        ),
-        sync=SyncConfig(
-            plan_interval_sec=int(y.get("plan_interval_sec", 60)),
-            cancel_guard_min=int(y.get("cancel_guard_min", SyncConfig.cancel_guard_min)),
-            cancel_guard_ratio=float(y.get("cancel_guard_ratio", SyncConfig.cancel_guard_ratio)),
-            legacy_db_max_age_days=int(y.get("legacy_db_max_age_days", SyncConfig.legacy_db_max_age_days)),
-        ),
+        paths=_paths_from(raw.get("paths", {})),
+        sync=_sync_from(raw.get("sync", {})),
         schedule=ScheduleConfig(
             day_start=time.fromisoformat(raw.get("schedule", {}).get("day_start", ScheduleConfig.day_start.isoformat("minutes"))),
         ),
