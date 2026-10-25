@@ -71,9 +71,10 @@ def _me(op: Operator) -> AdminMeOut:
 
 
 @router.post("/login", response_model=AdminMeOut)
-def login(body: LoginIn, response: Response, session: Session = Depends(get_session)) -> AdminMeOut:
+def login(body: LoginIn, request: Request, response: Response, session: Session = Depends(get_session)) -> AdminMeOut:
     """作業者IDとパスワードでログインする。失敗の理由は区別しない(401「作業者IDかパスワードが違います」)。"""
-    token, op = admin_auth.login(session, body.worker_id, body.password, get_config().admin)
+    token, op = admin_auth.login(session, body.worker_id, body.password, get_config().admin,
+                                 request.client.host if request.client else "unknown")
     # 社内LANの HTTP で使うので Secure は付けない(docs/design/admin.md)
     response.set_cookie(COOKIE, token, httponly=True, samesite="strict", path=COOKIE_PATH)
     return _me(op)

@@ -21,6 +21,7 @@ from app.db.session import write_transaction
 from app.domain.passwords import DUMMY_HASH, check_new_password, hash_password, verify_password
 from app.domain.worker_id import worker_key
 from app.services.audit import record_change
+from app.services.login_throttle import ip_throttle
 from app.services.errors import NotFound, RuleViolation, TooManyAttempts, Unauthorized
 
 LOGIN_FAILED = "作業者IDかパスワードが違います"
@@ -44,8 +45,9 @@ def _find_admin(session: Session, worker_id: str) -> Operator | None:
     return op if is_admin(op) else None
 
 
-def login(session: Session, worker_id: str, password: str, cfg: AdminConfig) -> tuple[str, Operator]:
-    """ログインし、Cookie に入れるセッションの値と管理者を返す。"""
+def login(session: Session, worker_id: str, password: str, cfg: AdminConfig, ip: str = "unknown") -> tuple[str, Operator]:
+    """ログインし、Cookie に入れるセッションの値と管理者を返す。作業者IDごとと、接続元(ip)ごとに失敗を数える。"""
+    ip_throttle.check(ip)
     key = worker_key(worker_id) or "(空)"
     now = clock.now()
     attempt = session.get(AdminLoginAttempt, key)
@@ -66,7 +68,9 @@ def login(session: Session, worker_id: str, password: str, cfg: AdminConfig) -> 
             if attempt.failures >= cfg.lockout_failures:
                 attempt.failures, attempt.locked_until = 0, now + timedelta(minutes=cfg.lockout_minutes)
             session.commit()
+            ip_throttle.failed(ip, cfg)
             raise Unauthorized(LOGIN_FAILED)
+        ip_throttle.succeeded(ip)
         attempt.failures, attempt.locked_until = 0, None
         session.execute(delete(AdminSession).where(AdminSession.created_at < now - timedelta(hours=cfg.max_hours)))
         token = secrets.token_urlsafe(32)

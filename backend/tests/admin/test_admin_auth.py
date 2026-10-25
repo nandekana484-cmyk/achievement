@@ -191,3 +191,28 @@ def test_me_returns_server_workday(client, logged_in, fake_clock):
     assert client.get("/api/admin/me").json()["workday"] == "2026-10-20"
     fake_clock.advance(minutes=15)
     assert client.get("/api/admin/me").json()["workday"] == "2026-10-21"
+
+
+# --- 接続元IPごとの制限(S-07) ---
+
+def test_failures_from_one_address_lock_that_address_even_for_other_ids(client, people, fake_clock):
+    for i in range(20):  # 作業者IDを変えながら失敗する(IDごとの制限には当たらない)
+        assert login(client, worker_id=f"NOBODY{i}", password="wrong-pass-1").status_code == 401
+    r = login(client)  # 正しいIDとパスワードでも、この接続元は止まる
+    assert r.status_code == 429 and "この端末" in r.json()["detail"]
+    fake_clock.advance(minutes=4)
+    assert login(client).status_code == 429
+    fake_clock.advance(minutes=1, seconds=1)
+    assert login(client).status_code == 200
+
+
+def test_ip_failure_count_is_per_address_and_reset_by_success(client, people):
+    from app.services.login_throttle import ip_throttle
+
+    for i in range(19):
+        login(client, worker_id=f"NOBODY{i}", password="wrong-pass-1")
+    assert login(client).status_code == 200  # 成功で数え直す
+    for i in range(19):
+        login(client, worker_id=f"OTHER{i}", password="wrong-pass-1")
+    assert login(client).status_code == 200
+    ip_throttle.reset()

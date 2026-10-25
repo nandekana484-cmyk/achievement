@@ -12,6 +12,16 @@ from app.db.session import make_engine
 from legacy_fixture import add_monthly_db, make_legacy_app
 
 
+@pytest.fixture(autouse=True)
+def _reset_ip_throttle():
+    """ログインの失敗の数(接続元ごと)はプロセスの中に残るので、テストごとに戻す。"""
+    from app.services.login_throttle import ip_throttle
+
+    ip_throttle.reset()
+    yield
+    ip_throttle.reset()
+
+
 class FakeClock:
     """clock.now() を差し替える。advance() で時刻を進められる。"""
 

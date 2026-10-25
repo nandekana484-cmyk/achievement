@@ -38,6 +38,9 @@ max_hours = 12
 # 同じ作業者IDで続けて lockout_failures 回間違えたら、lockout_minutes 分ログインできない
 lockout_failures = 5
 lockout_minutes = 5
+# 同じ接続元(IPアドレス)から、作業者IDを問わず ip_lockout_failures 回続けて間違えたら、その接続元は ip_lockout_minutes 分ログインできない
+ip_lockout_failures = 20
+ip_lockout_minutes = 5
 
 [corrections]
 # 現場の画面で実績を直せる範囲。今の稼働日の前後にこの時間を足した範囲に、開始か終了がある記録だけ直せる

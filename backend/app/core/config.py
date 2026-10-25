@@ -77,6 +77,8 @@ class AdminConfig:
     max_hours: int = 12  # ログインからこの時間で切る
     lockout_failures: int = 5  # 続けてこの回数間違えたら
     lockout_minutes: int = 5  # この時間ログインできない
+    ip_lockout_failures: int = 20  # 同じ接続元から(作業者IDを問わず)続けてこの回数間違えたら(S-07)
+    ip_lockout_minutes: int = 5  # その接続元は、この時間ログインできない
 
 
 @dataclass(frozen=True)
