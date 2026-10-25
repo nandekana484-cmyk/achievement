@@ -86,7 +86,7 @@ test("ライン画面の操作", async ({ page }) => {
   await page.unroute("**/steps/production/end");
   await pad.getByRole("button", { name: "生産を終了" }).click();
   await expect(pad).toBeHidden();
-  await expect(page.locator(".fact", { hasText: "生産数の合計" })).toContainText("120");
+  await expect(page.locator(".fact", { hasText: "良品数の合計" })).toContainText("120");
 
   // ⑤ 生産の2回目の再開理由(設備が必要な理由を選ぶと、設備も選べる)
   await step(page, "生産 2回目").click();
@@ -250,7 +250,7 @@ test("⑱⑲ 実績の訂正(時刻を直す・取り消す・押し忘れの追
   await prod.getByRole("button", { name: "押し間違い" }).click();
   await prod.getByRole("button", { name: "取り消す", exact: true }).click();
   await expect(prod).toBeHidden();
-  await expect(page.locator(".fact", { hasText: "生産数の合計" })).toContainText("0");
+  await expect(page.locator(".fact", { hasText: "良品数の合計" })).toContainText("0");
   await expect(step(page, "生産 1回目")).toContainText("未着手");
 
   // 押し忘れの追加: 初品チェック(既定は30分前〜今)

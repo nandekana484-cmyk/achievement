@@ -59,14 +59,14 @@ test("⑳㉑ 日報の画面と印刷のプレビュー", async ({ page }) => {
   await expect(page.getByLabel("期間の終わり(稼働日)")).toHaveValue("2026-10-21");
   const sheet = page.locator(".report-sheet").first();
   await expect(sheet).toContainText("生産日報");
-  await expect(sheet).toContainText("生産数の合計: 120");
+  await expect(sheet).toContainText("良品数の合計: 120");
   await expect(sheet.getByRole("table", { name: "上段 8:15〜20:15" }).getByRole("row", { name: new RegExp(MORNING) })).toBeVisible();
   await expect(sheet.getByRole("table", { name: "上段 8:15〜20:15" })).toContainText("付帯作業");
   await page.screenshot({ path: `${SCREENS}/20-daily-report.png`, fullPage: true });
 
   // ㉑ 稼働日 10/20 を印刷の形で(下段に夜の記録)。A4 横向きの PDF も作る
   await page.getByLabel("稼働日", { exact: true }).fill("2026-10-20");
-  await expect(sheet).toContainText("生産数の合計: 150");
+  await expect(sheet).toContainText("良品数の合計: 150");
   await expect(sheet.getByRole("table", { name: "下段 20:15〜翌8:15" }).getByRole("row", { name: new RegExp(NIGHT) })).toBeVisible();
   await page.emulateMedia({ media: "print" });
   await expect(page.getByRole("navigation", { name: "管理画面" })).toBeHidden(); // 印刷ではメニューと操作の欄を出さない
@@ -99,7 +99,7 @@ test("日報は9行を超えると2ページになり、見出しが2ページ�
   await expect(sheets).toHaveCount(2);
   for (const [i, sheet] of [sheets.nth(0), sheets.nth(1)].entries()) {
     await expect(sheet.getByRole("heading", { name: "生産日報" })).toBeVisible(); // 見出し(最上部)を繰り返す
-    await expect(sheet).toContainText("生産数の合計");
+    await expect(sheet).toContainText("良品数の合計");
     await expect(sheet.locator(".report-legend")).toBeVisible();
     await expect(sheet.getByRole("table", { name: "上段 8:15〜20:15" })).toBeVisible(); // 上段・下段の目盛りも繰り返す
     await expect(sheet.getByRole("table", { name: "下段 20:15〜翌8:15" })).toBeVisible();

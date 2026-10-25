@@ -62,14 +62,14 @@ def _check_times(session: Session, kitting_no: str, step: StepType, start: datet
 def _check_qty(step: StepType, end: datetime | None, qty: int | None) -> None:
     if step != StepType.PRODUCTION:
         if qty is not None:
-            raise RuleViolation(f"{step.label}の記録には、生産数はありません")
+            raise RuleViolation(f"{step.label}の記録には、良品数はありません")
         return
     if end is None:
         if qty is not None:
-            raise RuleViolation("終了していない生産の区切りの生産数は、終了するときに入れてください")
+            raise RuleViolation("終了していない生産の区切りの良品数は、終了するときに入れてください")
         return
     if qty is None or qty < 0:
-        raise RuleViolation("生産数は0以上の整数で入力してください")
+        raise RuleViolation("良品数は0以上の整数で入力してください")
 
 
 def _result(session: Session, event: RunEvent, correction: RunCorrection) -> RunCorrectionResultOut:

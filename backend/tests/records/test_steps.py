@@ -68,7 +68,7 @@ def test_end_without_start_is_rejected(client, staffed):
 
 def test_production_end_requires_qty(client, staffed):
     ok(start(client, "production"))
-    conflict(end(client, "production"), "生産数を入力してください")
+    conflict(end(client, "production"), "良品数を入力してください")
     conflict(end(client, "production", produced_qty=-1), "0以上の整数")
     assert end(client, "production", produced_qty=1.5).status_code == 422  # 整数でない
     e = ok(end(client, "production", produced_qty=0))["event"]  # 0 はよい
@@ -77,7 +77,7 @@ def test_production_end_requires_qty(client, staffed):
 
 def test_other_steps_reject_qty(client, staffed):
     ok(start(client, "setup"))
-    conflict(end(client, "setup", produced_qty=10), "段取りの終了では、生産数は受け付けません")
+    conflict(end(client, "setup", produced_qty=10), "段取りの終了では、良品数は受け付けません")
 
 
 def test_restart_reason_rules(client, staffed):

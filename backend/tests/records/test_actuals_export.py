@@ -152,3 +152,31 @@ def test_worker_id_is_exported_as_written_in_the_legacy_app(client, admin, fake_
     produce(client, fake_clock, K2, 300)
     finish(client, fake_clock, K2)
     assert listing(client)[0]["worker_id"] == "ｔ０１"  # 正規化した値(T01)ではなく、workers の worker_id と同じもの
+
+
+# --- ロットNo.は計画のまま出す(整形も統合もしない) ---
+
+SIMILAR_LOTS = ["123456-", "123456-1", "123456-2", "123456K", "123456.1", "123456"]
+
+
+def test_similar_lot_numbers_are_exported_as_they_are_in_the_plan(client, admin, fake_clock):
+    """既存アプリの取り込み側が、末尾の「-」のロットを必要に応じて 123456 と統合する(「-1」「-2」「K」「.1」は別のロット)。
+    現場アプリでは何もしない: 似た形でも、整形・統合せず、別の行として、計画のロットNo.のまま CSV に出す。"""
+    for lot in SIMILAR_LOTS:
+        insert_plan(admin["db"], kitting_no=K4, lot_no=lot, file_no="0900", qty=10)
+    sync_plans(admin["app"])
+    produce(client, fake_clock, K4, 60)
+    finish(client, fake_clock, K4)
+
+    rows = by_key(listing(client))
+    assert sorted(lot for (_, lot) in rows) == sorted(SIMILAR_LOTS)  # 6行(統合されない)
+    assert all(r["exportable"] for r in rows.values())
+
+    res = ok(export(client))
+    assert res["row_count"] == 6
+    saved = admin["exchange"] / "actuals" / res["file_name"]
+    csv_rows = _csv_rows(saved.read_bytes())[1:]
+    lot_column = [r[4] for r in csv_rows]  # 「ロットNo.」の列
+    assert sorted(lot_column) == sorted(SIMILAR_LOTS)  # 「123456-」も「123456」と別のまま、そのまま
+    assert len(set(lot_column)) == 6
+    assert sum(int(r[8]) for r in csv_rows) == 60  # 生産数(累計)はロットに割り振ったまま、合計は変わらない
