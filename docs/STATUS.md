@@ -52,6 +52,7 @@
 
 ## 既知の問題
 
+- **セキュリティの調査(AD-9、2026-10-25)で、重大な問題を見つけた(まだ直していない)**。画面の配信がフォルダの外のファイルを認証なしで返す(S-01)。直すまで、担当者PCに置かない。ほか中・低の問題と、直す順番は [security.md](design/security.md)
 - 実績の書き出しのひも付けをキー H にしたので、実データの試算では、面2があるのに H でつながらない面1が 241行(6.4%)ある。これは「ひも付けの確認」で管理者が確定する([actuals-export.md](design/actuals-export.md) の「実データでの試算」)
 - npm 10 は、依存を足す・変える(`npm install`)ときに `edgesOut` のエラーで止まる。`npx -y npm@11.21.0 install ...` を使う(`npm ci` は npm 10 で通る。[dependencies.md](design/dependencies.md))
 - `build.ps1` の zip の段階が、作った直後のファイルを開けずに1回失敗した(やり直すと通った)

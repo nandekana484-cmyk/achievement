@@ -571,7 +571,7 @@ API:
 
 ## 9. 非機能要件
 
-詳細: docs/design/db-writes.md(書き込みのロックの背景とテスト)
+詳細: docs/design/db-writes.md(書き込みのロックの背景とテスト)、docs/design/security.md(セキュリティの調査の結果と、直す順番)
 
 | 項目 | 方針 |
 | --- | --- |
