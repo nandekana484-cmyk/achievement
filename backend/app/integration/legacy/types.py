@@ -96,4 +96,11 @@ class LegacySourceRead:
 
 
 class LegacySourceError(Exception):
-    """既存アプリのDBを読めなかった(1つでも読めなければ、同期は何も反映しない)。"""
+    """既存アプリのDBを読めなかった(1つでも読めなければ、同期は何も反映しない)。
+
+    str(e) はログ用の詳細(パスを含む)。public は画面に出してよい文(パスを含まない)。
+    """
+
+    def __init__(self, message: str, public: str | None = None) -> None:
+        super().__init__(message)
+        self.public = public or "既存アプリのDBを読めませんでした。詳細はログ(genba.log)を見てください"

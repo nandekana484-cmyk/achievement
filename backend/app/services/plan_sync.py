@@ -99,7 +99,14 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
         session.rollback()
         logger.exception("計画の同期に失敗しました")
         sync_operators_alone(session, workers)  # 計画を読めなくても、作業者は読み込む
-        return _record_error(session, started_at, f"{type(e).__name__}: {e}", legacy_dbs)
+        return _record_error(session, started_at, public_error_message(e), legacy_dbs)
+
+
+def public_error_message(e: Exception) -> str:
+    """同期の失敗の理由のうち、画面(認証なしの /api/sync/status)に出してよい文。パスや例外の文は出さず、詳細はログに残す。"""
+    if isinstance(e, LegacySourceError):
+        return e.public
+    return "計画の同期で想定外のエラーが起きました。詳細はログ(genba.log)を見てください"
 
 
 def _read_workers(legacy_app_dir: Path) -> tuple[list[LegacyWorker] | None, str]:
@@ -107,7 +114,8 @@ def _read_workers(legacy_app_dir: Path) -> tuple[list[LegacyWorker] | None, str]
     try:
         return read_master_workers(legacy_app_dir), NO_WORKERS_TABLE
     except LegacySourceError as e:
-        return None, str(e)
+        logger.warning("作業者を読めません: %s", e)
+        return None, e.public
 
 
 def _record_error(session: Session, started_at: datetime, message: str, legacy_dbs: str | None) -> PlanSyncResult:

@@ -49,3 +49,12 @@ PyPI の公開ページ(JSON API)、GitHub、pypistats.org で確かめた。
 - **判断**: Starlette と FastAPI の公開している依存の情報が httpx2 を名指ししていること、作者が httpx と同じで、管理が Pydantic の組織であること、ダウンロード数が httpx と同じ規模であることから、本物の公開元のものと判断した。truststore は 2022 年から続く、pip も使っているライブラリ
   - 公開元の証明(attestation)は付いていないので、上の状況から判断している
 - httpx2 と truststore はテストのときだけ使う(`requirements-dev.txt`)。exe には入れない
+
+## 脆弱性の確認(npm audit と pip-audit)
+
+- フロントエンド: `cd frontend` → `npm audit`(開発用を含む)。2026-10-25 は 0件
+- バックエンド: pip-audit は `requirements*.txt` には入れていない(開発指針 0-8)。使うときは、venv の外に入れる(`pip install pip-audit --target <一時フォルダ>`)か、venv に一時的に入れる
+  - **日本語のコメントがある `requirements.txt` は、Windows の既定の文字コード(cp932)で読めずに止まる**(`UnicodeDecodeError: 'cp932' codec can't decode byte`)。**`PYTHONUTF8=1` を付けて動かす**
+  - PowerShell: `$env:PYTHONUTF8 = "1"; python -m pip_audit -r requirements.txt --progress-spinner off`(venv の中で。venv の全パッケージを調べるときは `-r` を外す)
+  - pip-audit は、パッケージ名と版を公開の脆弱性のデータベースに問い合わせる(通信が出る。ソースやデータは送らない)
+- 2026-10-25(AD-9)は、`npm audit` 0件、pip-audit は既知の脆弱性なし

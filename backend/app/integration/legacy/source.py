@@ -20,6 +20,11 @@ MONTHLY_DB_NAME = "inventory.db"
 MASTER_DB_NAME = "master.db"
 
 
+def _reason(e: Exception) -> str:
+    """画面に出してよい理由。sqlite のエラーの文にはパスが入らないが、OSError にはファイル名が入るので出さない。"""
+    return f"({e})" if isinstance(e, sqlite3.Error) else ""
+
+
 def find_monthly_dbs(legacy_app_dir: Path, max_age_days: int, now: datetime) -> tuple[list[tuple[str, Path, datetime]], list[SkippedDb]]:
     """db の直下のフォルダにある inventory.db を探す。既定DB(db\\inventory.db)と古すぎるDBは読まない。"""
     db_dir = legacy_app_dir / "db"
@@ -49,21 +54,23 @@ def read_legacy_source(legacy_app_dir: Path, max_age_days: int, now: datetime) -
     try:
         takt_master = read_takt_master(master)
     except (OSError, sqlite3.Error) as e:
-        raise LegacySourceError(f"master.db を読めません({master}): {type(e).__name__}: {e}") from e
+        raise LegacySourceError(f"master.db を読めません({master}): {type(e).__name__}: {e}", f"master.db を読めません{_reason(e)}。詳細はログを見てください") from e
 
     try:
         found, skipped = find_monthly_dbs(legacy_app_dir, max_age_days, now)
     except OSError as e:
-        raise LegacySourceError(f"{type(e).__name__}: {e}") from e
+        raise LegacySourceError(f"{type(e).__name__}: {e}", "既存アプリの db フォルダを読めません。詳細はログを見てください") from e
     if not found:
-        raise LegacySourceError(f"読む月次DBがありません({legacy_app_dir / 'db'}。{max_age_days}日以内に更新された <フォルダ>\\{MONTHLY_DB_NAME} が対象)")
+        raise LegacySourceError(f"読む月次DBがありません({legacy_app_dir / 'db'}。{max_age_days}日以内に更新された <フォルダ>\\{MONTHLY_DB_NAME} が対象)",
+                                f"読む月次DBがありません({max_age_days}日以内に更新された月次DBが対象)")
 
     dbs: list[MonthlyDbRead] = []
     for name, path, mtime in found:
         try:
             result = read_active_plans(path, takt_master)
         except (OSError, sqlite3.Error) as e:
-            raise LegacySourceError(f"月次DB「{name}」を読めません({path}): {type(e).__name__}: {e}") from e
+            raise LegacySourceError(f"月次DB「{name}」を読めません({path}): {type(e).__name__}: {e}",
+                                    f"月次DB「{name}」を読めません{_reason(e)}。詳細はログを見てください") from e
         result = replace(result, warnings=[replace(w, message=f"[{name}] {w.message}") for w in result.warnings])
         dbs.append(MonthlyDbRead(name=name, path=path, file_mtime=mtime, result=result))
     return LegacySourceRead(dbs=dbs, skipped=skipped)
@@ -78,4 +85,5 @@ def read_master_workers(legacy_app_dir: Path) -> list[LegacyWorker] | None:
     try:
         return read_workers(master)
     except (OSError, sqlite3.Error) as e:
-        raise LegacySourceError(f"master.db の作業者を読めません({master}): {type(e).__name__}: {e}") from e
+        raise LegacySourceError(f"master.db の作業者を読めません({master}): {type(e).__name__}: {e}",
+                                "master.db の作業者を読めません。詳細はログを見てください") from e

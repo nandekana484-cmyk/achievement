@@ -116,3 +116,14 @@ def test_real_app_still_serves_api_and_404s_unknown_api(tmp_path, monkeypatch):
         assert client.get("/api/health").status_code == 200
         r = client.get("/api/nothing")
         assert r.status_code in (404,) and r.headers["content-type"].startswith("application/json")
+
+
+def test_closed_paths_are_404_not_the_screen(tmp_path):
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<html>INDEX</html>", encoding="utf-8")
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    mount_spa(app, tmp_path, ("docs", "redoc", "openapi.json"))
+    client = TestClient(app)
+    for url in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(url).status_code == 404, url
+    assert client.get("/field/S").status_code == 200

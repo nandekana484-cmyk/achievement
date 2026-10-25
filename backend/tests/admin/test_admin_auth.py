@@ -191,3 +191,119 @@ def test_me_returns_server_workday(client, logged_in, fake_clock):
     assert client.get("/api/admin/me").json()["workday"] == "2026-10-20"
     fake_clock.advance(minutes=15)
     assert client.get("/api/admin/me").json()["workday"] == "2026-10-21"
+
+
+# --- 接続元IPごとの制限(S-07) ---
+
+def test_failures_from_one_address_lock_that_address_even_for_other_ids(client, people, fake_clock):
+    for i in range(20):  # 作業者IDを変えながら失敗する(IDごとの制限には当たらない)
+        assert login(client, worker_id=f"NOBODY{i}", password="wrong-pass-1").status_code == 401
+    r = login(client)  # 正しいIDとパスワードでも、この接続元は止まる
+    assert r.status_code == 429 and "この端末" in r.json()["detail"]
+    fake_clock.advance(minutes=4)
+    assert login(client).status_code == 429
+    fake_clock.advance(minutes=1, seconds=1)
+    assert login(client).status_code == 200
+
+
+def test_ip_failure_count_is_per_address_and_reset_by_success(client, people):
+    from app.services.login_throttle import ip_throttle
+
+    for i in range(19):
+        login(client, worker_id=f"NOBODY{i}", password="wrong-pass-1")
+    assert login(client).status_code == 200  # 成功で数え直す
+    for i in range(19):
+        login(client, worker_id=f"OTHER{i}", password="wrong-pass-1")
+    assert login(client).status_code == 200
+    ip_throttle.reset()
+
+
+# --- パスワードを変えたら、ほかのセッションは無効(S-08) ---
+
+def test_changing_the_password_ends_the_other_sessions(client, logged_in):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    other = TestClient(app)  # 別の端末(Cookie が別)
+    assert login(other).status_code == 200 and other.get("/api/admin/me").status_code == 200
+    body = {"current_password": PASSWORD, "new_password": "new-pass-123"}
+    assert client.put("/api/admin/password", json=body, headers=H).status_code == 204
+    assert other.get("/api/admin/me").status_code == 401  # ほかの端末は切れる
+    assert client.get("/api/admin/me").status_code == 200  # 変えた画面は続けて使える
+
+
+def test_resetting_the_password_from_the_cli_ends_all_sessions(client, logged_in):
+    from app.services import admin_auth
+
+    assert client.get("/api/admin/me").status_code == 200
+    with get_sessionmaker()() as s:
+        admin_auth.set_password(s, "K0042", "reset-pass-123")
+    assert client.get("/api/admin/me").status_code == 401
+
+
+def test_sessions_of_other_admins_are_kept(client, logged_in):
+    from app.services import admin_auth, masters
+
+    with get_sessionmaker()() as s:
+        masters.add_operator(s, "管理 次郎", worker_id="K0043", role="admin")
+        admin_auth.set_password(s, "K0043", "second-pass-1")
+    assert login(client, worker_id="K0043", password="second-pass-1").status_code == 200
+    with get_sessionmaker()() as s:
+        admin_auth.set_password(s, "K0042", "reset-pass-123")
+    assert client.get("/api/admin/me").json()["worker_id"] == "K0043"  # この client は K0043 に入れ替わっている
+
+
+# --- scrypt の強さ(S-09) ---
+
+def _old_hash(password: str) -> str:
+    """以前の強さ(n=2^14)で作ったハッシュ。"""
+    import hashlib
+    import secrets
+
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    return f"scrypt${2**14}$8$1${salt.hex()}${digest.hex()}"
+
+
+@pytest.mark.real_scrypt
+def test_new_hashes_use_the_current_strength_and_old_ones_still_verify():
+    from app.domain.passwords import hash_password, needs_rehash, verify_password
+
+    new = hash_password("long-enough-1")
+    assert new.startswith(f"scrypt${2**17}$8$1$") and not needs_rehash(new) and verify_password("long-enough-1", new)
+    old = _old_hash("long-enough-1")
+    assert needs_rehash(old) and verify_password("long-enough-1", old) and not verify_password("wrong", old)
+    assert needs_rehash("garbage")
+    assert not verify_password("x", f"scrypt${2**30}$8$1$00${'00' * 32}")  # 大きすぎる値は計算しない
+
+
+@pytest.mark.real_scrypt
+def test_old_hash_is_rebuilt_on_the_next_successful_login(client, people):
+    from app.db.models import AdminCredential
+    from app.domain.passwords import needs_rehash
+
+    with get_sessionmaker()() as s:
+        s.get(AdminCredential, people["admin"]).password_hash = _old_hash(PASSWORD)
+        s.commit()
+    assert login(client, password="wrong-pass-1").status_code == 401  # 失敗では作り直さない
+    with get_sessionmaker()() as s:
+        assert needs_rehash(s.get(AdminCredential, people["admin"]).password_hash)
+    assert login(client).status_code == 200
+    with get_sessionmaker()() as s:
+        assert not needs_rehash(s.get(AdminCredential, people["admin"]).password_hash)
+    assert login(client).status_code == 200  # 作り直したあとも入れる
+
+
+@pytest.mark.real_scrypt
+def test_login_takes_under_one_second(client, people):
+    import time
+
+    login(client)  # 最初の1回を除く
+    start = time.perf_counter()
+    assert login(client).status_code == 200
+    ok_time = time.perf_counter() - start
+    start = time.perf_counter()
+    assert login(client, worker_id="NOBODY", password="wrong-pass-1").status_code == 401
+    unknown_time = time.perf_counter() - start
+    assert ok_time < 1.0 and unknown_time < 1.0, (ok_time, unknown_time)

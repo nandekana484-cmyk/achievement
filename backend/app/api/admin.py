@@ -71,9 +71,10 @@ def _me(op: Operator) -> AdminMeOut:
 
 
 @router.post("/login", response_model=AdminMeOut)
-def login(body: LoginIn, response: Response, session: Session = Depends(get_session)) -> AdminMeOut:
+def login(body: LoginIn, request: Request, response: Response, session: Session = Depends(get_session)) -> AdminMeOut:
     """作業者IDとパスワードでログインする。失敗の理由は区別しない(401「作業者IDかパスワードが違います」)。"""
-    token, op = admin_auth.login(session, body.worker_id, body.password, get_config().admin)
+    token, op = admin_auth.login(session, body.worker_id, body.password, get_config().admin,
+                                 request.client.host if request.client else "unknown")
     # 社内LANの HTTP で使うので Secure は付けない(docs/design/admin.md)
     response.set_cookie(COOKIE, token, httponly=True, samesite="strict", path=COOKIE_PATH)
     return _me(op)
@@ -93,7 +94,7 @@ def me(op: Operator = Depends(current_admin)) -> AdminMeOut:
 
 
 @router.put("/password", status_code=204)
-def change_password(body: PasswordChangeIn, op: Operator = Depends(current_admin),
+def change_password(body: PasswordChangeIn, request: Request, op: Operator = Depends(current_admin),
                     session: Session = Depends(get_session)) -> None:
-    """自分のパスワードを変える(今のパスワードが要る。8文字以上)。"""
-    admin_auth.change_own_password(session, op, body.current_password, body.new_password)
+    """自分のパスワードを変える(今のパスワードが要る。8文字以上)。ほかのセッションは無効になる。"""
+    admin_auth.change_own_password(session, op, body.current_password, body.new_password, request.cookies.get(COOKIE))

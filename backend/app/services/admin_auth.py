@@ -18,9 +18,10 @@ from app.core import clock
 from app.core.config import AdminConfig
 from app.db.models import AdminCredential, AdminLoginAttempt, AdminSession, Operator
 from app.db.session import write_transaction
-from app.domain.passwords import DUMMY_HASH, check_new_password, hash_password, verify_password
+from app.domain.passwords import DUMMY_HASH, check_new_password, hash_password, needs_rehash, verify_password
 from app.domain.worker_id import worker_key
 from app.services.audit import record_change
+from app.services.login_throttle import ip_throttle
 from app.services.errors import NotFound, RuleViolation, TooManyAttempts, Unauthorized
 
 LOGIN_FAILED = "作業者IDかパスワードが違います"
@@ -44,8 +45,9 @@ def _find_admin(session: Session, worker_id: str) -> Operator | None:
     return op if is_admin(op) else None
 
 
-def login(session: Session, worker_id: str, password: str, cfg: AdminConfig) -> tuple[str, Operator]:
-    """ログインし、Cookie に入れるセッションの値と管理者を返す。"""
+def login(session: Session, worker_id: str, password: str, cfg: AdminConfig, ip: str = "unknown") -> tuple[str, Operator]:
+    """ログインし、Cookie に入れるセッションの値と管理者を返す。作業者IDごとと、接続元(ip)ごとに失敗を数える。"""
+    ip_throttle.check(ip)
     key = worker_key(worker_id) or "(空)"
     now = clock.now()
     attempt = session.get(AdminLoginAttempt, key)
@@ -58,6 +60,9 @@ def login(session: Session, worker_id: str, password: str, cfg: AdminConfig) -> 
     # ハッシュの確かめ(時間がかかる)は書き込みのロックの外で行う。IDが無くても同じだけ時間をかける
     ok = verify_password(password, cred.password_hash if cred is not None else DUMMY_HASH) and cred is not None
 
+    # 古い(弱い)ハッシュは、パスワードが合ったときに今の強さで作り直す。時間がかかるので、これもロックの外で計算する
+    upgraded = hash_password(password) if ok and needs_rehash(cred.password_hash) else None
+
     with write_transaction(session):
         attempt = session.get(AdminLoginAttempt, key) or AdminLoginAttempt(worker_key=key, failures=0)
         session.add(attempt)
@@ -66,7 +71,11 @@ def login(session: Session, worker_id: str, password: str, cfg: AdminConfig) -> 
             if attempt.failures >= cfg.lockout_failures:
                 attempt.failures, attempt.locked_until = 0, now + timedelta(minutes=cfg.lockout_minutes)
             session.commit()
+            ip_throttle.failed(ip, cfg)
             raise Unauthorized(LOGIN_FAILED)
+        ip_throttle.succeeded(ip)
+        if upgraded is not None:
+            session.get(AdminCredential, op.id).password_hash = upgraded
         attempt.failures, attempt.locked_until = 0, None
         session.execute(delete(AdminSession).where(AdminSession.created_at < now - timedelta(hours=cfg.max_hours)))
         token = secrets.token_urlsafe(32)
@@ -137,18 +146,19 @@ def admin_for_password(session: Session, worker_id: str) -> Operator:
     return op
 
 
-def change_own_password(session: Session, op: Operator, current: str, new: str) -> None:
-    """管理画面から、自分のパスワードを変える(今のパスワードが要る)。"""
+def change_own_password(session: Session, op: Operator, current: str, new: str, keep_token: str | None = None) -> None:
+    """管理画面から、自分のパスワードを変える(今のパスワードが要る)。変えた画面のセッション(keep_token)以外は無効にする。"""
     cred = session.get(AdminCredential, op.id)
     if cred is None or not verify_password(current, cred.password_hash):
         raise RuleViolation("今のパスワードが違います")
     problem = check_new_password(new)
     if problem:
         raise RuleViolation(problem)
-    _store(session, op, new, op.id)
+    _store(session, op, new, op.id, _token_hash(keep_token) if keep_token else None)
 
 
-def _store(session: Session, op: Operator, password: str, actor_id: int | None) -> None:
+def _store(session: Session, op: Operator, password: str, actor_id: int | None, keep_session: str | None = None) -> None:
+    """パスワードを保存し、その人の既存のセッションを無効にする(keep_session のハッシュのものだけ残す。S-08)。"""
     hashed = hash_password(password)  # 時間がかかるので、ロックの外で計算する
     with write_transaction(session):
         cred = session.get(AdminCredential, op.id)
@@ -158,6 +168,8 @@ def _store(session: Session, op: Operator, password: str, actor_id: int | None) 
             session.add(cred)
         cred.password_hash, cred.updated_at = hashed, clock.now()
         session.execute(delete(AdminLoginAttempt).where(AdminLoginAttempt.worker_key == op.worker_key))
+        others = delete(AdminSession).where(AdminSession.operator_id == op.id)
+        session.execute(others.where(AdminSession.token_hash != keep_session) if keep_session else others)
         # パスワードそのものは記録しない
         record_change(session, actor_id, "admin_credentials", str(op.id), action, None, {"password": "(変更)"})
         session.commit()

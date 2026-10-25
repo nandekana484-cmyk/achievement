@@ -578,7 +578,7 @@ API:
 | 同時アクセス | uvicornは1プロセス。SQLiteはWAL。端末数台を想定 |
 | 書き込みのロック | SQLite は古い読み取りにもとづく書き込みを拒否する(busy_timeout があっても即座に database is locked になる)ため、本アプリのDBに書き込む処理(ボタン操作、計画の同期、開発用コマンド)は、処理の最初に書き込みのロックを取る(BEGIN IMMEDIATE)。あわせて、同じプロセス内の書き込みは1つのロックで1つずつ行う(`app/db/session.py` の `write_transaction`)。計画の同期は、既存DBの読み取りと正とするDBの決定をロックの外で行い、本アプリのDBに反映する部分だけをロックする。それでもロックが取れなかったとき(ほかのプロセスが書き込み中など)は 503「他の処理と重なったため、記録できませんでした。もう一度押してください」を返し、冪等性の記録(api_requests)には残さない(同じ request_id で送り直せば記録される) |
 | 認証(現場) | 現場端末はライン単位で使い、記録者は「今の担当者」で特定する(PINの要否は未確定) |
-| 認証(管理) | 作業者IDとパスワード(標準ライブラリの scrypt のハッシュで保存。8文字以上)。セッションは Cookie(HttpOnly、SameSite=Strict。社内LANの HTTP なので Secure は付けない)。操作が無い30分・最長12時間で切れる。続けて5回間違えたら5分ログインできない。データを変える要求には X-Genba-Admin ヘッダーが要る(詳細: docs/design/admin.md) |
+| 認証(管理) | 作業者IDとパスワード(標準ライブラリの scrypt(n=2^17)のハッシュで保存。8文字以上)。セッションは Cookie(HttpOnly、SameSite=Strict。社内LANの HTTP なので Secure は付けない)。操作が無い30分・最長12時間で切れる。続けて5回間違えたら5分ログインできない(同じ接続元からは、作業者IDを問わず20回で5分)。パスワードを変えたら、その人のほかのセッションは無効。データを変える要求には X-Genba-Admin ヘッダーが要る(詳細: docs/design/admin.md) |
 | HTTPS | フェーズ1は不要(カメラもPWAも使わないため)。必要になったら社内用の証明書を導入する |
 | 時刻 | サーバーの時刻で記録する。担当者PCのWindows時刻同期を有効にする |
 | バックアップ | SQLiteのバックアップ機能(`backup()`)で、起動時(DBの構造の更新の前)と毎日決まった時刻(既定 12:30)に、config.toml の backup_dir(共有フォルダ)へ保存する。起動中のファイルコピーはしない。世代は既定30で、古い順に消す(本アプリが作ったファイルだけ)。保存できなくてもアプリは止めず、警告をログに出す(`services/backup.py`。詳細: docs/design/packaging.md) |
@@ -609,7 +609,7 @@ C:\GenbaApp\         基準のフォルダ(GENBA_HOME。exe の2つ上。環境�
 
 ビルド(開発者PC): `packaging\build.ps1` を実行する。画面のビルド → テスト(pytest・vitest)→ PyInstaller(フォルダ形式)→ `packaging\dist\v<版>\` と `GenbaApp-v<版>.zip`。版は `backend/app/__init__.py` の `__version__`
 
-自動起動とファイアウォール(担当者PC、管理者権限): `packaging\install-autostart.ps1`(タスクスケジューラ。PCの起動時に、担当者のアカウントで「ログオンしているかどうかにかかわらず実行する」形で起動。ウィンドウは出ない。SYSTEM も選べる)と `packaging\firewall-allow.ps1`(アプリのポートだけ受信を許可)。解除は `uninstall-autostart.ps1`、`firewall-remove.ps1`
+自動起動とファイアウォール(担当者PC、管理者権限): `packaging\install-autostart.ps1`(タスクスケジューラ。PCの起動時に、専用のアカウント(-User 必須。SYSTEM・Administrator は断る)で「ログオンしているかどうかにかかわらず実行する」形で起動。ウィンドウは出ない)と `packaging\firewall-allow.ps1`(アプリのポートだけ、相手を絞って受信を許可。-RemoteAddress)。解除は `uninstall-autostart.ps1`、`firewall-remove.ps1`
 
 更新(担当者PC): 停止 → 新しい版のフォルダを置く(旧版は残す)→ 新しい版で自動起動を登録し直す(パスワードを入力する)→ 起動(起動時にバックアップとAlembicを自動実行)→ 稼働確認の画面(/api/health)で確認。問題があれば旧版と更新前のバックアップ(`*_startup.db`)に戻す。
 

@@ -53,13 +53,22 @@ COLUMNS: list[tuple[str, Callable[[IntervalOut], object]]] = [
 
 HEADERS = [h for h, _ in COLUMNS]
 
+# 人が入れた文字の列。Excel で式として動かないよう、先頭が危ない文字なら ' を付ける(S-03。詳細: docs/design/security.md)。
+# キッティングNo.・ロットNo.・ファイルNo. などの識別の列は、取り込み側が完全一致で使うので変えない
+FREE_TEXT_HEADERS = {"品名", "工程または理由", "再開理由", "設備", "理由の記入", "開始した人", "終了した人"}
+_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def safe_cell(value: str) -> str:
+    return "'" + value if value.startswith(_FORMULA_STARTS) else value
+
 
 def intervals_csv(rows: list[IntervalOut]) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n")
     w.writerow(HEADERS)
     for r in rows:
-        w.writerow([get(r) for _, get in COLUMNS])
+        w.writerow([safe_cell(get(r)) if h in FREE_TEXT_HEADERS else get(r) for h, get in COLUMNS])
     return buf.getvalue().encode("utf-8-sig")
 
 

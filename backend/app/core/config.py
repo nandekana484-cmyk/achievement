@@ -32,6 +32,9 @@ class ConfigError(Exception):
 class ServerConfig:
     host: str = "0.0.0.0"
     port: int = 8000
+    # /docs・/redoc・/openapi.json を出すか。本番は出さない(開発で確かめたいときだけ true)。詳細: docs/design/security.md(S-02)
+    expose_docs: bool = False
+    max_body_mb: int = 5  # リクエスト本文の上限(MB)。超えたら 413(S-11)
 
 
 @dataclass(frozen=True)
@@ -74,6 +77,8 @@ class AdminConfig:
     max_hours: int = 12  # ログインからこの時間で切る
     lockout_failures: int = 5  # 続けてこの回数間違えたら
     lockout_minutes: int = 5  # この時間ログインできない
+    ip_lockout_failures: int = 20  # 同じ接続元から(作業者IDを問わず)続けてこの回数間違えたら(S-07)
+    ip_lockout_minutes: int = 5  # その接続元は、この時間ログインできない
 
 
 @dataclass(frozen=True)
@@ -152,7 +157,8 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
         logger.warning("config.toml の paths.%s は使われなくなりました。paths.legacy_app_dir を設定してください", old)
     defaults = PathsConfig()
     return _resolve(AppConfig(
-        server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000))),
+        server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
+                            expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
         paths=PathsConfig(
             database=Path(p.get("database", defaults.database)),
             legacy_app_dir=_opt_path(p.get("legacy_app_dir")),

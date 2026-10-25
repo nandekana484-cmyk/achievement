@@ -11,37 +11,40 @@
 - 重大度の目安: **高** = 認証なしで、または社内LANの誰でも、重大な被害に届く。**中** = 条件がそろうと被害が出る、または運用で防ぐ前提のもの。**低** = 影響が小さい、または多層防御の不足
 - 前提(開発指針 3、9): 社内LANだけで使う。現場端末は認証なし(PIN は未確定事項)。管理画面だけがログインを要る。HTTP のみ
 
+> **この文書の読み方**: 「問題の一覧」の重大度の欄が、いまの状態。1〜7 の各節は、調査したとき(修正前)の記述で、直した内容は「修正の記録」にある(S-01・S-15 は AD-11、S-02〜S-14 は AD-12)。
+
 ## 問題の一覧
 
 | ID | 重大度 | 内容 | 場所 |
 | --- | --- | --- | --- |
 | S-01 | **高**(修正済み) | 画面を配信する処理が、認証なしで **フォルダの外のファイルを読ませる**(パストラバーサル)。config.toml、本アプリのDB(管理者のパスワードのハッシュと全実績)、既存アプリのDBまで取れる | `backend/app/main.py` の `spa()` |
-| S-02 | 中 | 本番でも `/docs`・`/redoc`・`/openapi.json` が開く | `backend/app/main.py`(`FastAPI(...)`) |
-| S-03 | 中 | CSV インジェクション。書き出す CSV のセルが `= + - @` で始まっても無害化していない。現場の画面から入れた自由入力(付帯作業の「理由の記入」)が区間の CSV に出る | `services/report_csv.py`、`services/actuals_export.py` |
-| S-04 | 中 | HTTP のみ・全NIC待ち受け(`0.0.0.0`)・ファイアウォールの規則に相手の範囲(RemoteAddress)が無い。管理画面のパスワードが平文で流れる | `config.example.toml`、`packaging/firewall-allow.ps1` |
-| S-05 | 中 | 自動起動を SYSTEM にできる。`C:\GenbaApp` のフォルダの権限(ACL)の指示が無い。S-01 と重なると、SYSTEM の権限で任意のファイルが読める。exe の置き換えで権限昇格もできる | `packaging/install-autostart.ps1`、`docs/design/packaging.md` |
-| S-06 | 中 | 現場のAPI(認証なし)が、作業者の名前・作業者ID・役割(admin)を返す。管理画面のログインIDは作業者IDなので、「ID を知る」ところまでは誰でも届く。記録者のなりすましも誰でもできる(設計上の前提。PIN は未確定事項) | `GET /api/masters`、`GET /api/operators/lookup` |
-| S-07 | 低 | ログイン失敗の制限が作業者IDごとだけ。管理者のIDを知る人が、5分ごとに5回失敗させ続けると正しい管理者が入れない。存在しないIDの行も増え続ける | `services/admin_auth.py` の `login()` |
-| S-08 | 低 | パスワードを変えても、ほかのセッションが残る(12時間まで)。期限切れのセッションの行は、次のログインのときの最長時間でしか消えない | `services/admin_auth.py` |
-| S-09 | 低 | パスワードのハッシュ(scrypt)のコストが OWASP の推奨より低い(N=2^14、p=1。推奨は N=2^17、r=8、p=1 など)。古いハッシュを強いものに替える処理も無い | `domain/passwords.py` |
-| S-10 | 低 | セキュリティヘッダー(X-Content-Type-Options、frame の禁止、Referrer-Policy、CSP)が無い。管理画面を別のページの iframe に入れられる(クリックジャッキング) | `backend/app/main.py` |
-| S-11 | 低 | リクエストの大きさの上限が無い(20MB の本文を受けて解析した)。現場のAPIは認証なしなので、`api_requests`(冪等性の記録)やDBを増やし続けられる。計画の検索は毎回全件を読む | `backend/app/main.py`、`services/idempotency.py`、`services/plan_search.py` |
-| S-12 | 低 | `GET /api/sync/status`(認証なし)が、同期の失敗の例外の文をそのまま返す。既存アプリのフォルダのパスなどが入る | `services/plan_sync.py` の `_record_error`、`api/plans.py` |
-| S-13 | 低 | アクセスログ(`logs\genba.log`、90日分)に、`/api/operators/lookup?worker_id=…` の作業者IDがクエリごと残る | `backend/app/server.py`(`log_config=None`) |
-| S-14 | 低 | 管理者のAPIの認証が、ルートごとの `Admin` 引数に頼っている。いまは漏れが無いが、新しいルートで付け忘れても気づく仕組みが無い | `api/admin_*.py` |
+| S-02 | 中(修正済み) | 本番でも `/docs`・`/redoc`・`/openapi.json` が開く | `backend/app/main.py`(`FastAPI(...)`) |
+| S-03 | 中(修正済み) | CSV インジェクション。書き出す CSV のセルが `= + - @` で始まっても無害化していない。現場の画面から入れた自由入力(付帯作業の「理由の記入」)が区間の CSV に出る | `services/report_csv.py`、`services/actuals_export.py` |
+| S-04 | 中(手順を書いた。担当者PCで実施) | HTTP のみ・全NIC待ち受け(`0.0.0.0`)・ファイアウォールの規則に相手の範囲(RemoteAddress)が無い。管理画面のパスワードが平文で流れる | `config.example.toml`、`packaging/firewall-allow.ps1` |
+| S-05 | 中(スクリプトを直し、手順を書いた。担当者PCで実施) | 自動起動を SYSTEM にできる。`C:\GenbaApp` のフォルダの権限(ACL)の指示が無い。S-01 と重なると、SYSTEM の権限で任意のファイルが読める。exe の置き換えで権限昇格もできる | `packaging/install-autostart.ps1`、`docs/design/packaging.md` |
+| S-06 | 中(role は修正済み。名前・IDと現場のPINは未解決) | 現場のAPI(認証なし)が、作業者の名前・作業者ID・役割(admin)を返す。管理画面のログインIDは作業者IDなので、「ID を知る」ところまでは誰でも届く。記録者のなりすましも誰でもできる(設計上の前提。PIN は未確定事項) | `GET /api/masters`、`GET /api/operators/lookup` |
+| S-07 | 低(修正済み) | ログイン失敗の制限が作業者IDごとだけ。管理者のIDを知る人が、5分ごとに5回失敗させ続けると正しい管理者が入れない。存在しないIDの行も増え続ける | `services/admin_auth.py` の `login()` |
+| S-08 | 低(修正済み) | パスワードを変えても、ほかのセッションが残る(12時間まで)。期限切れのセッションの行は、次のログインのときの最長時間でしか消えない | `services/admin_auth.py` |
+| S-09 | 低(修正済み) | パスワードのハッシュ(scrypt)のコストが OWASP の推奨より低い(N=2^14、p=1。推奨は N=2^17、r=8、p=1 など)。古いハッシュを強いものに替える処理も無い | `domain/passwords.py` |
+| S-10 | 低(修正済み) | セキュリティヘッダー(X-Content-Type-Options、frame の禁止、Referrer-Policy、CSP)が無い。管理画面を別のページの iframe に入れられる(クリックジャッキング) | `backend/app/main.py` |
+| S-11 | 低(修正済み) | リクエストの大きさの上限が無い(20MB の本文を受けて解析した)。現場のAPIは認証なしなので、`api_requests`(冪等性の記録)やDBを増やし続けられる。計画の検索は毎回全件を読む | `backend/app/main.py`、`services/idempotency.py`、`services/plan_search.py` |
+| S-12 | 低(修正済み) | `GET /api/sync/status`(認証なし)が、同期の失敗の例外の文をそのまま返す。既存アプリのフォルダのパスなどが入る | `services/plan_sync.py` の `_record_error`、`api/plans.py` |
+| S-13 | 低(修正済み) | アクセスログ(`logs\genba.log`、90日分)に、`/api/operators/lookup?worker_id=…` の作業者IDがクエリごと残る | `backend/app/server.py`(`log_config=None`) |
+| S-14 | 低(修正済み) | 管理者のAPIの認証が、ルートごとの `Admin` 引数に頼っている。いまは漏れが無いが、新しいルートで付け忘れても気づく仕組みが無い | `api/admin_*.py` |
 | S-15 | 低(修正済み) | 知らない `/api/...` が 404 ではなく 200 で index.html を返す(画面用の受け皿が API のパスも受ける) | `backend/app/main.py` の `spa()` |
 | S-16 | 情報 | Git の履歴に、パスワード・config.toml・DB・実データらしきものは見つからなかった。ただし、テストや文書に実データから取ったかもしれないキッティングNo.の例がある(要確認)。開発PC名とメールアドレスが履歴にある | 6 を参照 |
 | S-17 | 情報 | 依存: `npm audit` 0件、`pip-audit` 0件。ライセンスは製品に入るものに GPL・AGPL なし | 6 を参照 |
 
 ## 直す順番の案
 
-1. **S-01(最優先。AD-11 で修正済み)**。小さな直しで済む(解決したパスが `STATIC_DIR` の中にあるか確かめる)。テストも付ける。**直すまでは、担当者PCに置かない・実データを読む設定で外部から届く場所では動かさない**
-2. S-02(本番で `/docs` などを閉じる)。S-15 は AD-11 で S-01 と一緒に修正済み。S-02 は S-01 と同じ `main.py` の変更で、一緒にできる
-3. S-05 の運用の決め(SYSTEM で動かさない、`C:\GenbaApp` の権限を絞る)と S-04 のファイアウォール(RemoteAddress)。コードを変えずに、手順書(`packaging.md`)とスクリプトの引数で済む
-4. S-03(CSV の無害化)。「理由の記入」など自由入力の列だけを対象にする。既存アプリの取込口に影響する列(ロットNo. など)は別に扱う(2.2 を参照)
-5. S-12(同期のエラーの文は管理者だけに)、S-06 のうち役割(role)を現場のAPIから外すこと
-6. S-07〜S-11、S-13、S-14(全ルートが管理者か現場かを数えるテストを足す)
-7. S-06 の本題(現場の端末にPINを付けるか)は未確定事項のまま。試用で決める
+済み: S-01・S-15(AD-11)、S-02・S-03・S-06(role)・S-07〜S-14(AD-12)
+
+残り:
+
+1. **S-04・S-05 を担当者PCで実施する**(専用アカウント、`C:\GenbaApp` とバックアップ先の権限、ファイアウォールの `-RemoteAddress`)。手順は packaging.md。コードの変更は要らない
+2. S-16: 履歴のキッティングNo.(spec.md の例など)が実データから取ったものでないか確かめる
+3. S-06 の本題: 現場の端末にPINを付けるか(未確定事項。試用で決める)。付けない間は、作業者の名前と作業者IDが現場のAPIから誰でも読める
+4. 将来、HTTPS(社内の認証局の証明書)を入れるとき、Cookie に `Secure` を付ける(5.3)
 
 ---
 
@@ -57,6 +60,29 @@
 - テスト: `backend/tests/test_static_files.py`。配信フォルダの外に本物のファイル(`data/config.toml` の形)を置き、攻撃の形を20通り送って、404 で中身が出ないことを確かめる。通常のファイル、`/assets`、画面の遷移、`/api/` の404も確かめる
 - 本番用の exe(`GenbaApp.exe`、版 0.1.0)でも確かめた: 配信フォルダの外に置いた目印のファイルに対し、`..%2f..%2f`、`%2e%2e/`、`/../../`(`--path-as-is`)、`..%5c`、`%252e%252e`、`%00`、`C:/Windows/win.ini` はすべて 404(JSON)。`/`、`/field/S`、`/admin/login`、`/assets/…` は 200
 - 残ること: S-02(本番の `/docs`)など、ほかの問題は直していない
+
+### S-02〜S-14: 修正済み(AD-12、2026-10-25、feature/security-fixes)
+
+指示書(AD-12)の項目の番号は、この文書の ID と違う。対応は次のとおり。コミットは項目ごとに分けた。
+
+| この文書の ID | AD-12 の項目 | 直したこと | テスト |
+| --- | --- | --- | --- |
+| S-02 | 1 | 本番は `/docs`・`/redoc`・`/openapi.json` を開かない。設定 `[server] expose_docs`(既定 false)で開ける。閉じたときは画面(index.html)ではなく 404。`npm run gen:api` は `app.openapi()` を直接呼ぶので、開かなくても動く | `test_docs_urls.py`、`test_static_files.py` |
+| S-10 | 2 | 全応答に `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: same-origin`、CSP は `frame-ancestors 'none'` だけ(`app/http_guard.py`)。想定外の例外の 500(uvicorn が返す素の応答)には付かない | `test_http_guard.py` |
+| S-11 | 3 | リクエスト本文の上限(既定 5 MB、`[server] max_body_mb`)。Content-Length で分かれば読む前に、chunked は読みながら数えて 413。CSV の取り込みは本アプリに無い。書き出しは期間の上限(`reports.max_days` = 93日)と、この本文の上限で足りる | `test_http_guard.py` |
+| S-12 | 4 | 同期の失敗の文から、パスと例外の文を隠した(`LegacySourceError.public`、`public_error_message`)。sqlite のエラーの文(パスを含まない)は理由として出し、OSError(ファイル名を含む)は出さない。詳細は従来どおりログへ | `test_sync_error_message.py` |
+| S-03 | 5 | 区間 CSV の「人が入れた文字」の列(理由の記入、再開理由、設備、工程または理由、品名、開始した人、終了した人)で、先頭が `= + - @ タブ CR` のとき `'` を付ける。キッティングNo.・ロットNo.・ファイルNo. などの識別の列は変えない。実績の CSV は、現場の自由入力が出ないので変えない。備考(`remarks`)は CSV に出ない | `test_csv_injection.py` |
+| S-06(一部) | 6 | 認証なしの `/api/masters` と `/api/operators/lookup` から `role` を返さない。管理者かどうかの判定は、サーバー側(`admin_auth`)だけ。**残ること**: 作業者の名前と作業者IDは、現場の画面が使うので、まだ誰でも読める(管理者を含む)。現場にPINを付けるかどうかは未確定事項のまま | `test_masters_api.py` |
+| S-07 | 7 | ログインの失敗を、作業者IDごとに加えて、接続元IPごとにも数える。同じ接続元から作業者IDを問わず20回続けて間違えると5分止める(`[admin] ip_lockout_failures` / `ip_lockout_minutes`)。成功で数え直す。メモリの中(1プロセス前提。再起動で消える)。リバースプロキシの後ろに置くなら、接続元の取り方を見直す(いまはつないできた相手のアドレス) | `test_admin_auth.py` |
+| S-08 | 8 | パスワードを変えたら、その人のほかのセッションを無効にする。画面から変えたときは、変えた画面のセッションだけ残す(その場でログインし直させない)。開発用コマンドでの設定(リセット)は、その人のすべてのセッションを無効にする。ほかの管理者のセッションには触れない。**指示書の「すべて」との違い**: 変えた画面のセッションだけ残した | `test_admin_auth.py` |
+| S-13 | 9 | アクセスログの URL のクエリにある `worker_id`・`password`・`token` の値を `***` にする(`app/core/log_filters.py`)。パス、接続元、ほかのクエリは残す。exe のログで `worker_id=***` を確かめた | `test_log_filters.py` |
+| S-14 | 10 | 全ルートを OpenAPI の定義から列挙し、`/api/admin/` の下をログインなしで呼んで 401 になることを確かめる(login と logout だけ除く)。書き込みが `X-Genba-Admin` 無しで 403 になることも確かめる。認証を付け忘れたルートを足すと失敗することを、一時的なルートで確かめた(FastAPI 0.150 は `app.routes` が入れ子なので、OpenAPI から列挙している) | `tests/admin/test_admin_routes_guard.py` |
+| S-09 | 11 | scrypt を n=2^17、r=8、p=1(約128MB)に上げた。古いハッシュ(n=2^14)も確かめられ、パスワードが合ったログインのときに作り直す。保存した値の n・r・p に上限を付けた。**ログインの時間は約0.5秒**(開発PC。exe で、成功 0.46〜0.48 秒、存在しない作業者ID 0.49 秒)。担当者PCが倍遅くても1秒以内の見込み。テストは scrypt を弱くして速くし、`real_scrypt` の印を付けたテストだけ本物の強さで動かす | `test_admin_auth.py` |
+| S-04・S-05(運用) | 12 | `install-autostart.ps1`: `-User` を必須にし、`-RunAsSystem` を無くした。SYSTEM・LOCAL SERVICE・NETWORK SERVICE・Administrator は断り、Administrators のメンバーには警告。`firewall-allow.ps1`: `-RemoteAddress`(既定 `LocalSubnet`)を足した(指示書の `install-firewall.ps1` は、実際の名前 `firewall-allow.ps1`)。`packaging.md` に `C:\GenbaApp` とバックアップ先の共有フォルダの権限(icacls)、HTTPのみの運用の対策、`--stdin` の注意を書いた。**担当者PCでの実施はまだ**(専用アカウントの用意、icacls、ファイアウォールの再登録) | 構文の確認のみ(管理者権限が要るので、実際の登録は担当者PCで) |
+| (記録) | 13 | pip-audit が日本語のコメントで止まる件は `dependencies.md` に書いた(`PYTHONUTF8=1`) | - |
+
+- exe(`GenbaApp.exe`)で確かめた: `/docs`・`/redoc`・`/openapi.json`・未知の `/api/…` は 404(JSON)、`/field/S` は 200、セキュリティヘッダー4つ、`/api/masters` と `lookup` に `role` なし、6MB の本文は 413(ヘッダー付き)、20回の失敗のあと正しいログインも 429(この端末)、アクセスログは `worker_id=***`
+- **まだ直していないこと**: S-04・S-05 の担当者PCでの実施、S-06 の本題(現場のPIN)、S-16(Git 履歴のキッティングNo.の確認)
 
 ---
 
