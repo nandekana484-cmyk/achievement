@@ -163,3 +163,53 @@ def test_link_api_requires_admin_login_and_header(client, admin):
     login(client)
     assert client.post(LINKS, json=body).status_code == 403  # 決まったヘッダーが無い
     assert count_rows(SideLink) == 0
+
+
+# --- CSV の「面1のキッティングNo.」(書式版 2) ---
+
+def _csv_by_kitting(client):
+    """書き出した CSV を、(キッティングNo., ロットNo.) → 行の辞書にする。"""
+    import csv
+    import io
+
+    from actuals_helpers import BODY
+
+    login(client)
+    res = client.post(f"{URL}/export", json=BODY, headers=H)
+    assert res.status_code == 200, res.text
+    data = client.get(f"{URL}/exports/{res.json()['id']}/file").content
+    rows = list(csv.DictReader(io.StringIO(data.decode("utf-8-sig"), newline="")))
+    assert rows and rows[0]["書式版"] == "2" and len(rows[0]) == 13
+    return {(r["キッティングNo."], r["ロットNo."]): r for r in rows}
+
+
+def test_csv_has_the_side1_kitting_no_for_every_way_of_joining(client, admin, fake_clock):
+    # キー H でつながる組(NG面1 は 0)
+    _plans(admin, (P1, "L050", "1"), (P2, "L050", "2"))
+    produce(client, fake_clock, P1, 100)
+    finish(client, fake_clock, P1)
+    produce(client, fake_clock, P2, 100)
+    finish(client, fake_clock, P2)
+    # 管理者が確定した組(K1 と K2。発行順が違う)
+    produce(client, fake_clock, K1, 300)
+    finish(client, fake_clock, K1)
+    assert _confirm(client, K1, K2).status_code == 200
+    produce(client, fake_clock, K2, 300)
+    finish(client, fake_clock, K2)
+    # つながる面1が無い面2(単独)
+    alone = "0950-2-S-251014-08"
+    _plans(admin, (alone, "L070", "2"))
+    produce(client, fake_clock, alone, 80)
+    finish(client, fake_clock, alone)
+    # 面2の計画が1件も無い面1(単独の面1の行)
+    side1_only = "0800-1-S-251014-03"
+    _plans(admin, (side1_only, "L010", "1"))
+    produce(client, fake_clock, side1_only, 100)
+    finish(client, fake_clock, side1_only)
+
+    rows = _csv_by_kitting(client)
+    assert rows[(P2, "L050")]["面1のキッティングNo."] == P1 and rows[(P2, "L050")]["NG面1"] == "0"  # NG面1 が 0 でも入る
+    assert rows[(K2, "L001")]["面1のキッティングNo."] == K1  # 管理者が確定した組
+    assert rows[(alone, "L070")]["面1のキッティングNo."] == ""  # つながる面1が無い
+    assert rows[(side1_only, "L010")]["面1のキッティングNo."] == "" and rows[(side1_only, "L010")]["面"] == "1"  # 面1の行
+    assert (P1, "L050") not in rows and (K1, "L001") not in rows  # 面1の行は面2にまとめる

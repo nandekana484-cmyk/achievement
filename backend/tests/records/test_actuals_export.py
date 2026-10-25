@@ -94,11 +94,11 @@ def test_export_writes_csv_and_history_without_changing_records(client, two_lots
     saved = two_lots["exchange"] / "actuals" / first["file_name"]
     rows = _csv_rows(saved.read_bytes())
     assert rows[0] == ["書式版", "書き出し日時", "元のDB(フォルダ名)", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
-                       "NG面1", "NG面2", "担当者ID"]
-    assert all(r[0] == "1" for r in rows[1:]) and len(rows[0]) == 12
+                       "NG面1", "NG面2", "担当者ID", "面1のキッティングNo."]
+    assert all(r[0] == "2" for r in rows[1:]) and len(rows[0]) == 13
     assert [r[2:] for r in rows[1:]] == [
-        ["2026-10", K4, "A", "0900", "1", "2026-10-21", "90", "0", "0", "Y100"],
-        ["2026-10", K4, "B", "0900", "1", "2026-10-21", "70", "0", "0", "Y100"],
+        ["2026-10", K4, "A", "0900", "1", "2026-10-21", "90", "0", "0", "Y100", ""],  # 面1の行は空
+        ["2026-10", K4, "B", "0900", "1", "2026-10-21", "70", "0", "0", "Y100", ""],
     ]
     assert not list((two_lots["exchange"] / "actuals").glob("*.tmp"))
 

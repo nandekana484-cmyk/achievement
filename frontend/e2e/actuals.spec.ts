@@ -79,12 +79,12 @@ test("㉒㉓㉔ 実績の書き出し(一覧・ひも付けの確認・数を直
 
   const [download] = await Promise.all([page.waitForEvent("download"), history.getByRole("button", { name: "ダウンロード" }).click()]);
   const text = (await readFile(await download.path())).toString("utf-8");
-  expect(text.startsWith("﻿書式版,書き出し日時,元のDB(フォルダ名),キッティングNo.,ロットNo.,ファイルNo.,面,日付,生産数(累計),NG面1,NG面2,担当者ID\r\n")).toBe(true);
+  expect(text.startsWith("﻿書式版,書き出し日時,元のDB(フォルダ名),キッティングNo.,ロットNo.,ファイルNo.,面,日付,生産数(累計),NG面1,NG面2,担当者ID,面1のキッティングNo.\r\n")).toBe(true);
   const lines = text.trim().split("\r\n").slice(1).map((l) => l.split(","));
-  expect(lines.every((l) => l.length === 12 && l[0] === "1")).toBe(true);
+  expect(lines.every((l) => l.length === 13 && l[0] === "2")).toBe(true);
   expect(lines.map((l) => l.slice(2))).toEqual([
-    ["demo", SIDE2, "DEMO-101U", "1000", "2", "2026-10-21", "140", "2", "1", "Y001"],
-    ["demo", SIDE2, "DEMO-102U", "1000", "2", "2026-10-21", "100", "0", "0", "Y001"],
-    ["demo", SIDE2, "DEMO-103U", "1000", "2", "2026-10-21", "70", "0", "0", "Y001"],
+    ["demo", SIDE2, "DEMO-101U", "1000", "2", "2026-10-21", "140", "2", "1", "Y001", SIDE1], // 確定した面1
+    ["demo", SIDE2, "DEMO-102U", "1000", "2", "2026-10-21", "100", "0", "0", "Y001", SIDE1], // NG面1 が 0 でも入る
+    ["demo", SIDE2, "DEMO-103U", "1000", "2", "2026-10-21", "70", "0", "0", "Y001", SIDE1],
   ]);
 });
