@@ -513,7 +513,7 @@ export interface paths {
         get?: never;
         /**
          * Change Password
-         * @description 自分のパスワードを変える(今のパスワードが要る。8文字以上)。
+         * @description 自分のパスワードを変える(今のパスワードが要る。8文字以上)。ほかのセッションは無効になる。
          */
         put: operations["change_password_api_admin_password_put"];
         post?: never;
