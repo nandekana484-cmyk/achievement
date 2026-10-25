@@ -23,6 +23,7 @@ from app.db.session import get_sessionmaker, init_db
 from app.services.backup import DailyBackup, make_backup
 from app.services.errors import Busy, Forbidden, NotFound, RuleViolation, TooManyAttempts, Unauthorized
 from app.services.plan_sync_scheduler import PlanSyncScheduler
+from app.http_guard import SecurityHeadersMiddleware
 from app.static_files import mount_spa
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ def docs_urls(expose: bool) -> dict[str, str | None]:
 
 
 app = FastAPI(title="現場実績入力", version=__version__, lifespan=lifespan, **docs_urls(get_config().server.expose_docs))
+app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health.router)
 app.include_router(plans.router)
 app.include_router(runs.router)
