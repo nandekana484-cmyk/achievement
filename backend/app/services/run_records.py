@@ -134,11 +134,11 @@ def end_step(
 def _check_produced_qty(step: StepType, produced_qty: int | None) -> None:
     if step == StepType.PRODUCTION:
         if produced_qty is None:
-            raise RuleViolation("生産の終了では、生産数を入力してください")
+            raise RuleViolation("生産の終了では、良品数を入力してください")
         if produced_qty < 0:
-            raise RuleViolation("生産数は0以上の整数で入力してください")
+            raise RuleViolation("良品数は0以上の整数で入力してください")
     elif produced_qty is not None:
-        raise RuleViolation(f"{step.label}の終了では、生産数は受け付けません")
+        raise RuleViolation(f"{step.label}の終了では、良品数は受け付けません")
 
 
 def add_remark(session: Session, kitting_no: str, text: str, request_id: str, operator_id: int | None = None) -> RunInputOut:

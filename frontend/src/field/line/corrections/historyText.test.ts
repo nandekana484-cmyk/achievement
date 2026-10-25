@@ -16,7 +16,7 @@ const change = (field: string, before: string | number | null, after: string | n
 describe("訂正の履歴の文", () => {
   it("変更は「項目: 前 → 後」。時刻は日本時間の月/日 時:分", () => {
     const c = { ...base, changes: [change("start_at", "2026-10-21T08:00:00+09:00", "2026-10-21T08:10:00+09:00"), change("produced_qty", 100, 120)] };
-    expect(changeLines(c, t, "ja")).toEqual(["開始: 10/21 8:00 → 10/21 8:10", "生産数: 100 → 120"]);
+    expect(changeLines(c, t, "ja")).toEqual(["開始: 10/21 8:00 → 10/21 8:10", "良品数: 100 → 120"]);
     expect(targetText(c, t, "ja")).toBe("生産");
   });
 

@@ -101,7 +101,7 @@ def test_non_production_has_no_qty(client, staffed, fake_clock):
     ok(start(client, "setup"))
     fake_clock.advance(minutes=10)
     e = ok(end(client, "setup"))["event"]
-    conflict(fix(client, e["id"], produced_qty=10), "段取りの記録には、生産数はありません")
+    conflict(fix(client, e["id"], produced_qty=10), "段取りの記録には、良品数はありません")
 
 
 def test_unknown_or_other_plans_event_is_404(client, staffed, fake_clock):
@@ -167,7 +167,7 @@ def test_add_forgotten_records(client, staffed, fake_clock):
 
     conflict(add(client, "production", at("08:30"), at("09:30"), produced_qty=1), "ほかの生産の区切り")
     conflict(add(client, "production", at("09:00"), at("09:30")), "0以上の整数")  # 生産数が必須
-    conflict(add(client, "setup", at("07:00"), at("07:10"), produced_qty=1), "生産数はありません")
+    conflict(add(client, "setup", at("07:00"), at("07:10"), produced_qty=1), "良品数はありません")
     conflict(add(client, "setup", at("10:00"), at("11:30")), "未来の時刻")
     conflict(add(client, "setup", at("10:00"), at("09:30")), "終了の時刻より前")
     assert add(client, "lunch", at("07:00"), at("07:10")).status_code == 422
