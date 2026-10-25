@@ -115,4 +115,4 @@ def _busy(_request: Request, exc: Busy) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": exc.message})
 
 if STATIC_DIR.exists():
-    mount_spa(app, STATIC_DIR)
+    mount_spa(app, STATIC_DIR, () if get_config().server.expose_docs else ("docs", "redoc", "openapi.json"))

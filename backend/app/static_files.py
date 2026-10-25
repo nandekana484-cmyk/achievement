@@ -36,12 +36,17 @@ def resolve_static_file(static_dir: Path, path: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
-def mount_spa(app: FastAPI, static_dir: Path) -> None:
-    """/assets と、画面の受け皿(上のとおり)を登録する。API のルートより後に呼ぶ。"""
+def mount_spa(app: FastAPI, static_dir: Path, closed_paths: tuple[str, ...] = ()) -> None:
+    """/assets と、画面の受け皿(上のとおり)を登録する。API のルートより後に呼ぶ。
+
+    closed_paths: 画面の受け皿に渡さず 404 にするパス(閉じた /docs など。index.html の 200 を返さないため)。
+    """
     app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str) -> FileResponse:
+        if path in closed_paths:
+            raise HTTPException(status_code=404)
         if path == "api" or path.startswith("api/"):
             raise HTTPException(status_code=404, detail="APIが見つかりません")
         found = resolve_static_file(static_dir, path)
