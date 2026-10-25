@@ -129,13 +129,19 @@ icacls C:\GenbaApp\app
 - 既存アプリのフォルダ(`legacy_app_dir`)は、専用アカウントに「読み取り」だけを与える(本アプリは読み取り専用で開く。書き込みの権限は要らない)
 - 確かめ方: 専用ではない一般ユーザーで `C:\GenbaApp\data\config.toml` を開けないこと、`C:\GenbaApp\app\v1.0.0\GenbaApp.exe` を上書きできないことを試す
 
+### アクセス制限との二重の守り
+
+- ファイアウォールの `-RemoteAddress` は、アプリ側のアクセス制限(管理画面の「アクセス制限」、`GenbaCli.exe ip add`)と**併用する**。外側(ファイアウォール)が内側(アプリの一覧)を含むようにし、足すときは先にファイアウォール、外すときは先にアプリ。手順と確かめ方は security.md の「アクセス制限」の「二重の守りの運用手順」
+- 管理画面に入れなくなったときは、サーバーのPCで `GenbaCli.exe ip disable-all`(最大5秒で効く)
+- 開発サーバー(Vite の 5173)では効かない。本番の 8000 番に直接つなぐときだけ効く
+
 ### 管理画面の通信(HTTPのみ)の運用
 
 HTTP のままでは、管理画面のパスワードとセッションが平文で流れる(security.md の S-04、5.3)。コードを変えずにできる対策:
 
 1. 管理画面のパスワードは、ほかのシステムと使い回さない。12文字以上にする(アプリの下限は8文字)
 2. 管理用PCは有線のLAN、または他と分けたネットワークに置く。タブレットの Wi-Fi の鍵を管理用PCと共有しない
-3. ファイアウォールの `-RemoteAddress` を、タブレットと管理用PCのアドレスだけにする
+3. ファイアウォールの `-RemoteAddress` を、タブレットと管理用PCのアドレスだけにする。アプリ側のアクセス制限にも同じ端末を登録する(上の「アクセス制限との二重の守り」)
 4. 管理画面を使うときは、担当者PCのブラウザで `http://localhost:<ポート>/admin` を開く方法もある(LANに流れない)
 
 ### パスワードの設定の注意
@@ -148,7 +154,7 @@ HTTP のままでは、管理画面のパスワードとセッションが平文
 1. `C:\GenbaApp\app\` に zip を展開する(`C:\GenbaApp\app\v1.0.0\GenbaApp.exe` になる)
 2. `C:\GenbaApp\data\config.toml` を作る(リポジトリの `config.example.toml` をもとに、`legacy_app_dir`、`backup_dir`、ポートを書く。`expose_docs` は書かない = 本番は `/docs` を開かない)
 3. 専用アカウントを用意し、上の「フォルダの権限」で `C:\GenbaApp` とバックアップ先の権限を絞る
-4. 管理者の PowerShell で `install-autostart.ps1 -Version v1.0.0 -User <専用アカウント>`(パスワードを入力する)と `firewall-allow.ps1 -Port <ポート> -RemoteAddress <タブレットと管理用PCのアドレス>`
+4. 管理者の PowerShell で `install-autostart.ps1 -Version v1.0.0 -User <専用アカウント>`(パスワードを入力する)と `firewall-allow.ps1 -Port <ポート> -RemoteAddress <タブレットと管理用PCのアドレス>`。起動したあと、管理画面の「アクセス制限」(または `GenbaCli.exe ip add`)に同じアドレスを登録する
 5. `Start-ScheduledTask -TaskName GenbaApp` で起動し、ブラウザで `http://<担当者PC>:<ポート>/api/health` が ok を返すことを確かめる。`http://<担当者PC>:<ポート>/docs` が開かない(画面の表示か 404)ことも確かめる
 
 ## 版を更新するとき(担当者PC)

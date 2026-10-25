@@ -11,6 +11,10 @@ backend フォルダで、venv の中で実行する。対象は config.toml(GEN
     python -m app.cli reasons set-vi <ID> "Tìm linh kiện"
     python -m app.cli lines list
     python -m app.cli admin set-password --worker-id K0042   # 管理画面のパスワード(入力は画面に出ない)
+    python -m app.cli ip list                                  # アクセス制限(許可するIPアドレス)。管理画面に入れなくなったときの緊急用
+    python -m app.cli ip add 192.168.3.0/24 [--scope admin] [--note "タブレット"]
+    python -m app.cli ip remove <番号か範囲>                    # 無効にする(履歴は残る)
+    python -m app.cli ip disable-all                           # すべて無効にして、制限をなくす
     python -m app.cli demo-seed --line S --date 2026-10-21
 """
 
@@ -30,7 +34,7 @@ from app.db.migrate import upgrade_to_head
 from app.db.models import Equipment, Line, Operator, Reason
 from app.db.session import get_sessionmaker, init_db
 from app.domain.normalize import normalize_mounting_line
-from app.services import admin_auth, masters
+from app.services import admin_auth, ip_allowlist, masters
 from app.services.demo_seed import seed_demo
 from app.services.errors import NotFound, RuleViolation
 
@@ -74,6 +78,16 @@ def _parser() -> argparse.ArgumentParser:
     pw = adm.add_parser("set-password", help="管理者のパスワードを設定する(最初の設定とリセット)")
     pw.add_argument("--worker-id", required=True, help="作業者ID(既存アプリの役割が admin の作業者)")
     pw.add_argument("--stdin", action="store_true", help="パスワードを標準入力の1行目から読む(画面の確認の自動化用)")
+
+    ip = sub.add_parser("ip", help="アクセス制限(許可するIPアドレス。サーバーのPCで使う緊急用)").add_subparsers(dest="action", required=True)
+    ip.add_parser("list", help="一覧")
+    ip_add = ip.add_parser("add", help="追加(1台か、192.168.3.0/24 のような範囲)")
+    ip_add.add_argument("network")
+    ip_add.add_argument("--scope", choices=("field", "admin"), default="field", help="field = 現場用(既定)、admin = 管理画面用")
+    ip_add.add_argument("--note", default=None)
+    ip_rm = ip.add_parser("remove", help="無効にする(番号か範囲で指定。履歴は残る)")
+    ip_rm.add_argument("which", metavar="番号か範囲")
+    ip.add_parser("disable-all", help="有効な範囲をすべて無効にする(制限がなくなる)")
 
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
@@ -163,7 +177,48 @@ def _demo_seed(s: Session, args: argparse.Namespace) -> None:
         print(f"  {kno}({knos.count(kno)}ロット)")
 
 
+def _list_ip(s: Session, _args: argparse.Namespace) -> None:
+    rows = ip_allowlist.list_rows(s)
+    lists = ip_allowlist.load_lists(s)
+    print(f"アクセス制限: 現場用 {len(lists.field)}件、管理画面用 {len(lists.admin)}件が有効"
+          f"({'制限なし' if not lists.field and not lists.admin else '制限あり。127.0.0.1 と ::1 は常に許可'})")
+    for r in rows:
+        print(f"{r.id}\t{'現場用' if r.scope == 'field' else '管理画面用'}\t{r.network}\t{'' if r.active else '(無効)'}\t{r.note or ''}")
+
+
+def _add_ip(s: Session, args: argparse.Namespace) -> None:
+    r = ip_allowlist.add_network(s, None, args.network, args.scope, args.note)
+    print(f"追加しました: 番号 {r.id} {'現場用' if r.scope == 'field' else '管理画面用'} {r.network}(最大5秒で動いているアプリに反映されます)")
+
+
+def _remove_ip(s: Session, args: argparse.Namespace) -> None:
+    from app.domain.networks import parse_network
+
+    rows = ip_allowlist.list_rows(s)
+    if args.which.isdigit():
+        hits = [r for r in rows if r.id == int(args.which)]
+    else:
+        try:
+            net = str(parse_network(args.which))
+        except ValueError as e:
+            raise RuleViolation(str(e)) from None
+        hits = [r for r in rows if r.active and r.network == net]
+    if not hits:
+        raise NotFound(f"「{args.which}」に当たる範囲が見つかりません(python -m app.cli ip list で確かめてください)")
+    for r in hits:
+        ip_allowlist.disable_network(s, None, r.id)
+        print(f"無効にしました: 番号 {r.id} {r.network}")
+
+
+def _disable_all_ip(s: Session, _args: argparse.Namespace) -> None:
+    print(f"有効な範囲を {ip_allowlist.disable_all(s)}件 無効にしました。アクセス制限はなくなりました(最大5秒で反映されます)")
+
+
 _COMMANDS = {
+    ("ip", "list"): _list_ip,
+    ("ip", "add"): _add_ip,
+    ("ip", "remove"): _remove_ip,
+    ("ip", "disable-all"): _disable_all_ip,
     ("operators", "list"): _list_operators,
     ("operators", "add"): _add_operator,
     ("equipment", "list"): _list_equipment,

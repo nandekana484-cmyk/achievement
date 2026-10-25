@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_config
 from app.db.models import Operator
+from app.domain.networks import parse_ip
 from app.db.session import get_session
 from app.services import admin_auth
 from app.services.errors import Forbidden
@@ -70,11 +71,18 @@ def _me(op: Operator) -> AdminMeOut:
                       workday=workday_of(now, get_config().schedule.day_start))
 
 
+def _login_source(request: Request) -> str:
+    """失敗を数える接続元。IPv4 射影(::ffff:a.b.c.d)は IPv4 と同じものとして数える。"""
+    host = request.client.host if request.client else None
+    ip = parse_ip(host)
+    return str(ip) if ip is not None else (host or "unknown")
+
+
 @router.post("/login", response_model=AdminMeOut)
 def login(body: LoginIn, request: Request, response: Response, session: Session = Depends(get_session)) -> AdminMeOut:
     """作業者IDとパスワードでログインする。失敗の理由は区別しない(401「作業者IDかパスワードが違います」)。"""
     token, op = admin_auth.login(session, body.worker_id, body.password, get_config().admin,
-                                 request.client.host if request.client else "unknown")
+                                 _login_source(request))
     # 社内LANの HTTP で使うので Secure は付けない(docs/design/admin.md)
     response.set_cookie(COOKIE, token, httponly=True, samesite="strict", path=COOKIE_PATH)
     return _me(op)
