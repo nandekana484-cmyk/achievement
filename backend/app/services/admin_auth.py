@@ -18,7 +18,7 @@ from app.core import clock
 from app.core.config import AdminConfig
 from app.db.models import AdminCredential, AdminLoginAttempt, AdminSession, Operator
 from app.db.session import write_transaction
-from app.domain.passwords import DUMMY_HASH, check_new_password, hash_password, verify_password
+from app.domain.passwords import DUMMY_HASH, check_new_password, hash_password, needs_rehash, verify_password
 from app.domain.worker_id import worker_key
 from app.services.audit import record_change
 from app.services.login_throttle import ip_throttle
@@ -60,6 +60,9 @@ def login(session: Session, worker_id: str, password: str, cfg: AdminConfig, ip:
     # ハッシュの確かめ(時間がかかる)は書き込みのロックの外で行う。IDが無くても同じだけ時間をかける
     ok = verify_password(password, cred.password_hash if cred is not None else DUMMY_HASH) and cred is not None
 
+    # 古い(弱い)ハッシュは、パスワードが合ったときに今の強さで作り直す。時間がかかるので、これもロックの外で計算する
+    upgraded = hash_password(password) if ok and needs_rehash(cred.password_hash) else None
+
     with write_transaction(session):
         attempt = session.get(AdminLoginAttempt, key) or AdminLoginAttempt(worker_key=key, failures=0)
         session.add(attempt)
@@ -71,6 +74,8 @@ def login(session: Session, worker_id: str, password: str, cfg: AdminConfig, ip:
             ip_throttle.failed(ip, cfg)
             raise Unauthorized(LOGIN_FAILED)
         ip_throttle.succeeded(ip)
+        if upgraded is not None:
+            session.get(AdminCredential, op.id).password_hash = upgraded
         attempt.failures, attempt.locked_until = 0, None
         session.execute(delete(AdminSession).where(AdminSession.created_at < now - timedelta(hours=cfg.max_hours)))
         token = secrets.token_urlsafe(32)

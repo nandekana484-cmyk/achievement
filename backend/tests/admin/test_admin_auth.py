@@ -252,3 +252,58 @@ def test_sessions_of_other_admins_are_kept(client, logged_in):
     with get_sessionmaker()() as s:
         admin_auth.set_password(s, "K0042", "reset-pass-123")
     assert client.get("/api/admin/me").json()["worker_id"] == "K0043"  # この client は K0043 に入れ替わっている
+
+
+# --- scrypt の強さ(S-09) ---
+
+def _old_hash(password: str) -> str:
+    """以前の強さ(n=2^14)で作ったハッシュ。"""
+    import hashlib
+    import secrets
+
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    return f"scrypt${2**14}$8$1${salt.hex()}${digest.hex()}"
+
+
+@pytest.mark.real_scrypt
+def test_new_hashes_use_the_current_strength_and_old_ones_still_verify():
+    from app.domain.passwords import hash_password, needs_rehash, verify_password
+
+    new = hash_password("long-enough-1")
+    assert new.startswith(f"scrypt${2**17}$8$1$") and not needs_rehash(new) and verify_password("long-enough-1", new)
+    old = _old_hash("long-enough-1")
+    assert needs_rehash(old) and verify_password("long-enough-1", old) and not verify_password("wrong", old)
+    assert needs_rehash("garbage")
+    assert not verify_password("x", f"scrypt${2**30}$8$1$00${'00' * 32}")  # 大きすぎる値は計算しない
+
+
+@pytest.mark.real_scrypt
+def test_old_hash_is_rebuilt_on_the_next_successful_login(client, people):
+    from app.db.models import AdminCredential
+    from app.domain.passwords import needs_rehash
+
+    with get_sessionmaker()() as s:
+        s.get(AdminCredential, people["admin"]).password_hash = _old_hash(PASSWORD)
+        s.commit()
+    assert login(client, password="wrong-pass-1").status_code == 401  # 失敗では作り直さない
+    with get_sessionmaker()() as s:
+        assert needs_rehash(s.get(AdminCredential, people["admin"]).password_hash)
+    assert login(client).status_code == 200
+    with get_sessionmaker()() as s:
+        assert not needs_rehash(s.get(AdminCredential, people["admin"]).password_hash)
+    assert login(client).status_code == 200  # 作り直したあとも入れる
+
+
+@pytest.mark.real_scrypt
+def test_login_takes_under_one_second(client, people):
+    import time
+
+    login(client)  # 最初の1回を除く
+    start = time.perf_counter()
+    assert login(client).status_code == 200
+    ok_time = time.perf_counter() - start
+    start = time.perf_counter()
+    assert login(client, worker_id="NOBODY", password="wrong-pass-1").status_code == 401
+    unknown_time = time.perf_counter() - start
+    assert ok_time < 1.0 and unknown_time < 1.0, (ok_time, unknown_time)

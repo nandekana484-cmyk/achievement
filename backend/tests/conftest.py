@@ -22,6 +22,18 @@ def _reset_ip_throttle():
     ip_throttle.reset()
 
 
+@pytest.fixture(autouse=True)
+def _fast_scrypt(request, monkeypatch):
+    """テストを速くするため、scrypt を弱くする。強さそのものを確かめるテストは @pytest.mark.real_scrypt を付ける。"""
+    if request.node.get_closest_marker("real_scrypt"):
+        return
+    from app.domain import passwords
+    from app.services import admin_auth
+
+    monkeypatch.setattr(passwords, "_N", 2**10)
+    monkeypatch.setattr(admin_auth, "DUMMY_HASH", passwords.hash_password("dummy-for-tests"))
+
+
 class FakeClock:
     """clock.now() を差し替える。advance() で時刻を進められる。"""
 
