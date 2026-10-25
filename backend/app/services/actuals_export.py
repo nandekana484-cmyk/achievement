@@ -23,9 +23,9 @@ from app.services.actuals_rows import ActualsListOut, ActualsRowOut, build_rows
 from app.services.errors import NotFound, RuleViolation
 
 ACTUALS_FOLDER = "actuals"
-FORMAT_VERSION = 1  # 書式版。列を変えたら上げる(既存アプリの取込口が、知らない版を断れるように)
+FORMAT_VERSION = 2  # 書式版。列を変えたら上げる(既存アプリの取込口が、知らない版を断れるように)。2 = 「面1のキッティングNo.」を足した
 HEADERS = ["書式版", "書き出し日時", "元のDB(フォルダ名)", "キッティングNo.", "ロットNo.", "ファイルNo.", "面", "日付", "生産数(累計)",
-           "NG面1", "NG面2", "担当者ID"]
+           "NG面1", "NG面2", "担当者ID", "面1のキッティングNo."]
 
 
 class QuantityIn(BaseModel):
@@ -80,14 +80,18 @@ def apply_quantities(listing: ActualsListOut, quantities: list[QuantityIn]) -> l
 
 
 def actuals_csv(rows: list[ActualsRowOut], exported_at: dt.datetime) -> str:
-    """CSV の文字列(BOM は保存とダウンロードのときに付ける)。"""
+    """CSV の文字列(BOM は保存とダウンロードのときに付ける)。
+
+    書き出し日時は YYYY-MM-DD HH:MM:SS(日本時間、タイムゾーンなし)に固定する。
+    面1のキッティングNo.は、面2の行でつながる面1(キー H か確定した組)があるときだけ入れる(NG面1 が 0 でも入れる)。
+    """
     stamp = exported_at.astimezone(clock.JST).strftime("%Y-%m-%d %H:%M:%S")
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n")
     w.writerow(HEADERS)
     for r in rows:
         w.writerow([FORMAT_VERSION, stamp, r.source_db or "", r.kitting_no, r.lot_no, r.file_no, r.side, r.completed_on.isoformat(),
-                    r.produced_qty, r.ng_side1, r.ng_side2, r.worker_id or ""])
+                    r.produced_qty, r.ng_side1, r.ng_side2, r.worker_id or "", r.side1_kitting_no or ""])
     return buf.getvalue()
 
 
