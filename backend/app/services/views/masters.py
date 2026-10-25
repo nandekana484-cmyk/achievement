@@ -22,7 +22,6 @@ class OperatorOut(BaseModel):
     id: int  # 本アプリの中の番号
     name: str
     worker_id: str | None  # 作業者ID(既存アプリの表記のまま)。同じ名前の人を区別するため、名前の横に出す
-    role: str
     sort_order: int
 
 

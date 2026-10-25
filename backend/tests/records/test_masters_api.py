@@ -25,6 +25,15 @@ def test_masters(client, staffed, equipment):
     assert client.get("/api/masters", params={"line_code": "X"}).status_code == 404
 
 
+def test_public_operator_apis_do_not_return_the_role(client, staffed):
+    """認証なしの API は役割(admin かどうか)を返さない(S-06)。管理画面の判定はサーバー側だけで行う。"""
+    ops = ok(client.get("/api/masters"))["operators"]
+    assert ops and all("role" not in o for o in ops)
+    wid = next(o["worker_id"] for o in ops if o["worker_id"])
+    one = ok(client.get("/api/operators/lookup", params={"worker_id": wid}))
+    assert "role" not in one and one["worker_id"] == wid
+
+
 def test_auto_named_lines_are_marked(client, world):
     assert [(x["name"], x["auto_named"]) for x in ok(client.get("/api/masters"))["lines"]] == [("Sライン", True)]
     with new_session() as s:

@@ -1701,8 +1701,6 @@ export interface components {
             name: string;
             /** Worker Id */
             worker_id: string | null;
-            /** Role */
-            role: string;
             /** Sort Order */
             sort_order: number;
         };
