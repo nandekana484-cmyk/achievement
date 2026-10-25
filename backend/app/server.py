@@ -12,6 +12,8 @@ import logging.handlers
 import sys
 from pathlib import Path
 
+from app.core.log_filters import install_access_log_filter
+
 LOG_DAYS = 90  # 日ごとのログを残す日数
 _FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
@@ -31,6 +33,7 @@ def setup_logging(log_dir: Path) -> None:
     except OSError as e:
         print(f"ログのフォルダに書けません({log_dir}): {e}", file=sys.stderr)
     logging.basicConfig(level=logging.INFO, format=_FORMAT, handlers=handlers or [logging.NullHandler()], force=True)
+    install_access_log_filter()  # 作業者IDなどをアクセスログに残さない(詳細: docs/design/security.md S-13)
 
 
 def default_log_dir() -> Path:
