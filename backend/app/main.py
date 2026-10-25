@@ -13,8 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.api import admin, admin_actuals, admin_masters, admin_reports, corrections, health, lines, plans, runs
@@ -24,6 +23,7 @@ from app.db.session import get_sessionmaker, init_db
 from app.services.backup import DailyBackup, make_backup
 from app.services.errors import Busy, Forbidden, NotFound, RuleViolation, TooManyAttempts, Unauthorized
 from app.services.plan_sync_scheduler import PlanSyncScheduler
+from app.static_files import mount_spa
 
 logger = logging.getLogger(__name__)
 
@@ -106,12 +106,4 @@ def _busy(_request: Request, exc: Busy) -> JSONResponse:
     return JSONResponse(status_code=503, content={"detail": exc.message})
 
 if STATIC_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
-
-    @app.get("/{path:path}", include_in_schema=False)
-    def spa(path: str) -> FileResponse:
-        """APIと静的ファイル以外のURLは、すべて画面(index.html)に渡す。"""
-        candidate = STATIC_DIR / path
-        if path and candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(STATIC_DIR / "index.html")
+    mount_spa(app, STATIC_DIR)
