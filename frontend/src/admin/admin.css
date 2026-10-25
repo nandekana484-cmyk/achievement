@@ -59,3 +59,9 @@
 .actuals-noteline { color: var(--muted); font-size: 13px; }
 .actuals-history { margin-top: 24px; }
 .actuals-excel { color: var(--danger); }
+
+/* アクセス制限 */
+.admin-status { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin: 0 0 14px; }
+.admin-status p { margin: 4px 0; }
+.admin-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 6px; }
+.admin-inline-form input, .admin-inline-form select { padding: 5px 8px; font: inherit; }

@@ -815,10 +815,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Access
+         * @description 許可するIPアドレスの一覧(無効にしたものも)と、今の接続元が許可されているか。
+         */
+        get: operations["get_access_api_admin_access_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/access/networks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Network
+         * @description 範囲を追加する。書き方の誤り、同じ範囲、今の接続元が許可から外れる変更は 409。
+         */
+        post: operations["add_network_api_admin_access_networks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/access/networks/{network_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable Network
+         * @description 範囲を無効にする(履歴は残す)。今の接続元が許可から外れる変更は 409。
+         */
+        post: operations["disable_network_api_admin_access_networks__network_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessOut */
+        AccessOut: {
+            /** My Ip */
+            my_ip: string;
+            /** My Ip Is Loopback */
+            my_ip_is_loopback: boolean;
+            /** Field Restricted */
+            field_restricted: boolean;
+            /** Admin Restricted */
+            admin_restricted: boolean;
+            /** Field Allowed */
+            field_allowed: boolean;
+            /** Admin Allowed */
+            admin_allowed: boolean;
+            /** Networks */
+            networks: components["schemas"]["AllowedNetworkOut"][];
+        };
         /** ActualsListOut */
         ActualsListOut: {
             /**
@@ -906,6 +983,48 @@ export interface components {
              * Format: date
              */
             workday: string;
+        };
+        /** AllowedNetworkIn */
+        AllowedNetworkIn: {
+            /**
+             * Network
+             * @description 1台(192.168.3.5)か範囲(192.168.3.0/24)。IPv6 も可
+             */
+            network: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "field" | "admin";
+            /** Note */
+            note?: string | null;
+        };
+        /** AllowedNetworkOut */
+        AllowedNetworkOut: {
+            /** Id */
+            id: number;
+            /** Network */
+            network: string;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "field" | "admin";
+            /** Note */
+            note: string | null;
+            /** Created By */
+            created_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Active */
+            active: boolean;
+            /** Disabled At */
+            disabled_at: string | null;
+            /** Disabled By */
+            disabled_by: string | null;
         };
         /** BarOut */
         BarOut: {
@@ -3544,6 +3663,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinkCheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_access_api_admin_access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessOut"];
+                };
+            };
+        };
+    };
+    add_network_api_admin_access_networks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllowedNetworkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowedNetworkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_network_api_admin_access_networks__network_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                network_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllowedNetworkOut"];
                 };
             };
             /** @description Validation Error */

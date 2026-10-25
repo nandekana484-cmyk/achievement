@@ -11,6 +11,7 @@ const MENU: [string, AdminKey][] = [
   ["reasons", "menu.reasons"],
   ["lines", "menu.lines"],
   ["operators", "menu.operators"],
+  ["access", "menu.access"],
   ["password", "menu.password"],
 ];
 
