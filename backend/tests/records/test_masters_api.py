@@ -2,7 +2,8 @@
 
 from sqlalchemy import select
 
-from app.db.models import Equipment, Line, Reason
+from app.db.models import Equipment, Line, Operator, Reason
+from app.domain.worker_id import worker_key
 from app.services import masters
 from legacy_fixture import insert_plan
 from records_helpers import K1, end, ev_start, rid, new_session, sync_plans, reason_id, start, ok
@@ -27,9 +28,13 @@ def test_masters(client, staffed, equipment):
 
 def test_public_operator_apis_do_not_return_the_role(client, staffed):
     """認証なしの API は役割(admin かどうか)を返さない(S-06)。管理画面の判定はサーバー側だけで行う。"""
+    with new_session() as s:
+        op = s.scalars(select(Operator)).first()
+        op.worker_id, op.worker_key = "K0042", worker_key("K0042")
+        s.commit()
     ops = ok(client.get("/api/masters"))["operators"]
     assert ops and all("role" not in o for o in ops)
-    wid = next(o["worker_id"] for o in ops if o["worker_id"])
+    wid = "K0042"
     one = ok(client.get("/api/operators/lookup", params={"worker_id": wid}))
     assert "role" not in one and one["worker_id"] == wid
 
