@@ -145,6 +145,12 @@ def test_demo_seed_inserts_plans_operators_and_equipment(cli_config, capsys, fak
     assert night.planned_end.date() == date(2026, 10, 22)  # 日付をまたぐ
     assert plans["0940-1-S-261014-06"].planned_start > b.workday_end  # 次の稼働日(境目の先)
 
+    # ほかのラインにロットNo.を分けて入れる(面1と面2のひも付けの確認用)
+    assert cli.main(["demo-seed", "--line", "U", "--date", "2026-10-21", "--lot-suffix", "U"]) == 0
+    with get_sessionmaker()() as s:
+        u = {p.plan.kitting_no: p.plan for p in get_board(s, "U", date(2026, 10, 21), time(8, 15)).plans}
+    assert [lot.lot_no for lot in u["1000-2-U-261014-10"].lots] == ["DEMO-101U", "DEMO-102U", "DEMO-103U"]
+
 
 def test_demo_seed_refuses_when_legacy_app_dir_is_set(tmp_path, monkeypatch, capsys):
     cfg = tmp_path / "config.toml"

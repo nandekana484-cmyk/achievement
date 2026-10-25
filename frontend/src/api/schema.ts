@@ -715,10 +715,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/actuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Actuals
+         * @description 書き出しの一覧(片付けが終わった計画。1行 = キッティングNo.+ロットNo.)。
+         */
+        get: operations["list_actuals_api_admin_actuals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export
+         * @description 直した数を確かめて CSV を書き出し、履歴を残す。ロットの合計が累計と合わなければ 409。
+         */
+        post: operations["export_api_admin_actuals_export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Exports
+         * @description 書き出しの履歴(新しい順に50件)。
+         */
+        get: operations["exports_api_admin_actuals_exports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/exports/{export_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export File
+         * @description 書き出した CSV のダウンロード(保存したものと同じ中身)。
+         */
+        get: operations["export_file_api_admin_actuals_exports__export_id__file_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Link
+         * @description ひも付けの確認: 面1の計画のロットを面2の計画に確定する(やり直しは新しい行で上書き)。選べない面2なら 409。
+         */
+        post: operations["confirm_link_api_admin_actuals_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActualsListOut */
+        ActualsListOut: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /** Line Code */
+            line_code: string | null;
+            /** Rows */
+            rows: components["schemas"]["ActualsRowOut"][];
+            /** Link Checks */
+            link_checks: components["schemas"]["LinkCheckOut"][];
+            /** Pending Links */
+            pending_links: number;
+        };
+        /** ActualsRowOut */
+        ActualsRowOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Lot No */
+            lot_no: string;
+            /** File No */
+            file_no: string;
+            /** Side */
+            side: number;
+            /** Line Code */
+            line_code: string;
+            /** Product Name */
+            product_name: string;
+            /** Planned Qty */
+            planned_qty: number;
+            /** Produced Qty */
+            produced_qty: number;
+            /** Kitting Produced Total */
+            kitting_produced_total: number;
+            /** Kitting Hidden Qty */
+            kitting_hidden_qty: number;
+            /** Ng Side1 */
+            ng_side1: number;
+            /** Ng Side2 */
+            ng_side2: number;
+            /** Worker Id */
+            worker_id: string | null;
+            /** Operator Name */
+            operator_name: string | null;
+            /**
+             * Completed On
+             * Format: date
+             */
+            completed_on: string;
+            /** Source Db */
+            source_db: string | null;
+            /** Side1 Kitting No */
+            side1_kitting_no: string | null;
+            /** Exportable */
+            exportable: boolean;
+            /** Warnings */
+            warnings: string[];
+            /** Notes */
+            notes: string[];
+        };
         /** AdminMeOut */
         AdminMeOut: {
             /** Operator Id */
@@ -998,6 +1165,54 @@ export interface components {
             /** Active */
             active?: boolean | null;
         };
+        /** ExportIn */
+        ExportIn: {
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /** Line Code */
+            line_code?: string | null;
+            /**
+             * Quantities
+             * @description 直した行だけ送る(送らない行は割り振ったまま)
+             */
+            quantities?: components["schemas"]["QuantityIn"][];
+        };
+        /** ExportOut */
+        ExportOut: {
+            /** Id */
+            id: number;
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+            /** Exported By */
+            exported_by: string;
+            /** Row Count */
+            row_count: number;
+            /** File Name */
+            file_name: string;
+            /**
+             * Date From
+             * Format: date
+             */
+            date_from: string;
+            /**
+             * Date To
+             * Format: date
+             */
+            date_to: string;
+            /** Line Code */
+            line_code: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1276,6 +1491,67 @@ export interface components {
             /** Active */
             active?: boolean | null;
         };
+        /** LinkCandidateOut */
+        LinkCandidateOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /**
+             * Issue Date
+             * Format: date
+             */
+            issue_date: string;
+            /** Paired With */
+            paired_with: string | null;
+        };
+        /**
+         * LinkCheckOut
+         * @description ひも付けの確認の1行(面1の計画のロットごと)。
+         */
+        LinkCheckOut: {
+            /** Lot No */
+            lot_no: string;
+            /** File No */
+            file_no: string;
+            /** Side1 Kitting No */
+            side1_kitting_no: string;
+            /**
+             * Side1 Issue Date
+             * Format: date
+             */
+            side1_issue_date: string;
+            /** Side1 Completed */
+            side1_completed: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "confirmed" | "unlinked";
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Suggested */
+            suggested: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["LinkCandidateOut"][];
+        };
+        /** LinkIn */
+        LinkIn: {
+            /** Lot No */
+            lot_no: string;
+            /**
+             * Side1 Kitting No
+             * @description 面1の計画
+             */
+            side1_kitting_no: string;
+            /**
+             * Side2 Kitting No
+             * @description 面2の計画。空(null)は「つながない」
+             */
+            side2_kitting_no?: string | null;
+        };
         /** LoginIn */
         LoginIn: {
             /** Worker Id */
@@ -1436,6 +1712,18 @@ export interface components {
             current_password: string;
             /** New Password */
             new_password: string;
+        };
+        /** QuantityIn */
+        QuantityIn: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Lot No */
+            lot_no: string;
+            /**
+             * Produced Qty
+             * @description 画面で直した生産数(累計)
+             */
+            produced_qty: number;
         };
         /** ReasonAdminOut */
         ReasonAdminOut: {
@@ -3105,6 +3393,159 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DailyReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_actuals_api_admin_actuals_get: {
+        parameters: {
+            query: {
+                /** @description 完了日(稼働日)の始め(YYYY-MM-DD) */
+                from: string;
+                /** @description 完了日(稼働日)の終わり(YYYY-MM-DD。含む) */
+                to: string;
+                /** @description 省略するとすべてのライン */
+                line_code?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualsListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_admin_actuals_export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exports_api_admin_actuals_exports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportOut"][];
+                };
+            };
+        };
+    };
+    export_file_api_admin_actuals_exports__export_id__file_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_link_api_admin_actuals_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkCheckOut"];
                 };
             };
             /** @description Validation Error */

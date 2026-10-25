@@ -32,7 +32,7 @@ class KittingPlanOut(BaseModel):
     issue_date: dt.date
     issue_seq: int
     status: str  # active / cancelled(すべてのロットが取消のとき)
-    takt_sec: float | None  # 想定タクト。単位は要確認(今は1枚あたりの秒と仮定)
+    takt_sec: float | None  # 想定タクト(1枚あたりの秒)
     source_db: str | None
     lots: list[LotOut]
     warnings: list[str]  # ロットによって値が違うとき

@@ -22,7 +22,9 @@ const dataDir = join(frontend, "test-results", "e2e-data");
 rmSync(dataDir, { recursive: true, force: true });
 mkdirSync(dataDir, { recursive: true });
 const config = join(dataDir, "config.toml");
-writeFileSync(config, `[paths]\ndatabase = "${join(dataDir, "genba.db").replaceAll("\\", "/")}"\n`, "utf-8");
+const posix = (path) => path.replaceAll("\\", "/");
+// 実績の書き出し(e2e/actuals.spec.ts)の保存先も、確認用のフォルダの中にする
+writeFileSync(config, `[paths]\ndatabase = "${posix(join(dataDir, "genba.db"))}"\nexchange_dir = "${posix(join(dataDir, "exchange"))}"\n`, "utf-8");
 
 // テスト用の時計は GENBA_TEST_MODE=1 と組でだけ有効になる(app/core/clock.py)
 const env = {
@@ -32,6 +34,8 @@ const env = {
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 // 日報が2ページ以上になる確認用(e2e/reports.spec.ts)。ラインSのテストに影響しないよう、別のラインTに同じ計画を入れる
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "T", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
+// 実績の書き出しの確認用(e2e/actuals.spec.ts)。ロットNo.を分け(DEMO-101U など)、面1と面2のひも付けが1つに決まるようにする
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "U", "--date", E2E_DATE, "--lot-suffix", "U"], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

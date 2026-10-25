@@ -1,6 +1,7 @@
 // 管理画面の「日報」: ラインと稼働日を選んで日報を出す(印刷はブラウザの印刷プレビュー)。区間の CSV もここから出す。
 import { useCallback, useEffect, useState } from "react";
 import { adminApi, type LineRow, useAdminCall } from "../adminApi";
+import { filenameOf, saveBlob } from "../download";
 import { at } from "../messages";
 import { Feedback, useAdminList } from "../parts";
 import { DailyReportView } from "./DailyReportView";
@@ -69,11 +70,6 @@ function ReportsContent({ workday }: { workday: string }) {
   );
 }
 
-function filenameOf(response: Response): string {
-  const m = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "");
-  return m ? m[1] : "intervals.csv";
-}
-
 function CsvExport({ lines, defaultDate }: { lines: LineRow[]; defaultDate: string }) {
   const call = useAdminCall();
   const [from, setFrom] = useState(defaultDate);
@@ -87,15 +83,11 @@ function CsvExport({ lines, defaultDate }: { lines: LineRow[]; defaultDate: stri
       const res = await adminApi.GET("/api/admin/reports/intervals.csv", {
         params: { query: { from, to, line_code: lineCode || undefined } }, parseAs: "blob",
       });
-      name = filenameOf(res.response);
+      name = filenameOf(res.response, name);
       return res;
     });
     if (!r.ok) return setMessage({ ok: false, text: r.message });
-    // ブラウザに保存させる(ファイル名はサーバーが付けた、期間とラインの入ったもの)
-    const url = URL.createObjectURL(r.data as Blob);
-    const a = Object.assign(document.createElement("a"), { href: url, download: name });
-    a.click();
-    URL.revokeObjectURL(url);
+    saveBlob(r.data as Blob, name); // ファイル名はサーバーが付けた、期間とラインの入ったもの
     setMessage({ ok: true, text: at("reports.downloaded", { name }) });
   };
 
