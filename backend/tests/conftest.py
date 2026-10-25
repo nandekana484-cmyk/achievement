@@ -34,6 +34,19 @@ def _fast_scrypt(request, monkeypatch):
     monkeypatch.setattr(admin_auth, "DUMMY_HASH", passwords.hash_password("dummy-for-tests"))
 
 
+@pytest.fixture(autouse=True)
+def _reset_ip_access():
+    """アクセス制限の一覧の覚え(短い間だけ覚える)と、拒否のログのまとめを、テストごとに戻す。"""
+    from app.ip_access import deny_log
+    from app.services.ip_allowlist import cache
+
+    cache.invalidate()
+    deny_log.reset()
+    yield
+    cache.invalidate()
+    deny_log.reset()
+
+
 class FakeClock:
     """clock.now() を差し替える。advance() で時刻を進められる。"""
 

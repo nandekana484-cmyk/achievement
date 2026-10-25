@@ -16,14 +16,16 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.api import admin, admin_actuals, admin_masters, admin_reports, corrections, health, lines, plans, runs
+from app.api import admin, admin_access, admin_actuals, admin_masters, admin_reports, corrections, health, lines, plans, runs
 from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
 from app.services.backup import DailyBackup, make_backup
+from app.services.ip_allowlist import log_access_restriction
 from app.services.errors import Busy, Forbidden, NotFound, RuleViolation, TooManyAttempts, Unauthorized
 from app.services.plan_sync_scheduler import PlanSyncScheduler
 from app.http_guard import BodyLimitMiddleware, SecurityHeadersMiddleware
+from app.ip_access import IpAccessMiddleware
 from app.static_files import mount_spa
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,7 @@ async def lifespan(_app: FastAPI):
     make_backup(config.paths.database, config.paths.backup_dir, config.backup.keep, "startup")
     engine = init_db(config.paths.database)
     upgrade_to_head(engine)
+    log_access_restriction()
     daily_backup = DailyBackup(config.paths.database, config.paths.backup_dir, config.backup)
     daily_backup.start()
 
@@ -68,8 +71,9 @@ def docs_urls(expose: bool) -> dict[str, str | None]:
 
 
 app = FastAPI(title="現場実績入力", version=__version__, lifespan=lifespan, **docs_urls(get_config().server.expose_docs))
-# 後に足したものが外側。ヘッダーは 413 にも付けるため、本文の上限より外側に置く
+# 後に足したものが外側。ヘッダーは 403・413 にも付けるため一番外側に置き、許可していない接続元は本文を読む前に断る
 app.add_middleware(BodyLimitMiddleware, max_bytes=get_config().server.max_body_mb * 1024 * 1024)
+app.add_middleware(IpAccessMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health.router)
 app.include_router(plans.router)
@@ -80,6 +84,7 @@ app.include_router(admin.router)
 app.include_router(admin_masters.router)
 app.include_router(admin_reports.router)
 app.include_router(admin_actuals.router)
+app.include_router(admin_access.router)
 
 
 @app.exception_handler(RuleViolation)
