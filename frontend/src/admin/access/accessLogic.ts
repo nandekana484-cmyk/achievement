@@ -56,3 +56,17 @@ export function summarize(info: AccessInfo): AccessSummary {
 export function alreadyListed(info: AccessInfo, scope: Scope): boolean {
   return info.networks.some((n) => n.active && n.scope === scope && (n.network === `${info.my_ip}/32` || n.network === `${info.my_ip}/128`));
 }
+
+export type EmptyingWarning = "access.confirm.all" | "access.confirm.admin" | "access.confirm.field";
+
+/**
+ * この範囲を無効にすると、その区分の一覧が空になるとき、確認の文のキーを返す(ならなければ null)。
+ * すべての一覧が空になる(制限がなくなる)ときは all。管理画面用だけが空になると、管理画面は現場用と同じ範囲に広がる。
+ */
+export function emptyingWarning(info: AccessInfo, row: NetworkRow): EmptyingWarning | null {
+  if (!row.active) return null;
+  const others = info.networks.filter((n) => n.active && n.id !== row.id);
+  if (others.some((n) => n.scope === row.scope)) return null;
+  if (!others.some((n) => n.scope !== row.scope)) return "access.confirm.all";
+  return row.scope === "admin" ? "access.confirm.admin" : "access.confirm.field";
+}

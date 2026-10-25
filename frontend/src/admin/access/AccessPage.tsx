@@ -3,8 +3,9 @@
 import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { adminApi, useAdminCall } from "../adminApi";
 import { at } from "../messages";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { Feedback, TextInput, useSave } from "../parts";
-import { type AccessInfo, alreadyListed, looksLikeNetwork, type NetworkRow, type Scope, summarize } from "./accessLogic";
+import { type AccessInfo, alreadyListed, emptyingWarning, looksLikeNetwork, type NetworkRow, type Scope, summarize } from "./accessLogic";
 
 const time = (iso: string) => iso.slice(0, 16).replace("T", " ");
 const scopeText = (scope: Scope) => at(scope === "field" ? "access.scope.field" : "access.scope.admin");
@@ -40,8 +41,15 @@ export function AccessPage() {
       setNote("");
     }
   };
+  const [confirming, setConfirming] = useState<{ row: NetworkRow; message: string } | null>(null);
   const disable = (row: NetworkRow) =>
     save(() => adminApi.POST("/api/admin/access/networks/{network_id}/disable", { params: { path: { network_id: row.id } } }));
+  // 一覧が空になる(制限がなくなる、または広がる)変更は、確認してから送る
+  const askDisable = (row: NetworkRow) => {
+    const warning = info && emptyingWarning(info, row);
+    if (warning) setConfirming({ row, message: at(warning) });
+    else void disable(row);
+  };
 
   if (!info) return <p className="admin-loading">{error ?? at("loading")}</p>;
   const sum = summarize(info);
@@ -91,11 +99,18 @@ export function AccessPage() {
               <td>{scopeText(r.scope)}</td><td>{r.network}</td><td>{r.note ?? ""}</td><td>{r.created_by ?? at("access.byServer")}</td>
               <td>{time(r.created_at)}</td>
               <td>{r.active ? at("active") : at("access.disabledAt", { at: r.disabled_at ? time(r.disabled_at) : "" })}</td>
-              <td>{r.active && <button type="button" className="admin-btn" onClick={() => void disable(r)}>{at("deactivate")}</button>}</td>
+              <td>{r.active && <button type="button" className="admin-btn" onClick={() => askDisable(r)}>{at("deactivate")}</button>}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      {confirming && (
+        <ConfirmDialog
+          message={confirming.message} confirmLabel={at("access.confirm.ok")} cancelLabel={at("access.confirm.cancel")}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => { const { row } = confirming; setConfirming(null); void disable(row); }}
+        />
+      )}
     </section>
   );
 }

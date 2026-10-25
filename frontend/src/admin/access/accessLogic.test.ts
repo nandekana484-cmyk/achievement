@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type AccessInfo, alreadyListed, looksLikeNetwork, summarize } from "./accessLogic";
+import { type AccessInfo, alreadyListed, emptyingWarning, looksLikeNetwork, summarize } from "./accessLogic";
 
 const row = (id: number, network: string, scope: "field" | "admin", active = true) => ({
   id, network, scope, note: null, created_by: null, created_at: "2026-10-25T10:00:00+09:00", active, disabled_at: null, disabled_by: null,
@@ -42,5 +42,32 @@ describe("alreadyListed", () => {
 
   it("範囲の中にいても、1台としては載っていない", () => {
     expect(alreadyListed(info({ networks: [row(1, "192.168.3.0/24", "field")] }), "field")).toBe(false);
+  });
+});
+
+describe("emptyingWarning", () => {
+  const field1 = row(1, "192.168.3.0/24", "field");
+  const field2 = row(2, "172.16.0.0/16", "field");
+  const admin1 = row(3, "192.168.9.5/32", "admin");
+
+  it("最後の1件を無効にして、制限がなくなるときは all", () => {
+    expect(emptyingWarning(info({ networks: [field1] }), field1)).toBe("access.confirm.all");
+    expect(emptyingWarning(info({ networks: [admin1] }), admin1)).toBe("access.confirm.all");
+  });
+
+  it("同じ区分にほかの有効な範囲があれば、確認しない", () => {
+    expect(emptyingWarning(info({ networks: [field1, field2] }), field1)).toBeNull();
+  });
+
+  it("無効にした行は、数えない(あっても確認しない・最後の1件になる)", () => {
+    const off = row(9, "10.0.0.0/8", "field", false);
+    expect(emptyingWarning(info({ networks: [field1, off] }), field1)).toBe("access.confirm.all");
+    expect(emptyingWarning(info({ networks: [field1, off] }), off)).toBeNull();
+  });
+
+  it("片方の区分だけが空になるときは、それぞれの文", () => {
+    const both = info({ networks: [field1, admin1] });
+    expect(emptyingWarning(both, admin1)).toBe("access.confirm.admin");
+    expect(emptyingWarning(both, field1)).toBe("access.confirm.field");
   });
 });

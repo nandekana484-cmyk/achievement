@@ -206,6 +206,11 @@ const text = {
   "access.col.at": "登録日時",
   "access.byServer": "サーバーのPC(開発用コマンド)",
   "access.disabledAt": "無効({at})",
+  "access.confirm.all": "一覧が空になると、すべての接続元が許可されます。よろしいですか",
+  "access.confirm.admin": "管理画面用の一覧が空になると、管理画面は現場用と同じ範囲の接続元に許可されます。よろしいですか",
+  "access.confirm.field": "現場用の一覧が空になると、現場の画面はすべての接続元に許可されます。よろしいですか",
+  "access.confirm.ok": "無効にする",
+  "access.confirm.cancel": "キャンセル",
 
   "password.title": "パスワードの変更",
   "password.current": "今のパスワード",

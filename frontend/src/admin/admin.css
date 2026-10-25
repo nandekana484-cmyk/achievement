@@ -65,3 +65,11 @@
 .admin-status p { margin: 4px 0; }
 .admin-inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 6px; }
 .admin-inline-form input, .admin-inline-form select { padding: 5px 8px; font: inherit; }
+
+/* 確認のダイアログ */
+.admin-dialog { border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; max-width: 480px; }
+.admin-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.admin-dialog p { margin: 0 0 16px; }
+.admin-dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-dialog-buttons .admin-btn { margin-right: 0; }
+.admin-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
