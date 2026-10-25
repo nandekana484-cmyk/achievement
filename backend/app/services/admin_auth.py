@@ -141,18 +141,19 @@ def admin_for_password(session: Session, worker_id: str) -> Operator:
     return op
 
 
-def change_own_password(session: Session, op: Operator, current: str, new: str) -> None:
-    """管理画面から、自分のパスワードを変える(今のパスワードが要る)。"""
+def change_own_password(session: Session, op: Operator, current: str, new: str, keep_token: str | None = None) -> None:
+    """管理画面から、自分のパスワードを変える(今のパスワードが要る)。変えた画面のセッション(keep_token)以外は無効にする。"""
     cred = session.get(AdminCredential, op.id)
     if cred is None or not verify_password(current, cred.password_hash):
         raise RuleViolation("今のパスワードが違います")
     problem = check_new_password(new)
     if problem:
         raise RuleViolation(problem)
-    _store(session, op, new, op.id)
+    _store(session, op, new, op.id, _token_hash(keep_token) if keep_token else None)
 
 
-def _store(session: Session, op: Operator, password: str, actor_id: int | None) -> None:
+def _store(session: Session, op: Operator, password: str, actor_id: int | None, keep_session: str | None = None) -> None:
+    """パスワードを保存し、その人の既存のセッションを無効にする(keep_session のハッシュのものだけ残す。S-08)。"""
     hashed = hash_password(password)  # 時間がかかるので、ロックの外で計算する
     with write_transaction(session):
         cred = session.get(AdminCredential, op.id)
@@ -162,6 +163,8 @@ def _store(session: Session, op: Operator, password: str, actor_id: int | None) 
             session.add(cred)
         cred.password_hash, cred.updated_at = hashed, clock.now()
         session.execute(delete(AdminLoginAttempt).where(AdminLoginAttempt.worker_key == op.worker_key))
+        others = delete(AdminSession).where(AdminSession.operator_id == op.id)
+        session.execute(others.where(AdminSession.token_hash != keep_session) if keep_session else others)
         # パスワードそのものは記録しない
         record_change(session, actor_id, "admin_credentials", str(op.id), action, None, {"password": "(変更)"})
         session.commit()

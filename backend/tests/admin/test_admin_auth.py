@@ -216,3 +216,39 @@ def test_ip_failure_count_is_per_address_and_reset_by_success(client, people):
         login(client, worker_id=f"OTHER{i}", password="wrong-pass-1")
     assert login(client).status_code == 200
     ip_throttle.reset()
+
+
+# --- パスワードを変えたら、ほかのセッションは無効(S-08) ---
+
+def test_changing_the_password_ends_the_other_sessions(client, logged_in):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    other = TestClient(app)  # 別の端末(Cookie が別)
+    assert login(other).status_code == 200 and other.get("/api/admin/me").status_code == 200
+    body = {"current_password": PASSWORD, "new_password": "new-pass-123"}
+    assert client.put("/api/admin/password", json=body, headers=H).status_code == 204
+    assert other.get("/api/admin/me").status_code == 401  # ほかの端末は切れる
+    assert client.get("/api/admin/me").status_code == 200  # 変えた画面は続けて使える
+
+
+def test_resetting_the_password_from_the_cli_ends_all_sessions(client, logged_in):
+    from app.services import admin_auth
+
+    assert client.get("/api/admin/me").status_code == 200
+    with get_sessionmaker()() as s:
+        admin_auth.set_password(s, "K0042", "reset-pass-123")
+    assert client.get("/api/admin/me").status_code == 401
+
+
+def test_sessions_of_other_admins_are_kept(client, logged_in):
+    from app.services import admin_auth, masters
+
+    with get_sessionmaker()() as s:
+        masters.add_operator(s, "管理 次郎", worker_id="K0043", role="admin")
+        admin_auth.set_password(s, "K0043", "second-pass-1")
+    assert login(client, worker_id="K0043", password="second-pass-1").status_code == 200
+    with get_sessionmaker()() as s:
+        admin_auth.set_password(s, "K0042", "reset-pass-123")
+    assert client.get("/api/admin/me").json()["worker_id"] == "K0043"  # この client は K0043 に入れ替わっている
