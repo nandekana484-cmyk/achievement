@@ -3,7 +3,7 @@
 作業を再開するときは、まずこの文書を読む。仕様の基準は [docs/spec.md](spec.md)、作業の決まりは [AGENTS.md](../AGENTS.md)。
 
 - 最終更新: 2026-10-25
-- main の最新: Merge branch 'feature/deps-and-exe-check'(`git log -1 main` で確かめる)
+- main の最新: `git log -1 --format="%h %s" main` で確かめる(ここにはハッシュを書かない。書いても、この文書を直すコミットで古くなるため)
 
 ## 進め方
 
@@ -28,12 +28,8 @@
 - 本番の形(exe): `packaging\build.ps1` でフォルダ形式の exe(ウィンドウを出さない形)と zip を作れる。基準のフォルダ(GENBA_HOME)から config.toml とDBを読む。起動の失敗はログのファイルに残る。担当者PCで使う自動起動(担当者のアカウントで、ログオンしているかどうかにかかわらず実行)とファイアウォールのスクリプト([spec 10](spec.md#10-開発配布運用)、[packaging.md](design/packaging.md))
 - DBのバックアップ: 起動時(更新の前)と毎日 12:30 に backup_dir へ。世代は30([spec 9](spec.md#9-非機能要件))
 - ログ: `logs\genba.log` に日ごとに分けて保存
-- 実績の書き出し(管理画面): 片付けが終わった計画を、1行 = キッティングNo.+ロットNo.(面2の計画があるロットは面2の行にまとめる)の CSV(BOM 付きの UTF-8)で `exchange_dir\actuals` に書き出す。生産数はキッティングNo.の累計をロットに割り振り、画面で直せる(合計が合わないと書き出せない)。面1と面2は、ロットNo.+キッティングNo.の回を除いた部分(キー H)でひも付け、つながらない面1は管理者が「ひも付けの確認」で確定する。書き出しの履歴とダウンロード([spec 5.9](spec.md#59-実績の書き出し既存アプリに戻すための-csv)、[actuals-export.md](design/actuals-export.md))
+- 実績の書き出し(管理画面): 片付けが終わった計画を、1行 = キッティングNo.+ロットNo.(面2の計画があるロットは面2の行にまとめる)の CSV(BOM 付きの UTF-8)で `exchange_dir\actuals` に書き出す。生産数はキッティングNo.の累計をロットに割り振り、画面で直せる(合計が合わないと書き出せない)。面1と面2は、ロットNo.+キッティングNo.の回を除いた部分(キー H)でひも付け、つながらない面1は管理者が「ひも付けの確認」で確定する(確定は表 side_links に残す。やり直しは新しい行。MSI で作った。2026-10-25 に main に取り込み)。書き出しの履歴とダウンロード([spec 5.9](spec.md#59-実績の書き出し既存アプリに戻すための-csv)、[actuals-export.md](design/actuals-export.md))
 - 依存ライブラリの更新(2026-10-22): vite 7.3.7、vitest 5.0.3、react-router-dom 7.18.4、httpx → httpx2。npm audit 0件、pytest の警告 0件。更新後の exe の動作確認(起動、2つ目の停止、GenbaCli、バックアップ、自動起動とファイアウォールのスクリプト)の結果は [packaging.md](design/packaging.md) の末尾([dependencies.md](design/dependencies.md))
-
-## 作業中のブランチ
-
-- `feature/actuals-export`(MSI で作業中。main には取り込み前): 実績の書き出し。面1と面2のひも付けをキー H に変え、「ひも付けの確認」(管理者が確定。表 side_links、マイグレーション 0013)を足した
 
 ## 次にやること(この順番の予定)
 
