@@ -34,6 +34,7 @@ class ServerConfig:
     port: int = 8000
     # /docs・/redoc・/openapi.json を出すか。本番は出さない(開発で確かめたいときだけ true)。詳細: docs/design/security.md(S-02)
     expose_docs: bool = False
+    max_body_mb: int = 5  # リクエスト本文の上限(MB)。超えたら 413(S-11)
 
 
 @dataclass(frozen=True)
@@ -155,7 +156,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
     defaults = PathsConfig()
     return _resolve(AppConfig(
         server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
-                            expose_docs=bool(s.get("expose_docs", False))),
+                            expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
         paths=PathsConfig(
             database=Path(p.get("database", defaults.database)),
             legacy_app_dir=_opt_path(p.get("legacy_app_dir")),

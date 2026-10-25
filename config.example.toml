@@ -8,6 +8,8 @@ host = "0.0.0.0"
 port = 8000
 # /docs・/redoc・/openapi.json を出すか。本番は false(既定)。開発で API の定義を見たいときだけ true
 # expose_docs = true
+# リクエスト本文の上限(MB)。超えたら 413
+max_body_mb = 5
 
 [paths]
 database = "data/genba.db"

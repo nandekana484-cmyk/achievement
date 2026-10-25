@@ -23,7 +23,7 @@ from app.db.session import get_sessionmaker, init_db
 from app.services.backup import DailyBackup, make_backup
 from app.services.errors import Busy, Forbidden, NotFound, RuleViolation, TooManyAttempts, Unauthorized
 from app.services.plan_sync_scheduler import PlanSyncScheduler
-from app.http_guard import SecurityHeadersMiddleware
+from app.http_guard import BodyLimitMiddleware, SecurityHeadersMiddleware
 from app.static_files import mount_spa
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,8 @@ def docs_urls(expose: bool) -> dict[str, str | None]:
 
 
 app = FastAPI(title="現場実績入力", version=__version__, lifespan=lifespan, **docs_urls(get_config().server.expose_docs))
+# 後に足したものが外側。ヘッダーは 413 にも付けるため、本文の上限より外側に置く
+app.add_middleware(BodyLimitMiddleware, max_bytes=get_config().server.max_body_mb * 1024 * 1024)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health.router)
 app.include_router(plans.router)
