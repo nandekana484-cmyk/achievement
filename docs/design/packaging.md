@@ -90,32 +90,72 @@ C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
 どれも管理者権限が要る(スクリプトの先頭に `#Requires -RunAsAdministrator`)。PowerShell を「管理者として実行」してから動かす。
 PowerShell 5.1 が日本語を正しく読めるよう、.ps1 は UTF-8(BOM 付き)・改行 CRLF で保存する。
 
-### 自動起動を担当者のアカウントで動かす理由
+### 自動起動は専用のアカウントで動かす(SYSTEM では動かさない)
 
-- 担当者の権限で動くので、担当者が書ける共有フォルダにバックアップを書ける(SYSTEM は、このPCのコンピューターアカウントで共有フォルダに接続するため、共有フォルダの権限の設定が別に要る)
-- 「ユーザーがログオンしているかどうかにかかわらず実行する」タスクは、利用者の画面とは別に動くので、ウィンドウは出ない。担当者がログオフしても止まらない
-- 注意: 担当者のパスワードを変えたら、登録し直す(タスクスケジューラが古いパスワードで起動しようとして失敗する)。ドメインの設定で「バッチ ジョブとしてログオン」の権利が無いと登録・起動できないので、そのときは情報システムの担当に頼むか、`-RunAsSystem` にする
+- 実行するアカウントは `-User` で必ず指定する(指定しないとスクリプトが止まる)。**SYSTEM、LOCAL SERVICE、NETWORK SERVICE、Administrator は断る**。管理者権限を持たない、このアプリ専用のアカウント(例 `DOMAIN\genba-app`)を使う。Administrators のメンバーだと警告が出る
+  - 理由: アプリが乗っ取られたとき(過去には画面の配信の S-01 があった)の被害を、そのアカウントが読み書きできる範囲に抑えるため。SYSTEM だとPC全体に及ぶ(詳細: security.md の S-05)
+- そのアカウントが書ける共有フォルダにバックアップを書ける(共有フォルダの権限は、下の「フォルダの権限」)
+- 「ユーザーがログオンしているかどうかにかかわらず実行する」タスクは、利用者の画面とは別に動くので、ウィンドウは出ない。ログオフしても止まらない
+- 注意: そのアカウントのパスワードを変えたら、登録し直す(タスクスケジューラが古いパスワードで起動しようとして失敗する)。ドメインの設定で「バッチ ジョブとしてログオン」の権利が無いと登録・起動できないので、情報システムの担当に頼む
 
 | スクリプト | すること |
 | --- | --- |
-| `install-autostart.ps1 -Version v1.0.0 [-User <担当者>]` | 標準。タスクスケジューラに、PCの起動時に exe を起動するタスク(名前 GenbaApp)を、担当者のアカウントで「ユーザーがログオンしているかどうかにかかわらず実行する」形で登録する。パスワードは実行したときに入力する(スクリプトには書かない)。止まったら1分後に起動し直す |
-| `install-autostart.ps1 -Version v1.0.0 -RunAsSystem` | SYSTEM で動かす(パスワードは要らない)。共有フォルダにはこのPCのコンピューターアカウントで接続するので、その書き込み権限が無いとバックアップを取れない |
+| `install-autostart.ps1 -Version v1.0.0 -User <専用アカウント>` | タスクスケジューラに、PCの起動時に exe を起動するタスク(名前 GenbaApp)を、そのアカウントで「ユーザーがログオンしているかどうかにかかわらず実行する」形で登録する。パスワードは実行したときに入力する(スクリプトには書かない)。止まったら1分後に起動し直す |
 | `uninstall-autostart.ps1` | 上のタスクを止めて外す |
-| `firewall-allow.ps1 -Port 8000` | 受信の TCP のそのポートだけを許可する(ドメインとプライベートのプロファイル)。ポートは config.toml の server.port と合わせる |
+| `firewall-allow.ps1 -Port 8000 [-RemoteAddress <相手>]` | 受信の TCP のそのポートだけを、**相手を絞って**許可する(ドメインとプライベートのプロファイル)。ポートは config.toml の server.port と合わせる。`-RemoteAddress` の既定は `LocalSubnet`(同じサブネット)。タブレットと管理用PCの固定のアドレス(`192.168.10.21,192.168.10.22` や `192.168.10.0/24`)に絞るのがよい |
 | `firewall-remove.ps1` | 上の許可を消す |
+
+(旧 `-RunAsSystem` は無くした。2026-10-25、AD-12)
+
+### フォルダの権限(担当者PC。コードの変更なしにできる対策)
+
+`C:\` の直下に作ったフォルダは、既定で `Authenticated Users` に「変更」の権限が付くことがある。そのままだと、PCにログオンできる誰でも exe の置き換え、config.toml の書き換え、DBの読み取りができてしまう(security.md の S-05)。展開したあと、管理者の PowerShell で次のように絞る。`DOMAIN\genba-app` は自動起動の専用アカウント。
+
+```powershell
+# 1. 継承を切って、必要な人だけにする(Administrators と SYSTEM は全権、専用アカウントは「変更」)
+icacls C:\GenbaApp /inheritance:r
+icacls C:\GenbaApp /grant "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" "DOMAIN\genba-app:(OI)(CI)M"
+# 2. exe のフォルダは、専用アカウントには「読み取りと実行」だけにする(exe を置き換えられないように)
+icacls C:\GenbaApp\app /inheritance:r
+icacls C:\GenbaApp\app /grant "SYSTEM:(OI)(CI)F" "Administrators:(OI)(CI)F" "DOMAIN\genba-app:(OI)(CI)RX"
+# 確かめる
+icacls C:\GenbaApp
+icacls C:\GenbaApp\app
+```
+
+- 管理者の操作(パスワードの設定 `GenbaCli.exe`)をする担当者は、Administrators のメンバーか、`data` に書けるアカウントで実行する
+- `C:\GenbaApp\data`(config.toml、DB)と `logs`、`exchange` は、専用アカウントが書けて、ほかの一般ユーザーは読めない状態にする(上の 1 のとおり)
+- **バックアップ先の共有フォルダ**(`paths.backup_dir`)も同じ考え方にする。バックアップは本アプリのDBの完全な複製で、**管理者のパスワードのハッシュ、全員の氏名・作業者ID、全実績が入っている**。共有フォルダの権限は、専用アカウント(書き込み)と、担当者・管理者(読み取り)だけにして、「Everyone」「Domain Users」は外す。共有の権限(共有のアクセス許可)と、NTFS の権限の両方を確かめる
+- 既存アプリのフォルダ(`legacy_app_dir`)は、専用アカウントに「読み取り」だけを与える(本アプリは読み取り専用で開く。書き込みの権限は要らない)
+- 確かめ方: 専用ではない一般ユーザーで `C:\GenbaApp\data\config.toml` を開けないこと、`C:\GenbaApp\app\v1.0.0\GenbaApp.exe` を上書きできないことを試す
+
+### 管理画面の通信(HTTPのみ)の運用
+
+HTTP のままでは、管理画面のパスワードとセッションが平文で流れる(security.md の S-04、5.3)。コードを変えずにできる対策:
+
+1. 管理画面のパスワードは、ほかのシステムと使い回さない。12文字以上にする(アプリの下限は8文字)
+2. 管理用PCは有線のLAN、または他と分けたネットワークに置く。タブレットの Wi-Fi の鍵を管理用PCと共有しない
+3. ファイアウォールの `-RemoteAddress` を、タブレットと管理用PCのアドレスだけにする
+4. 管理画面を使うときは、担当者PCのブラウザで `http://localhost:<ポート>/admin` を開く方法もある(LANに流れない)
+
+### パスワードの設定の注意
+
+- `GenbaCli.exe admin set-password --worker-id <ID>` は、画面に出ない入力で2回聞く。手で打つときは、これを使う
+- `--stdin` は自動化のときだけ。`echo パスワード | GenbaCli.exe ...` のように書くと、PowerShell のコマンド履歴(PSReadLine)にパスワードが残る
 
 ## 初めて置くとき(担当者PC)
 
 1. `C:\GenbaApp\app\` に zip を展開する(`C:\GenbaApp\app\v1.0.0\GenbaApp.exe` になる)
-2. `C:\GenbaApp\data\config.toml` を作る(リポジトリの `config.example.toml` をもとに、`legacy_app_dir`、`backup_dir`、ポートを書く)
-3. 管理者の PowerShell で `install-autostart.ps1 -Version v1.0.0 -User <担当者>`(パスワードを入力する)と `firewall-allow.ps1 -Port <ポート>`
-4. `Start-ScheduledTask -TaskName GenbaApp` で起動し、ブラウザで `http://<担当者PC>:<ポート>/api/health` が ok を返すことを確かめる
+2. `C:\GenbaApp\data\config.toml` を作る(リポジトリの `config.example.toml` をもとに、`legacy_app_dir`、`backup_dir`、ポートを書く。`expose_docs` は書かない = 本番は `/docs` を開かない)
+3. 専用アカウントを用意し、上の「フォルダの権限」で `C:\GenbaApp` とバックアップ先の権限を絞る
+4. 管理者の PowerShell で `install-autostart.ps1 -Version v1.0.0 -User <専用アカウント>`(パスワードを入力する)と `firewall-allow.ps1 -Port <ポート> -RemoteAddress <タブレットと管理用PCのアドレス>`
+5. `Start-ScheduledTask -TaskName GenbaApp` で起動し、ブラウザで `http://<担当者PC>:<ポート>/api/health` が ok を返すことを確かめる。`http://<担当者PC>:<ポート>/docs` が開かない(画面の表示か 404)ことも確かめる
 
 ## 版を更新するとき(担当者PC)
 
 1. `Stop-ScheduledTask -TaskName GenbaApp`(止める)
 2. 新しい版の zip を `C:\GenbaApp\app\` に展開する(旧版のフォルダは残す)
-3. `install-autostart.ps1 -Version <新しい版> -User <担当者>` で登録し直す
+3. `install-autostart.ps1 -Version <新しい版> -User <専用アカウント>` で登録し直す
 4. `Start-ScheduledTask -TaskName GenbaApp`。起動時にバックアップ(`*_startup.db`)を取ってから、DBの構造を更新する
 5. `/api/health` の version が新しい版になっていることを確かめる
 6. 問題があれば、止める → 旧版で登録し直す → `data\genba.db` を更新の前のバックアップ(`*_startup.db`)に戻す → 起動する
