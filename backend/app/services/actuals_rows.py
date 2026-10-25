@@ -1,7 +1,8 @@
 """実績の書き出しの一覧(1行 = キッティングNo.+ロットNo.)。片付けが終わった計画だけ。DBは読むだけ。
 
-- 面2の計画があるロットは、面2の行にまとめる(面1の行は出さない)。面2が無いロットは面1の行を出す
-- 面1と面2は (ロットNo., ファイルNo.) でひも付ける。決まらないものは推測せず、警告を付けて書き出しの対象から外す
+- 面2の計画があるロットは、つながる面2の行にまとめる(面1の行は出さない)。面2が無いロットは面1の行を出す
+- 面1と面2は、ロットNo. + キッティングNo.の回を除いた部分(キー H)か、人が確定したひも付けでつなぐ(services/side_links.py)。
+  面2があるのにつながらない面1は、書き出しの対象から外し、「ひも付けの確認」に出す
 - 生産数はキッティングNo.の累計(取り消した記録を除く)を、ロットに割り振る(domain/allocation.py)
 詳細: docs/design/actuals-export.md
 """
@@ -15,16 +16,19 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import PLAN_ACTIVE, PLAN_CANCELLED, Operator, Plan, RunCompletion, RunEvent, RunNgInput
+from app.db.models import PLAN_CANCELLED, Operator, RunCompletion, RunEvent, RunNgInput
 from app.domain.allocation import allocate
 from app.domain.workday import workday_of, workday_range
 from app.services.completions import latest_completion, produced_total, valid_completion
 from app.services.kitting_plans import KittingGroup, load_group
+from app.services.side_links import LinkCheckOut, link_checks, link_for_side1, side1_for_side2
 
 W_CANCELLED = "取消の計画です(既存アプリに計画がありません)"
 W_NO_WORKER = "片付けを終えた人の作業者IDがありません"
 W_NO_SOURCE = "元のDB(正とした月次DB)が分かりません"
-W_SIBLING = "同じキッティングNo.のほかのロットのひも付けが決まらないため、書き出しません"
+W_PENDING = "面2の計画があるのに、キッティングNo.でつながりません。「ひも付けの確認」で面2の計画を選んでください"
+W_UNLINKED = "「ひも付けの確認」で「つながない」にしたため、書き出しません"
+N_NO_SIDE1 = "つながる面1の計画が無いため、NG面1は0です"
 
 
 class ActualsRowOut(BaseModel):
@@ -55,6 +59,8 @@ class ActualsListOut(BaseModel):
     date_to: dt.date
     line_code: str | None
     rows: list[ActualsRowOut]
+    link_checks: list[LinkCheckOut]  # ひも付けの確認(一覧のロットの、キッティングNo.でつながらない面1)
+    pending_links: int  # そのうち未確定の数
 
 
 @dataclass
@@ -70,6 +76,7 @@ def build_rows(session: Session, date_from: dt.date, date_to: dt.date, line_code
     start, _ = workday_range(date_from, day_start)
     _, end = workday_range(date_to, day_start)
     rows: list[ActualsRowOut] = []
+    lots: set[tuple[str, str]] = set()
     for kno in _completed_kittings(session, start, end):
         completion = latest_completion(session, kno)
         if completion is None or not (start <= completion.completed_at < end):
@@ -78,8 +85,11 @@ def build_rows(session: Session, date_from: dt.date, date_to: dt.date, line_code
         if line_code and group.line_code != line_code:
             continue
         rows += _group_rows(session, group, completion, day_start)
+        lots |= {(lot.lot_no, group.file_no) for lot in group.lots}
     rows.sort(key=lambda r: (r.completed_on, r.line_code, r.kitting_no, r.lot_no))
-    return ActualsListOut(date_from=date_from, date_to=date_to, line_code=line_code, rows=rows)
+    checks = link_checks(session, lots)
+    return ActualsListOut(date_from=date_from, date_to=date_to, line_code=line_code, rows=rows,
+                          link_checks=checks, pending_links=sum(c.state == "pending" for c in checks))
 
 
 def _completed_kittings(session: Session, start: dt.datetime, end: dt.datetime) -> list[str]:
@@ -94,15 +104,14 @@ def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion
     hidden_qty = sum(q for q, p in zip(qtys, pairings, strict=True) if p.hidden)
     worker_id, name = _cleanup_operator(session, completion)
     common = _common_warnings(group, worker_id)
-    ambiguous = any(p.warning for p in pairings if not p.hidden)
     rows = []
     for lot, qty, p in zip(group.lots, qtys, pairings, strict=True):
         if p.hidden:
             continue
         warnings = [*common, *([p.warning] if p.warning else []), *([] if lot.source_db else [W_NO_SOURCE])]
-        if ambiguous and not p.warning:
-            warnings.append(W_SIBLING)
         ng1, ng2, notes = _ng(session, group, lot.lot_no, p.side1_kitting_no)
+        if group.run_no == 2 and not p.side1_kitting_no:
+            notes.append(N_NO_SIDE1)
         if p.side1_kitting_no and latest_completion(session, p.side1_kitting_no) is None:
             notes.append(f"面1の計画({p.side1_kitting_no})は完了していません")
         rows.append(ActualsRowOut(
@@ -120,23 +129,18 @@ def _common_warnings(group: KittingGroup, worker_id: str | None) -> list[str]:
     return [*([W_CANCELLED] if group.status == PLAN_CANCELLED else []), *([] if worker_id else [W_NO_WORKER])]
 
 
-def _active_plans(session: Session, lot_no: str, file_no: str, side: int) -> list[str]:
-    return list(session.scalars(select(Plan.kitting_no).where(
-        Plan.lot_no == lot_no, Plan.file_no == file_no, Plan.run_no == side, Plan.status == PLAN_ACTIVE,
-    ).order_by(Plan.kitting_no)))
-
-
 def _pairing(session: Session, group: KittingGroup, lot_no: str) -> _Pairing:
-    """そのロットの行を出すか、面2の行ならどの面1の計画とひも付けるか。"""
-    side2 = _active_plans(session, lot_no, group.file_no, 2)
-    if group.run_no == 1:
-        return _Pairing(hidden=bool(side2))
-    side1 = _active_plans(session, lot_no, group.file_no, 1)
-    if len(side2) > 1 or len(side1) > 1:
-        return _Pairing(hidden=False, warning=(
-            f"ロットNo. {lot_no}・ファイルNo. {group.file_no} の面1と面2のひも付けが決まりません"
-            f"(面1の計画 {len(side1)}件、面2の計画 {len(side2)}件)"))
-    return _Pairing(hidden=False, side1_kitting_no=side1[0] if side1 else None)
+    """そのロットの行を出すか(面1の行は、つながる面2の行にまとめる)、面2の行ならどの面1の計画とつながるか。"""
+    if group.run_no == 2:
+        return _Pairing(hidden=False, side1_kitting_no=side1_for_side2(session, lot_no, group.file_no, group.kitting_no))
+    link = link_for_side1(session, lot_no, group.file_no, group.kitting_no)
+    if link.state in ("h", "confirmed"):
+        return _Pairing(hidden=True)
+    if link.state == "pending":
+        return _Pairing(hidden=False, warning=W_PENDING)
+    if link.state == "unlinked":
+        return _Pairing(hidden=False, warning=W_UNLINKED)
+    return _Pairing(hidden=False)
 
 
 def _cleanup_operator(session: Session, completion: RunCompletion) -> tuple[str | None, str | None]:

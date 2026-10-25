@@ -1,92 +1,23 @@
-"""実績の書き出し(既存アプリに戻すための CSV): 行の単位、割り振り、合計の確かめ、取り消しの除外、面1と面2のひも付け、権限。"""
+"""実績の書き出し(既存アプリに戻すための CSV): 行の単位、割り振り、合計の確かめ、取り消しの除外、CSV、権限。
+
+面1と面2のひも付けは test_actuals_pairing.py。
+"""
 
 import csv
 import io
 
 import pytest
 
-from app.core.config import get_config
+from actuals_helpers import (  # noqa: F401  admin はフィクスチャ
+    BODY, DAY, H, K3, K4, URL, admin, by_key, export, finish, listing, login, ng, produce,
+)
 from app.db.models import ActualsExport, Operator, RunEvent
-from app.services import admin_auth, masters
+from app.services import masters
 from legacy_fixture import insert_plan
-from records_helpers import K1, K2, count_rows, end, new_session, ok, reason_id, rid, set_operator, start, sync_plans, void
-
-H = {"X-Genba-Admin": "1"}
-URL = "/api/admin/actuals"
-DAY = {"from": "2026-10-21", "to": "2026-10-21"}
-BODY = {"date_from": "2026-10-21", "date_to": "2026-10-21"}
-K3 = "0800-1-S-251014-03"  # 面1だけ(面2の計画が無い)
-K4 = "0900-1-S-251014-04"  # 面1・2ロット(A 100、B 50)
+from records_helpers import K2, count_rows, new_session, ok, set_operator, sync_plans, void
 
 
-def login(client):
-    r = client.post("/api/admin/login", json={"worker_id": "K0042", "password": "right-pass-1"}, headers=H)
-    assert r.status_code == 200
-
-
-@pytest.fixture
-def admin(client, world, tmp_path, fake_clock):
-    """管理者 K0042、今の担当者は作業者ID Y100 の鈴木。書き出し先は tmp_path/exchange。時計は 10/21 9:00(稼働日 10/21)。"""
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(cfg.read_text(encoding="utf-8") + f'exchange_dir = "{(tmp_path / "exchange").as_posix()}"\n', encoding="utf-8")
-    get_config.cache_clear()
-    with new_session() as s:
-        masters.add_operator(s, "管理 花子", worker_id="K0042", role="admin")
-        admin_auth.set_password(s, "K0042", "right-pass-1")
-        suzuki = masters.add_operator(s, "鈴木", worker_id="Y100").id
-    set_operator(client, suzuki)
-    fake_clock.advance(hours=1)
-    return {**world, "suzuki": suzuki, "exchange": tmp_path / "exchange"}
-
-
-def produce(client, fake_clock, kitting_no, *qtys):
-    for i, q in enumerate(qtys):
-        extra = {"restart_reason_id": reason_id("人員交代")} if i else {}
-        ok(start(client, "production", kitting_no=kitting_no, **extra))
-        fake_clock.advance(minutes=10)
-        ok(end(client, "production", kitting_no=kitting_no, produced_qty=q))
-
-
-def finish(client, fake_clock, kitting_no):
-    ok(start(client, "cleanup", kitting_no=kitting_no))
-    fake_clock.advance(minutes=5)
-    ok(end(client, "cleanup", kitting_no=kitting_no))
-
-
-def ng(client, kitting_no, lot_no, side, qty):
-    ok(client.put(f"/api/runs/{kitting_no}/ng-qty", json={"request_id": rid(), "lot_no": lot_no, "side": side, "ng_qty": qty}))
-
-
-def listing(client, **params):
-    login(client)
-    r = client.get(URL, params={**DAY, **params})
-    assert r.status_code == 200, r.text
-    return r.json()["rows"]
-
-
-def by_key(rows):
-    return {(r["kitting_no"], r["lot_no"]): r for r in rows}
-
-
-def export(client, **body):
-    login(client)
-    return client.post(f"{URL}/export", json={**BODY, **body}, headers=H)
-
-
-# --- 行の単位(面1と面2) ---
-
-def test_side2_row_carries_both_sides_and_side1_row_is_not_shown(client, admin, fake_clock):
-    produce(client, fake_clock, K1, 300)
-    ng(client, K1, "L001", 1, 5)
-    finish(client, fake_clock, K1)
-    produce(client, fake_clock, K2, 200, 90)
-    ng(client, K2, "L001", 2, 3)
-    finish(client, fake_clock, K2)
-    rows = listing(client)
-    assert [(r["kitting_no"], r["side"]) for r in rows] == [(K2, 2)]
-    r = rows[0]
-    assert (r["produced_qty"], r["ng_side1"], r["ng_side2"], r["side1_kitting_no"]) == (290, 5, 3, K1)
-    assert (r["worker_id"], r["completed_on"], r["source_db"], r["exportable"]) == ("Y100", "2026-10-21", "2026-10", True)
+# --- 行の単位 ---
 
 
 def test_side1_only_lot_shows_the_side1_row(client, admin, fake_clock):
@@ -97,33 +28,6 @@ def test_side1_only_lot_shows_the_side1_row(client, admin, fake_clock):
     finish(client, fake_clock, K3)
     r = by_key(listing(client))[(K3, "L010")]
     assert (r["side"], r["produced_qty"], r["ng_side1"], r["ng_side2"], r["exportable"]) == (1, 120, 2, 0, True)
-
-
-def test_side1_row_waits_while_a_side2_plan_exists(client, admin, fake_clock):
-    produce(client, fake_clock, K1, 300)
-    finish(client, fake_clock, K1)
-    assert listing(client) == []  # 面2(K2)の完了の行にまとめるので、面1の行は出さない
-
-
-def test_side1_ng_entered_on_the_side2_screen_is_used(client, admin, fake_clock):
-    produce(client, fake_clock, K2, 300)
-    ng(client, K2, "L001", 1, 7)  # 面2の画面から面1のNG
-    finish(client, fake_clock, K2)
-    r = listing(client)[0]
-    assert (r["ng_side1"], r["ng_side2"]) == (7, 0)
-    assert any("面1の計画" in n and "完了していません" in n for n in r["notes"])
-
-
-def test_ambiguous_pairing_is_warned_and_not_exported(client, admin, fake_clock):
-    insert_plan(admin["db"], kitting_no="0722-1-S-251015-01", lot_no="L001", qty=100)  # 同じロット・ファイルNo.の面1が2つ
-    sync_plans(admin["app"])
-    produce(client, fake_clock, K2, 300)
-    finish(client, fake_clock, K2)
-    r = listing(client)[0]
-    assert r["exportable"] is False and r["side1_kitting_no"] is None
-    assert "ひも付けが決まりません(面1の計画 2件、面2の計画 1件)" in r["warnings"][0]
-    res = export(client)
-    assert res.status_code == 409 and "書き出せる行がありません" in res.json()["detail"]
 
 
 def test_missing_worker_id_is_warned(client, admin, fake_clock):

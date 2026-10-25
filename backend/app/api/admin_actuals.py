@@ -7,17 +7,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.api.admin import current_admin, require_header_for_writes
 from app.core.config import get_config
 from app.db.models import Operator
 from app.db.session import get_session
-from app.services import actuals_export
+from app.services import actuals_export, side_links
 from app.services.actuals_export import ExportIn, ExportOut
 from app.services.actuals_rows import ActualsListOut, build_rows
 from app.services.errors import RuleViolation
 from app.services.masters import get_line
+from app.services.side_links import LinkCheckOut
 
 router = APIRouter(prefix="/api/admin/actuals", tags=["admin"], dependencies=[Depends(require_header_for_writes)])
 
@@ -74,3 +76,17 @@ def export_file(_: Admin, session: Db, export_id: int) -> Response:
     name, content = actuals_export.export_file(session, export_id)
     return Response(content=content, media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
+class LinkIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    lot_no: str = Field(max_length=100)
+    side1_kitting_no: str = Field(max_length=100, description="面1の計画")
+    side2_kitting_no: str | None = Field(default=None, max_length=100, description="面2の計画。空(null)は「つながない」")
+
+
+@router.post("/links", response_model=LinkCheckOut)
+def confirm_link(admin: Admin, session: Db, body: LinkIn) -> LinkCheckOut:
+    """ひも付けの確認: 面1の計画のロットを面2の計画に確定する(やり直しは新しい行で上書き)。選べない面2なら 409。"""
+    return side_links.confirm(session, admin, body.lot_no, body.side1_kitting_no, body.side2_kitting_no)

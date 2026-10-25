@@ -56,3 +56,9 @@ def parse_kitting_no(value: str) -> KittingNo:
         issue_date=issue_date,
         issue_seq=int(m.group("issue_seq")),
     )
+
+
+def without_run(kitting_no: str) -> str:
+    """回を除いた部分(ファイルNo.-ライン-発行年月日-発行順)。面1と面2の計画をひも付けるキー(開発指針 5.9)。"""
+    parts = parse_kitting_no(kitting_no).raw.split("-")
+    return "-".join([parts[0], *parts[2:]])
