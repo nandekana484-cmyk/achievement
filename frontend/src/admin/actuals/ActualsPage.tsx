@@ -1,12 +1,14 @@
 // 管理画面の「実績の書き出し」: 期間(完了日の稼働日)とラインで、片付けが終わった計画の一覧を出す。
-// 生産数は行ごとに直せる。キッティングNo.ごとの合計が累計と合わなければ書き出せない。詳細: docs/design/actuals-export.md
+// 生産数は行ごとに直せる。キッティングNo.ごとの合計が累計と合わなければ書き出せない。
+// キッティングNo.でつながらない面1は「ひも付けの確認」で面2の計画に確定する。詳細: docs/design/actuals-export.md
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminApi, type LineRow, useAdminCall } from "../adminApi";
 import { at } from "../messages";
 import { Feedback, useAdminList } from "../parts";
-import { type ActualsRow, type Edits, mismatches, parseQty, quantitiesToSend, rowKey } from "./actuals";
+import { type ActualsRow, type Edits, type LinkCheck, mismatches, parseQty, quantitiesToSend, rowKey } from "./actuals";
 import { ActualsTable } from "./ActualsTable";
 import { ExportHistory } from "./ExportHistory";
+import { LinkChecks } from "./LinkChecks";
 
 const loadLines = () => adminApi.GET("/api/admin/lines");
 
@@ -28,19 +30,24 @@ function ActualsContent({ workday }: { workday: string }) {
   const [filter, setFilter] = useState<Filter>({ from: workday, to: workday, lineCode: "" });
   const [shown, setShown] = useState<Filter | null>(null); // 一覧を読んだときの条件(書き出しはこの条件で行う)
   const [rows, setRows] = useState<ActualsRow[] | null>(null);
+  const [checks, setChecks] = useState<{ list: LinkCheck[]; pending: number }>({ list: [], pending: 0 });
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
 
-  const show = useCallback(async () => {
+  const load = useCallback(async (f: Filter, after: { ok: boolean; text: string } | null = null) => {
     const r = await call(() => adminApi.GET("/api/admin/actuals", {
-      params: { query: { from: filter.from, to: filter.to, line_code: filter.lineCode || undefined } },
+      params: { query: { from: f.from, to: f.to, line_code: f.lineCode || undefined } },
     }));
     setRows(r.ok ? r.data.rows : null);
-    setShown(r.ok ? filter : null);
+    setChecks(r.ok ? { list: r.data.link_checks, pending: r.data.pending_links } : { list: [], pending: 0 });
+    setShown(r.ok ? f : null);
     setDrafts({});
-    setMessage(r.ok ? null : { ok: false, text: r.message });
-  }, [call, filter]);
+    setMessage(r.ok ? after : { ok: false, text: r.message });
+  }, [call]);
+  const show = () => load(filter);
+  // 確定したら、書き出しの一覧を同じ条件で読み直す(面1の行が面2の行にまとまる)
+  const reloadShown = (text: string) => shown && void load(shown, { ok: true, text });
 
   const { edits, invalid } = useMemo(() => {
     const e: Edits = {};
@@ -82,6 +89,7 @@ function ActualsContent({ workday }: { workday: string }) {
         <button type="button" className="admin-btn" onClick={() => void show()}>{at("actuals.show")}</button>
       </div>
       <Feedback error={linesError} />
+      {checks.pending > 0 && <p className="admin-error" role="alert">{at("actuals.pending", { count: checks.pending })}</p>}
       {rows && rows.length === 0 && <p>{at("actuals.empty")}</p>}
       {rows && rows.length > 0 && (
         <>
@@ -99,6 +107,9 @@ function ActualsContent({ workday }: { workday: string }) {
         </>
       )}
       <Feedback message={message} />
+      {checks.list.length > 0 && (
+        <LinkChecks checks={checks.list} onConfirmed={reloadShown} onError={(text) => setMessage({ ok: false, text })} />
+      )}
       <p className="admin-note actuals-excel" role="note">{at("actuals.excelNote")}</p>
       <ExportHistory reloadKey={historyKey} />
     </section>

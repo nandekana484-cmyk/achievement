@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type ActualsRow, mismatches, parseQty, quantitiesToSend, rowKey } from "./actuals";
+import { type ActualsRow, initialChoice, mismatches, NO_LINK, parseQty, quantitiesToSend, rowKey } from "./actuals";
 
 const row = (lot_no: string, produced_qty: number, extra: Partial<ActualsRow> = {}): ActualsRow => ({
   kitting_no: "0900-1-S-251014-04", lot_no, file_no: "0900", side: 1, line_code: "S", product_name: "基板",
@@ -38,5 +38,17 @@ describe("実績の書き出しの合計の確かめ", () => {
     expect(parseQty("-1")).toBeNull();
     expect(parseQty("1.5")).toBeNull();
     expect(parseQty("")).toBeNull();
+  });
+});
+
+describe("ひも付けの確認の初期の選択", () => {
+  it("未確定なら、サーバーが選んだ発行日の近い面2。選べる面2が無ければ空", () => {
+    expect(initialChoice({ state: "pending", side2_kitting_no: null, suggested: "0722-2-S-251014-02" })).toBe("0722-2-S-251014-02");
+    expect(initialChoice({ state: "pending", side2_kitting_no: null, suggested: null })).toBe("");
+  });
+
+  it("確定したものはその結果(つながないも)", () => {
+    expect(initialChoice({ state: "confirmed", side2_kitting_no: "0722-2-S-251020-07", suggested: "0722-2-S-251014-02" })).toBe("0722-2-S-251020-07");
+    expect(initialChoice({ state: "unlinked", side2_kitting_no: null, suggested: "0722-2-S-251014-02" })).toBe(NO_LINK);
   });
 });

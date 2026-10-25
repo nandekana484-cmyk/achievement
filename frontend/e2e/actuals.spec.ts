@@ -1,9 +1,11 @@
-// 管理画面の「実績の書き出し」: ログイン → 一覧 → 数を直す → 書き出し → ダウンロード(㉒㉓)。
+// 管理画面の「実績の書き出し」: ログイン → 一覧 → ひも付けの確認と確定 → 数を直す → 書き出し → ダウンロード(㉒㉓㉔)。
 // ラインU(demo-seed --lot-suffix U)だけを使い、ほかの確認(ラインS・T)には触れない。記録した人は worker_id で指定する。
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 
-const SIDE2 = "1000-2-U-261014-10"; // 3ロット(DEMO-101U 150、102U 100、103U 50)の面2。面1は 1000-1-U-261014-09
+const SIDE2 = "1000-2-U-261014-10"; // 3ロット(DEMO-101U 150、102U 100、103U 50)の面2
+const SIDE1 = "1000-1-U-261014-09"; // 同じ3ロットの面1。発行順が違うので、キッティングNo.(回を除いた部分)ではつながらない
+const LOTS = ["DEMO-101U", "DEMO-102U", "DEMO-103U"];
 const shot = (page: Page, name: string) => page.screenshot({ path: `test-results/screens/${name}.png`, fullPage: true });
 
 async function api(page: Page, method: "post" | "put", url: string, data: Record<string, unknown>) {
@@ -23,7 +25,7 @@ async function completeSide2(page: Page) {
 
 test.use({ viewport: { width: 1600, height: 1000 } }); // 管理画面は PC で使う
 
-test("㉒㉓ 実績の書き出し(一覧・数を直す・書き出し)", async ({ page }) => {
+test("㉒㉓㉔ 実績の書き出し(一覧・ひも付けの確認・数を直す・書き出し)", async ({ page }) => {
   await completeSide2(page);
   await page.goto("/admin/actuals");
   await page.getByLabel("作業者ID").fill("A001");
@@ -40,6 +42,23 @@ test("㉒㉓ 実績の書き出し(一覧・数を直す・書き出し)", async
   await expect(qty("DEMO-101U")).toHaveValue("150");
   await expect(qty("DEMO-103U")).toHaveValue("60"); // 余りは最後のロット
   await expect(table.getByRole("row", { name: /DEMO-101U/ })).toContainText("山田(Y001)"); // 片付けを終えた人
+
+  // ㉔ ひも付けの確認: 面1が面2とつながらないので、件数を上に出す。確定するまで NG面1 は 0
+  await expect(page.getByRole("alert")).toContainText("ひも付けの確認が 3件 残っています");
+  await expect(table.getByRole("row", { name: /DEMO-101U/ })).toContainText("つながる面1の計画が無いため、NG面1は0です");
+  const links = page.getByRole("table", { name: "ひも付けの確認" });
+  await expect(links.locator("tbody tr")).toHaveCount(3);
+  for (const lot of LOTS) {
+    await expect(page.getByLabel(`${SIDE1} ${lot} の面2の計画`)).toHaveValue(SIDE2); // 発行日が最も近い面2が初期の選択
+  }
+  await shot(page, "24-actuals-link-check");
+  for (const lot of LOTS) {
+    await links.getByRole("row", { name: new RegExp(lot) }).getByRole("button", { name: "確定" }).click();
+    await expect(page.getByRole("status")).toHaveText(`${SIDE1} ${lot} のひも付けを確定しました`);
+  }
+  await expect(page.getByText("ひも付けの確認が")).toHaveCount(0);
+  await expect(links.getByRole("row", { name: /DEMO-101U/ })).toContainText("確定済み");
+  await expect(table.getByRole("row", { name: /DEMO-101U/ }).locator("td").nth(7)).toHaveText("2"); // NG面1 が面2の行に入る
 
   // 1行だけ直すと合計が合わず、書き出せない
   await qty("DEMO-101U").fill("140");

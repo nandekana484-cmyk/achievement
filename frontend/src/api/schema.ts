@@ -795,6 +795,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/actuals/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Link
+         * @description ひも付けの確認: 面1の計画のロットを面2の計画に確定する(やり直しは新しい行で上書き)。選べない面2なら 409。
+         */
+        post: operations["confirm_link_api_admin_actuals_links_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -815,6 +835,10 @@ export interface components {
             line_code: string | null;
             /** Rows */
             rows: components["schemas"]["ActualsRowOut"][];
+            /** Link Checks */
+            link_checks: components["schemas"]["LinkCheckOut"][];
+            /** Pending Links */
+            pending_links: number;
         };
         /** ActualsRowOut */
         ActualsRowOut: {
@@ -1466,6 +1490,67 @@ export interface components {
             sort_order?: number | null;
             /** Active */
             active?: boolean | null;
+        };
+        /** LinkCandidateOut */
+        LinkCandidateOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /**
+             * Issue Date
+             * Format: date
+             */
+            issue_date: string;
+            /** Paired With */
+            paired_with: string | null;
+        };
+        /**
+         * LinkCheckOut
+         * @description ひも付けの確認の1行(面1の計画のロットごと)。
+         */
+        LinkCheckOut: {
+            /** Lot No */
+            lot_no: string;
+            /** File No */
+            file_no: string;
+            /** Side1 Kitting No */
+            side1_kitting_no: string;
+            /**
+             * Side1 Issue Date
+             * Format: date
+             */
+            side1_issue_date: string;
+            /** Side1 Completed */
+            side1_completed: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "confirmed" | "unlinked";
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Suggested */
+            suggested: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["LinkCandidateOut"][];
+        };
+        /** LinkIn */
+        LinkIn: {
+            /** Lot No */
+            lot_no: string;
+            /**
+             * Side1 Kitting No
+             * @description 面1の計画
+             */
+            side1_kitting_no: string;
+            /**
+             * Side2 Kitting No
+             * @description 面2の計画。空(null)は「つながない」
+             */
+            side2_kitting_no?: string | null;
         };
         /** LoginIn */
         LoginIn: {
@@ -3428,6 +3513,39 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_link_api_admin_actuals_links_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkCheckOut"];
                 };
             };
             /** @description Validation Error */

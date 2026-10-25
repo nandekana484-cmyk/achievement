@@ -3,6 +3,7 @@
 import type { components } from "../../api/schema";
 
 export type ActualsRow = components["schemas"]["ActualsRowOut"];
+export type LinkCheck = components["schemas"]["LinkCheckOut"];
 export type Edits = Record<string, number>; // rowKey → 直した生産数
 
 export const rowKey = (r: Pick<ActualsRow, "kitting_no" | "lot_no">) => `${r.kitting_no}\u0000${r.lot_no}`;
@@ -32,4 +33,16 @@ export function quantitiesToSend(rows: ActualsRow[], edits: Edits) {
 /** 入力欄の文字を数にする(0以上の整数でなければ null)。 */
 export function parseQty(text: string): number | null {
   return /^\d+$/.test(text.trim()) ? Number(text.trim()) : null;
+}
+
+/** ひも付けの確認で「つながない」を表す選択の値。 */
+export const NO_LINK = "__no_link__";
+
+export const linkKey = (c: Pick<LinkCheck, "side1_kitting_no" | "lot_no">) => `${c.side1_kitting_no}\u0000${c.lot_no}`;
+
+/** 初期の選択: 確定したものはその結果、未確定なら発行日が最も近い面2(サーバーが決める)。選べる面2が無ければ空。 */
+export function initialChoice(c: Pick<LinkCheck, "state" | "side2_kitting_no" | "suggested">): string {
+  if (c.state === "confirmed" && c.side2_kitting_no) return c.side2_kitting_no;
+  if (c.state === "unlinked") return NO_LINK;
+  return c.suggested ?? "";
 }
