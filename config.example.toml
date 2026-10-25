@@ -6,6 +6,8 @@ timezone = "Asia/Tokyo"
 [server]
 host = "0.0.0.0"
 port = 8000
+# /docs・/redoc・/openapi.json を出すか。本番は false(既定)。開発で API の定義を見たいときだけ true
+# expose_docs = true
 
 [paths]
 database = "data/genba.db"
