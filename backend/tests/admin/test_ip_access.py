@@ -317,3 +317,55 @@ def test_lockout_by_ip_does_not_block_the_server_pc_itself(client, people):
         login(at("192.168.3.5"), worker_id=f"N{i}", password="wrong-pass-1")
     assert login(at("192.168.3.5")).status_code == 429
     assert login(at("127.0.0.1")).status_code == 200  # サーバーのPC自身は別の接続元
+
+
+# --- 一覧を読めないとき ---
+
+def _break_db(monkeypatch):
+    def boom():
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(ip_allowlist, "get_sessionmaker", boom)
+
+
+def test_first_load_failure_fails_closed_except_for_the_server_pc(client, people, monkeypatch, caplog):
+    """一覧を一度も読めていないときは、制限する側に倒す(127.0.0.1 と ::1 以外は 403)。ログに理由を残す。"""
+    real = ip_allowlist.get_sessionmaker
+    ip_allowlist.cache.reset()
+    _break_db(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="app.services.ip_allowlist"):
+        assert at("10.0.0.9").get("/api/health").status_code == 403
+        assert at("192.168.3.5").get("/field").status_code == 403
+        assert at("192.168.3.5").get("/api/admin/me").status_code == 403
+        assert at("127.0.0.1").get("/api/health").status_code == 200
+        assert at("::1").get("/api/health").status_code == 200
+    assert "まだ一度も読めていません" in caplog.text and "database is locked" in caplog.text  # 理由(例外)もログに出る
+    monkeypatch.setattr(ip_allowlist, "get_sessionmaker", real)  # 読めるようになったら、1秒以内に元に戻る
+    ip_allowlist.cache._loaded_at = 0.0  # noqa: SLF001
+    assert health_ok("10.0.0.9")
+
+
+def test_failure_after_a_good_load_keeps_using_the_previous_lists(client, people, monkeypatch, caplog):
+    add("192.168.3.0/24")
+    assert health_ok("192.168.3.5") and not health_ok("10.0.0.9")  # 読めた(覚えた)
+    _break_db(monkeypatch)
+    ip_allowlist.cache.invalidate()  # 覚えが古くなって、読み直しに失敗する
+    with caplog.at_level(logging.ERROR, logger="app.services.ip_allowlist"):
+        assert health_ok("192.168.3.5") and not health_ok("10.0.0.9")  # 前の一覧のまま
+        assert health_ok("127.0.0.1")
+    assert "前に読んだ一覧を使います" in caplog.text and "database is locked" in caplog.text
+
+
+def test_unrestricted_state_stays_unrestricted_when_a_later_load_fails(client, people, monkeypatch):
+    assert health_ok("10.0.0.9")  # 制限なしで読めた
+    _break_db(monkeypatch)
+    ip_allowlist.cache.invalidate()
+    assert health_ok("10.0.0.9")  # 読めた結果が「制限なし」だったので、一時的な失敗では締め出さない
+
+
+def test_startup_log_reports_unreadable_lists(client, people, monkeypatch, caplog):
+    ip_allowlist.cache.reset()
+    _break_db(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="app.services.ip_allowlist"):
+        ip_allowlist.log_access_restriction()
+    assert "一覧を読めません" in caplog.text

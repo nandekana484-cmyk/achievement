@@ -62,6 +62,8 @@ class AccessLists:
 
     field: tuple[Network, ...] = ()
     admin: tuple[Network, ...] = ()
+    # 一覧を一度も読めていない(DBを読めない)。制限する側に倒し、サーバーのPC自身だけ許可する
+    unavailable: bool = False
 
     @property
     def field_restricted(self) -> bool:
@@ -85,6 +87,8 @@ def is_allowed(lists: AccessLists, ip: IpAddress | None, scope: str) -> bool:
     """
     if is_loopback(ip):
         return True
+    if lists.unavailable:
+        return False
     field_ok = not lists.field or _contains(lists.field, ip) or _contains(lists.admin, ip)
     if scope == SCOPE_ADMIN and lists.admin:
         return _contains(lists.admin, ip)

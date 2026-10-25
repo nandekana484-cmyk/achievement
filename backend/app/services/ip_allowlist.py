@@ -62,7 +62,10 @@ class _Cache:
         self._loaded_at = 0.0
 
     def get(self) -> AccessLists:
-        """一覧(短い間は覚えている)。DBを読めないときは、前に読んだ一覧を使う(無ければ制限しない)。"""
+        """一覧(短い間は覚えている)。DBを読めないときは、前に読んだ一覧を使う。
+
+        一度も読めていないときは、制限する側に倒す(サーバーのPC自身以外は断る)。1秒後に読み直す。
+        """
         with self._lock:
             if self._value is not None and time.monotonic() - self._loaded_at < CACHE_SECONDS:
                 return self._value
@@ -71,14 +74,26 @@ class _Cache:
                     self._value = load_lists(session)
                 self._loaded_at = time.monotonic()
             except Exception:  # noqa: BLE001  制限の確認でアプリ全体を止めない
-                logger.exception("アクセス制限の一覧を読めませんでした")
-                self._value = self._value or AccessLists()
-                self._loaded_at = time.monotonic() - CACHE_SECONDS + 1  # 1秒後に読み直す
+                self._retry_soon()
             return self._value
 
+    def _retry_soon(self) -> None:
+        if self._value is None or self._value.unavailable:
+            logger.exception("アクセス制限の一覧を、まだ一度も読めていません。制限する側に倒し、サーバーのPC自身以外は断ります(1秒後に読み直します)")
+            self._value = AccessLists(unavailable=True)
+        else:
+            logger.exception("アクセス制限の一覧を読めませんでした。前に読んだ一覧を使います(1秒後に読み直します)")
+        self._loaded_at = time.monotonic() - CACHE_SECONDS + 1
+
     def invalidate(self) -> None:
+        """次の判定で読み直させる(読み直しに失敗したときのために、前の一覧は残す)。"""
         with self._lock:
-            self._value = None
+            self._loaded_at = 0.0
+
+    def reset(self) -> None:
+        """前の一覧も捨てる(テスト用。起動直後の、まだ一度も読めていない状態に戻す)。"""
+        with self._lock:
+            self._value, self._loaded_at = None, 0.0
 
 
 cache = _Cache()
@@ -206,6 +221,9 @@ def who(session: Session, operator_id: int | None) -> str | None:
 def log_access_restriction() -> None:
     """起動時のログ: アクセス制限が有効か、件数はいくつか。"""
     lists = cache.get()
+    if lists.unavailable:
+        logger.error("アクセス制限: 一覧を読めません。サーバーのPC自身以外は断っています")
+        return
     if not lists.field and not lists.admin:
         logger.info("アクセス制限: 無効(すべての接続元を許可しています)")
         return

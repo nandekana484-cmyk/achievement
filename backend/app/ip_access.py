@@ -71,7 +71,7 @@ class IpAccessMiddleware:
             await self.app(scope, receive, send)
             return
         lists = cache.get()
-        if not lists.field and not lists.admin:  # 制限していない(今までどおり)
+        if not lists.field and not lists.admin and not lists.unavailable:  # 制限していない(今までどおり)
             await self.app(scope, receive, send)
             return
         client = scope.get("client")

@@ -84,3 +84,11 @@ def test_versions_do_not_mix():
 ])
 def test_scope_of_path(path, scope):
     assert scope_of_path(path) == scope
+
+
+def test_unavailable_lists_allow_only_the_server_pc():
+    lists = AccessLists(unavailable=True)
+    for scope in ("field", "admin"):
+        assert not is_allowed(lists, parse_ip("192.168.3.5"), scope)
+        assert not is_allowed(lists, None, scope)
+        assert is_allowed(lists, parse_ip("127.0.0.1"), scope) and is_allowed(lists, parse_ip("::1"), scope)

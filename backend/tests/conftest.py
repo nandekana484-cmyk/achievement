@@ -40,10 +40,10 @@ def _reset_ip_access():
     from app.ip_access import deny_log
     from app.services.ip_allowlist import cache
 
-    cache.invalidate()
+    cache.reset()
     deny_log.reset()
     yield
-    cache.invalidate()
+    cache.reset()
     deny_log.reset()
 
 
