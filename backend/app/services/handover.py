@@ -69,7 +69,8 @@ class HandoverItemOut(BaseModel):
 class HandoverHistoryOut(BaseModel):
     id: int
     old_kitting_no: str
-    new_kitting_no: str
+    new_kitting_no: str | None  # 「移さない」と確定したときは空
+    decision: str  # moved / declined
     confirmed_by: str
     confirmed_at: dt.datetime
     moved: dict[str, int]
@@ -81,9 +82,21 @@ class HandoverListOut(BaseModel):
     history: list[HandoverHistoryOut]
 
 
+class TargetOut(BaseModel):
+    """手で選べる移す先(有効な計画)。"""
+
+    kitting_no: str
+    file_no: str
+    line_code: str
+    run_no: int
+    lot_nos: list[str]
+    has_actuals: bool  # すでに実績がある(選べない)
+
+
 class HandoverResultOut(BaseModel):
     old_kitting_no: str
-    new_kitting_no: str
+    new_kitting_no: str | None
+    decision: str
     moved: dict[str, int]
     warnings: list[str]
 
@@ -134,7 +147,7 @@ def _done(session: Session) -> set[str]:
 
 
 def pending_items(session: Session) -> list[HandoverItemOut]:
-    """引き継ぎの確認の一覧: 実績のある計画のうち、取り消された・古くなったもの(移す先の候補があるもの、または古い計画)。"""
+    """引き継ぎの確認の一覧: 実績のある計画のうち、取り消された・古くなったもの(候補が無くても出す)。確定済み(移した・移さない)は出さない。"""
     with_actuals = kitting_nos_with_actuals(session)
     items: list[HandoverItemOut] = []
     for kno, rows in sorted(_rows_by_kitting(session, with_actuals - _done(session)).items()):
@@ -142,8 +155,6 @@ def pending_items(session: Session) -> list[HandoverItemOut]:
         if reason is None:
             continue
         candidates = _candidates(session, rows, with_actuals)
-        if not candidates and reason != "stale":
-            continue
         first = rows[0]
         items.append(HandoverItemOut(
             kitting_no=kno, file_no=first.file_no, line_code=first.line_code, run_no=first.run_no, product_name=first.product_name,
@@ -161,7 +172,7 @@ def _who(session: Session, operator_id: int) -> str:
 def handover_list(session: Session) -> HandoverListOut:
     history = session.scalars(select(KittingHandover).order_by(KittingHandover.id.desc()).limit(HISTORY_LIMIT))
     return HandoverListOut(items=pending_items(session), history=[
-        HandoverHistoryOut(id=h.id, old_kitting_no=h.old_kitting_no, new_kitting_no=h.new_kitting_no,
+        HandoverHistoryOut(id=h.id, old_kitting_no=h.old_kitting_no, new_kitting_no=h.new_kitting_no, decision=h.decision,
                            confirmed_by=_who(session, h.confirmed_by), confirmed_at=h.confirmed_at,
                            moved=json.loads(h.moved_json), warnings=json.loads(h.warnings_json))
         for h in history
@@ -192,8 +203,8 @@ def confirm_handover(session: Session, admin: Operator, old_kno: str, new_kno: s
     item = next((i for i in pending_items(session) if i.kitting_no == old_kno), None)
     if item is None:
         raise NotFound(f"引き継ぎの確認の対象に、キッティングNo. {old_kno} はありません(引き継ぎ済み、または対象ではありません)")
-    if new_kno not in {c.kitting_no for c in item.candidates}:
-        raise RuleViolation(f"キッティングNo. {new_kno} は、{old_kno} の移す先の候補にありません")
+    if new_kno == old_kno or not any(p.status == PLAN_ACTIVE for p in _rows_by_kitting(session, {new_kno}).get(new_kno, [])):
+        raise RuleViolation(f"キッティングNo. {new_kno} は、移す先にできません(取り消しの印が無い、有効な計画を選んでください)")
     if new_kno in with_actuals:
         raise RuleViolation(f"移す先 {new_kno} には、すでに実績があります。確定しません。"
                             f"合わせ方(どちらを残すか)は人が決め、実績を訂正してから、もう一度確定してください")
@@ -216,4 +227,31 @@ def confirm_handover(session: Session, admin: Operator, old_kno: str, new_kno: s
         audit.record_change(session, admin.id, "kitting_handovers", old_kno, "handover", {"kitting_no": old_kno},
                             {"kitting_no": new_kno, "moved": moved})
         session.commit()
-    return HandoverResultOut(old_kitting_no=old_kno, new_kitting_no=new_kno, moved=moved, warnings=warnings)
+    return HandoverResultOut(old_kitting_no=old_kno, new_kitting_no=new_kno, decision="moved", moved=moved, warnings=warnings)
+
+
+def decline_handover(session: Session, admin: Operator, old_kno: str) -> HandoverResultOut:
+    """「移さない」と確定する。履歴(kitting_handovers)と audit_log に残し、一覧に再び出さない。計画と実績は変えない。"""
+    if not any(i.kitting_no == old_kno for i in pending_items(session)):
+        raise NotFound(f"引き継ぎの確認の対象に、キッティングNo. {old_kno} はありません(確定済み、または対象ではありません)")
+    with write_transaction(session):
+        session.add(KittingHandover(old_kitting_no=old_kno, new_kitting_no=None, decision="declined", confirmed_by=admin.id,
+                                    confirmed_at=clock.now(), moved_json="{}", warnings_json="[]"))
+        audit.record_change(session, admin.id, "kitting_handovers", old_kno, "handover_declined", {"kitting_no": old_kno},
+                            {"decision": "declined"})
+        session.commit()
+    return HandoverResultOut(old_kitting_no=old_kno, new_kitting_no=None, decision="declined", moved={}, warnings=[])
+
+
+def search_targets(session: Session, q: str, exclude: str | None = None) -> list[TargetOut]:
+    """手で選ぶ移す先: キッティングNo.の一部で探した、有効な計画(取り消しの印が無いもの)。30件まで。"""
+    knos = list(session.scalars(select(Plan.kitting_no).where(Plan.status == PLAN_ACTIVE, Plan.kitting_no.contains(q.strip()))
+                                .distinct().order_by(Plan.kitting_no).limit(30)))
+    with_actuals = kitting_nos_with_actuals(session)
+    out: list[TargetOut] = []
+    for kno, rows in _rows_by_kitting(session, set(knos)).items():
+        active = [p for p in rows if p.status == PLAN_ACTIVE]
+        if kno != exclude:
+            out.append(TargetOut(kitting_no=kno, file_no=active[0].file_no, line_code=active[0].line_code, run_no=active[0].run_no,
+                                 lot_nos=[p.lot_no for p in active], has_actuals=kno in with_actuals))
+    return sorted(out, key=lambda t: t.kitting_no)

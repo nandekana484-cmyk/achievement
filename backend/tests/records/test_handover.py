@@ -7,7 +7,7 @@ import json
 import pytest
 
 from app.core import clock
-from app.db.models import ActualsExport, KittingHandover, Plan, RunCompletion, RunEvent, RunInput
+from app.db.models import ActualsExport, AuditLog, KittingHandover, Plan, RunCompletion, RunEvent, RunInput
 from app.db.session import get_sessionmaker
 from app.services import admin_auth, masters
 from legacy_fixture import insert_plan, set_stale
@@ -144,10 +144,11 @@ def test_target_with_actuals_cannot_be_confirmed(client, admin, fake_clock):
     assert count_rows(RunEvent, kitting_no=K1) == 2 and count_rows(KittingHandover) == 0  # 何も動かない
 
 
-def test_only_listed_candidates_and_only_once(client, admin, fake_clock):
+def test_target_must_be_an_active_plan_and_only_once(client, admin, fake_clock):
     complete_k1(client, fake_clock)
     reissue(admin)
-    assert confirm(client, new=K2).status_code == 409  # 候補にない(別の回の計画)
+    assert confirm(client, new="no-such").status_code == 409  # 有効な計画でない
+    assert confirm(client, new=K1).status_code == 409  # 自分自身
     assert confirm(client, old="no-such").status_code == 404
     ok(confirm(client))
     assert confirm(client).status_code == 404  # 同じ計画を二度移さない
@@ -164,3 +165,50 @@ def test_cancelled_plan_with_actuals_is_listed_too(client, admin, fake_clock):
         assert s.get(Plan, (K1, "L001")).cancel_reason == "vanished"
     item = pending(client)["items"][0]
     assert (item["kitting_no"], item["reason"], [c["kitting_no"] for c in item["candidates"]]) == (K1, "vanished", [NEW])
+
+
+def vanish_without_candidate(admin):
+    """K1 が既存アプリから読めなくなった(出し直し後の計画が無い)。"""
+    from legacy_fixture import deactivate
+
+    deactivate(admin["db"], K1)
+    sync_plans(admin["app"])
+
+
+def test_plan_with_actuals_but_no_candidate_is_listed(client, admin, fake_clock):
+    complete_k1(client, fake_clock)
+    vanish_without_candidate(admin)
+    item = pending(client)["items"][0]
+    assert (item["kitting_no"], item["reason"], item["candidates"]) == (K1, "vanished", [])  # 候補の欄は「候補なし」
+
+
+def test_target_can_be_chosen_by_hand(client, admin, fake_clock):
+    complete_k1(client, fake_clock)
+    vanish_without_candidate(admin)
+    login(client)
+    found = ok(client.get("/api/admin/handovers/targets", params={"q": "-09", "exclude": K1}))
+    assert found == []  # まだ無い
+    insert_plan(admin["db"], kitting_no=NEW, file_no="0722", lot_no="L777")  # ロットNo.が違うので、候補にはならない
+    sync_plans(admin["app"])
+    assert pending(client)["items"][0]["candidates"] == []
+    found = ok(client.get("/api/admin/handovers/targets", params={"q": "-09"}))
+    assert [(t["kitting_no"], t["has_actuals"]) for t in found] == [(NEW, False)]
+    r = ok(confirm(client))
+    assert r["decision"] == "moved" and r["moved"]["run_events"] == 2 and count_rows(RunEvent, kitting_no=NEW) == 2
+
+
+def test_decline_removes_it_from_the_list_and_it_does_not_come_back(client, admin, fake_clock):
+    complete_k1(client, fake_clock)
+    vanish_without_candidate(admin)
+    login(client)
+    r = ok(client.post("/api/admin/handovers/decline", json={"old_kitting_no": K1}, headers=H))
+    assert (r["decision"], r["new_kitting_no"]) == ("declined", None)
+    after = ok(client.get("/api/admin/handovers"))
+    assert after["items"] == []
+    assert [(h["old_kitting_no"], h["decision"], h["new_kitting_no"], h["confirmed_by"]) for h in after["history"]] == [(K1, "declined", None, "管理 花子(K0042)")]
+    assert count_rows(RunEvent, kitting_no=K1) == 2 and count_rows(AuditLog, target_table="kitting_handovers", action="handover_declined") == 1
+    sync_plans(admin["app"])  # 同期のあとも、再び出さない
+    insert_plan(admin["db"], kitting_no=NEW, file_no="0722")
+    sync_plans(admin["app"])
+    assert pending(client)["items"] == []
+    assert client.post("/api/admin/handovers/decline", json={"old_kitting_no": K1}, headers=H).status_code == 404

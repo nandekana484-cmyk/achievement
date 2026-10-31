@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -36,7 +36,25 @@ def list_handovers(_: Admin, session: Db) -> HandoverListOut:
     return handover.handover_list(session)
 
 
+class DeclineIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    old_kitting_no: str = Field(max_length=100)
+
+
+@router.get("/targets", response_model=list[handover.TargetOut])
+def targets(_: Admin, session: Db, q: str = Query(min_length=1, max_length=100), exclude: str | None = None) -> list[handover.TargetOut]:
+    """手で選ぶ移す先(有効な計画。キッティングNo.の一部で探す)。"""
+    return handover.search_targets(session, q, exclude)
+
+
+@router.post("/decline", response_model=HandoverResultOut)
+def decline(admin: Admin, session: Db, body: DeclineIn) -> HandoverResultOut:
+    """「移さない」と確定する(履歴と audit_log に残し、一覧に再び出さない)。"""
+    return handover.decline_handover(session, admin, body.old_kitting_no)
+
+
 @router.post("/confirm", response_model=HandoverResultOut)
 def confirm(admin: Admin, session: Db, body: ConfirmIn) -> HandoverResultOut:
-    """実績を新しいキッティングNo.へ移す。移す先に実績がある・候補にないときは 409。自動では移さない。"""
+    """実績を新しいキッティングNo.へ移す(候補にない有効な計画を手で選んでもよい)。移す先に実績がある・有効な計画でないときは 409。自動では移さない。"""
     return handover.confirm_handover(session, admin, body.old_kitting_no, body.new_kitting_no)

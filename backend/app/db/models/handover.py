@@ -21,7 +21,8 @@ class KittingHandover(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     old_kitting_no: Mapped[str] = mapped_column(String)
-    new_kitting_no: Mapped[str] = mapped_column(String)
+    new_kitting_no: Mapped[str | None] = mapped_column(String)  # 「移さない」と確定したときは空
+    decision: Mapped[str] = mapped_column(String, default="moved", server_default="moved")  # moved / declined(移さない)
     confirmed_by: Mapped[int] = mapped_column(Integer, ForeignKey("operators.id"))
     confirmed_at: Mapped[datetime] = mapped_column(TZDateTime)
     moved_json: Mapped[str] = mapped_column(Text)  # JSON: 表ごとの移した行数

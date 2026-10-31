@@ -29,7 +29,7 @@ EQUIPMENT = ("マウンター1", "リフロー炉")
 # ファイルNo. → (丁取り数, status)。効率の計算から外れる計画(丁取りが引けない・タクトなし)も確かめられるようにする
 TEITORI: dict[str, tuple[int | None, str]] = {
     "0722": (2, "ok"), "0800": (None, "tsv_not_found"), "0915": (4, "ok"), "0930": (1, "ok"), "0940": (None, "no_k_row"),
-    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"), "1100": (2, "ok"),
+    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"), "1100": (2, "ok"), "1101": (2, "ok"), "1102": (2, "ok"),
 }
 
 
@@ -128,6 +128,11 @@ def seed_handover(session: Session, line_code: str, day: dt.date) -> list[str]:
         old_kno, new_kno = (_upsert_plan(session, p, line, day, issue, "") for p in (old, new))
         row = session.get(Plan, (old_kno, old.lot_no))
         row.is_stale, row.replacement_kitting_no, row.replacement_count = True, new_kno, 1
+        # 移す先の候補が無い、古い計画(手で選ぶ・「移さない」の確認用)と、手で選べる有効な計画
+        lone = _DemoPlan("1101", 1, 23, "DEMO-H2", "候補なし基板I", 80, 30.0, "13:00", "15:00")
+        other = _DemoPlan("1102", 1, 24, "DEMO-H3", "手で選ぶ基板J", 80, 30.0, "13:00", "15:00")
+        lone_kno, other_kno = (_upsert_plan(session, p, line, day, issue, "") for p in (lone, other))
+        session.get(Plan, (lone_kno, lone.lot_no)).is_stale = True
         _upsert_teitori(session, line)
         session.commit()
     return [old_kno, new_kno]
