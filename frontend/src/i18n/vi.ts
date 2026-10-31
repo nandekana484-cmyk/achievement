@@ -66,8 +66,9 @@ export const vi: Messages = {
   "lineScreen.pickOperator": "Chọn người phụ trách",
   "lineScreen.selectHint": "Bấm vào kế hoạch trên bảng thời gian, hoặc tìm ở ô tìm kiếm bên trái, các nút công đoạn sẽ hiện ở đây.",
 
-  "topBar.utilization": "Tỷ lệ vận hành",
-  "topBar.lineProgress": "Tiến độ chuyền",
+  "topBar.efficiency": "Hiệu suất",
+  "topBar.excluded": "Không tính: {count} kế hoạch",
+  "topBar.progress": "Tiến độ",
   "topBar.operatorAria": "Đổi người phụ trách",
   "topBar.operatorLabel": "Người phụ trách (bấm để đổi)",
   "topBar.operatorUnset": "Chưa chọn",

@@ -44,6 +44,7 @@ from app.services.plan_diff import CarryoverCandidate, PlanDiff, PlanKey, diff_p
 from app.services.plan_rows import apply_plan, apply_tracking, to_legacy
 from app.services.plan_source import SourceSelection, choose_sources
 from app.services.plan_sync_warnings import update_warnings
+from app.services.teitori_sync import TeitoriRead, read_teitori_for_sync, sync_teitori
 from app.services.worker_sync import sync_operators, sync_operators_alone
 
 logger = logging.getLogger(__name__)
@@ -89,12 +90,13 @@ def run_plan_sync(session: Session, legacy_app_dir: Path, sync_config: SyncConfi
     started_at = clock.now()
     legacy_dbs: str | None = None
     workers, workers_note = _read_workers(legacy_app_dir)
+    teitori = read_teitori_for_sync(legacy_app_dir)
     try:
         source = read_legacy_source(legacy_app_dir, cfg.legacy_db_max_age_days, started_at)
         sel = choose_sources(source.dbs)
         legacy_dbs = _legacy_dbs_json(source, sel)
         with write_transaction(session):
-            return _apply_selection(session, sel, cfg, started_at, legacy_dbs, workers, workers_note)
+            return _apply_selection(session, sel, cfg, started_at, legacy_dbs, workers, workers_note, teitori)
     except Exception as e:  # noqa: BLE001  失敗を記録してアプリは止めない
         session.rollback()
         logger.exception("計画の同期に失敗しました")
@@ -133,6 +135,7 @@ def _record_error(session: Session, started_at: datetime, message: str, legacy_d
 def _apply_selection(
     session: Session, sel: SourceSelection, cfg: SyncConfig, started_at: datetime, legacy_dbs: str,
     workers: list[LegacyWorker] | None = None, workers_note: str = NO_WORKERS_TABLE,
+    teitori: TeitoriRead | None = None,
 ) -> PlanSyncResult:
     """正とするDBの計画を本アプリの plans に反映し、コミットまで行う(write_transaction の中で呼ぶ)。"""
     changes = _plan_changes(session, sel, cfg)
@@ -153,6 +156,8 @@ def _apply_selection(
         changes.warnings.append(ReadWarning(None, None, workers_note))
     else:
         changes.warnings.extend(sync_operators(session, workers))
+    if teitori is not None:  # 丁取りが読めなくても同期は失敗にしない(前回の値を使い、警告だけ出す)
+        changes.warnings.extend(sync_teitori(session, teitori, now))
     update_warnings(session, changes.warnings, now)
 
     run = PlanSyncRun(

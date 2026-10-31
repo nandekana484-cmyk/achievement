@@ -77,22 +77,6 @@ def test_board_ranges_and_server_time(client, plans, fake_clock):
     assert b["server_time"] == fake_clock.current.isoformat()
 
 
-def test_line_progress_uses_only_plans_in_workday(client, plans):
-    b = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
-    # 稼働日(10/21 8:15〜)に重なるのは IN_RANGE・K1・K2(各300)。先行の AHEAD(10/23 の計画、100生産)は数えない
-    assert b["line_progress"] == pytest.approx(150 / 900)
-
-
-def test_untouched_past_plan_counts_in_line_progress(client, plans, fake_clock):
-    fake_clock.current = datetime(2026, 10, 21, 13, 0, tzinfo=JST)  # IN_RANGE の計画終了を過ぎた
-    insert_plan(plans["db"], kitting_no="0800-1-S-251014-08", file_no="0800", start="2026/10/21 09:00:00",
-                end="2026/10/21 10:00:00", qty=300)
-    sync_plans(plans["app"])
-    b = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
-    assert "0800-1-S-251014-08" not in _knos(b)  # 画面には出さないが
-    assert b["line_progress"] == pytest.approx(150 / 1200)  # 進捗率の計画数には入れる
-
-
 def test_other_day_start(client, plans, fake_clock):
     with new_session() as s:
         b = get_board(s, "S", None, time(6, 0))  # 今(10/21 8:00)は 6:00 区切りなら 10/21 の稼働日

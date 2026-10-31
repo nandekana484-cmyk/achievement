@@ -84,7 +84,7 @@ def test_voiding_production_of_completed_plan(client, staffed, fake_clock):
     prod, _, _ = _complete(client, fake_clock)
     r = ok(void(client, prod["id"]))
     assert r["completion"]["produced_qty"] == 0
-    assert board_plan(client)["progress"] == 0
+    assert board_plan(client)["progress"] is None  # 完了した計画に進捗率は出さない
 
 
 def test_adding_forgotten_cleanup_completes_plan(client, staffed, fake_clock):
@@ -109,15 +109,15 @@ def test_correcting_incomplete_plan_does_not_complete(client, staffed, fake_cloc
     assert count_rows(RunCompletion) == 0
 
 
-def test_voided_records_leave_line_progress_and_board(client, staffed, fake_clock):
+def test_voided_records_leave_efficiency_and_board(client, staffed, fake_clock):
     prod = ok(start(client, "production"))["event"]
     fake_clock.advance(minutes=30)
     ok(end(client, "production", produced_qty=150))
     board = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
-    assert board["line_progress"] == 150 / 600  # K1(300)+ K2(300)
+    assert board["efficiency"]["included"] == 1
     ok(void(client, prod["id"]))
     board = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
-    assert board["line_progress"] == 0
+    assert board["efficiency"]["included"] == 0 and board["efficiency"]["efficiency"] is None  # 取り消した記録は入れない
 
 
 def test_plan_with_only_voided_records_counts_as_untouched(client, staffed, fake_clock):

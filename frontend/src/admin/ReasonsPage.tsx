@@ -1,4 +1,4 @@
-// 理由: 一覧、追加、名前・区分・入力の決まり・使い道・稼働率に含めるか・並び順の変更、無効化(消さない)。
+// 理由: 一覧、追加、名前・区分・入力の決まり・使い道・並び順の変更、無効化(消さない)。
 import { type FormEvent, useState } from "react";
 import { adminApi, type ReasonRow } from "./adminApi";
 import { type AdminKey, at } from "./messages";
@@ -6,14 +6,13 @@ import { Check, Feedback, NumberInput, stateText, TextInput, useAdminList, useSa
 
 const loadReasons = () => adminApi.GET("/api/admin/reasons");
 
-type Flag = "requires_equipment" | "requires_text" | "usable_as_line_event" | "usable_as_restart" | "counts_in_utilization";
+type Flag = "requires_equipment" | "requires_text" | "usable_as_line_event" | "usable_as_restart";
 const FLAGS: [Flag, AdminKey][] = [
   ["requires_equipment", "col.requiresEquipment"],
   ["requires_text", "col.requiresText"],
   ["usable_as_line_event", "col.lineEvent"],
   ["usable_as_restart", "col.restart"],
-  ["counts_in_utilization", "col.utilization"],
-];
+];  // counts_in_utilization は使わないので出さない(詳細: docs/design/metrics.md)
 const CATEGORIES = ["loss", "non_loss"] as const;
 const categoryText = (c: string) => at(c === "loss" ? "category.loss" : "category.non_loss");
 

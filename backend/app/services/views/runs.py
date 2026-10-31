@@ -70,7 +70,7 @@ class RunCompletionOut(BaseModel):
     takt_sec_snapshot: float | None
     lots_snapshot: list[LotOut]
     ng_snapshot: list[NgEntryOut]
-    utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
+    utilization: float | None  # 使わない(効率は services/metrics.py で計算する)
     kind: str = "cleanup"  # cleanup(片付けの終了で作った)/ correction(訂正による作り直し)
     correction_id: int | None = None  # 作り直しの元になった訂正
 

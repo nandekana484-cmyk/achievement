@@ -64,8 +64,9 @@ export const ja = {
   "lineScreen.pickOperator": "担当者を選ぶ",
   "lineScreen.selectHint": "タイムテーブルの計画を押すか、左の検索欄で探すと、ここに工程のボタンが表示されます。",
 
-  "topBar.utilization": "稼働率",
-  "topBar.lineProgress": "ラインの進捗率",
+  "topBar.efficiency": "効率",
+  "topBar.excluded": "対象外 {count}件",
+  "topBar.progress": "進捗率",
   "topBar.operatorAria": "担当者の交代",
   "topBar.operatorLabel": "今の担当者(押すと交代)",
   "topBar.operatorUnset": "未設定",

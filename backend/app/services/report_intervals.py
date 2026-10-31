@@ -17,6 +17,7 @@ from app.db.models import Equipment, LineEvent, Reason, RunCorrection, RunEvent
 from app.domain.intervals import minutes_between, split_by_workday
 from app.domain.steps import StepType
 from app.domain.workday import workday_range
+from app.services.efficiency_inputs import EfficiencyInputs, inputs_for
 from app.services.kitting_plans import KittingGroup, load_group
 from app.services.views import operator_name, worker_id_of
 
@@ -50,6 +51,8 @@ class IntervalOut(BaseModel):
     added_later: bool
     corrected: bool
     open: bool  # 作業中(終了していない)
+    takt_sec: float | None = None  # 目標タクト(工程のみ。効率の計算に使う値。完了した計画は完了の写し)
+    teitori: int | None = None  # 丁取り数(工程のみ。引けないときは空)
 
 
 def _person(session: Session, operator_id: int | None) -> str | None:
@@ -96,10 +99,13 @@ def _step_intervals(session: Session, line_code: str | None, start: dt.datetime,
                     day_start: dt.time, days: tuple[dt.date, dt.date]) -> list[IntervalOut]:
     events = list(session.scalars(select(RunEvent).where(*_overlapping(RunEvent, start, end))))
     corrected = _corrected_ids(session, RunEvent.__tablename__, [e.id for e in events])
-    groups: dict[str, KittingGroup] = {}
+    groups: dict[str, tuple[KittingGroup, EfficiencyInputs]] = {}
     out = []
     for e in events:
-        g = groups.get(e.kitting_no) or groups.setdefault(e.kitting_no, load_group(session, e.kitting_no))
+        if e.kitting_no not in groups:
+            g = load_group(session, e.kitting_no)
+            groups[e.kitting_no] = (g, inputs_for(session, g))
+        g, inputs = groups[e.kitting_no]
         if line_code is not None and g.line_code != line_code:
             continue
         base = dict(
@@ -109,7 +115,7 @@ def _step_intervals(session: Session, line_code: str | None, start: dt.datetime,
             file_no=g.file_no, run_no=g.run_no, step_type=e.step_type, what=StepType(e.step_type).label,
             restart_reason=_name(session, Reason, e.restart_reason_id), equipment=_name(session, Equipment, e.equipment_id),
             reason_text=None, started_by=_person(session, e.started_by) or "", ended_by=_person(session, e.ended_by),
-            added_later=bool(e.added_later), corrected=e.id in corrected,
+            added_later=bool(e.added_later), corrected=e.id in corrected, takt_sec=inputs.takt_sec, teitori=inputs.teitori,
         )
         out += _pieces(base, e.start_at, e.end_at, now, day_start, days, e.produced_qty)
     return out

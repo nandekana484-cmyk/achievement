@@ -16,6 +16,7 @@ from app.domain.steps import StepType
 from app.services.kitting_plans import KittingGroup, load_group
 from app.services.ng_inputs import latest_ng
 from app.services.plan_views import lot_out
+from app.services.teitori_lookup import lookup_teitori
 from app.services.views import LotOut
 
 
@@ -50,7 +51,8 @@ def create_completion(
     session: Session, group: KittingGroup, cleanup: RunEvent,
     kind: CompletionKind = CompletionKind.CLEANUP, correction_id: int | None = None, base: RunCompletion | None = None,
 ) -> RunCompletion:
-    """完了の行を作る。生産数とNG数は今の値。計画数・想定タクト・ロットの一覧は base があればその写しを引き継ぐ。"""
+    """完了の行を作る。生産数とNG数は今の値。計画数・想定タクト・丁取り数・ロットの一覧は base があればその写しを引き継ぐ。"""
+    teitori, teitori_status = (base.teitori_snapshot, base.teitori_status_snapshot) if base and base.teitori_status_snapshot is not None         else lookup_teitori(session, group.first.file_no, group.first.line_code)
     c = RunCompletion(
         kitting_no=group.kitting_no, cleanup_event_id=cleanup.id, kind=kind.value, correction_id=correction_id,
         completed_at=cleanup.end_at, produced_qty=produced_total(session, group.kitting_no),
@@ -58,8 +60,7 @@ def create_completion(
         takt_sec_snapshot=base.takt_sec_snapshot if base else group.takt_sec,
         lots_snapshot=base.lots_snapshot if base else _lots_json(group),
         ng_snapshot=json.dumps([n.model_dump(mode="json") for n in latest_ng(session, group.kitting_no)], ensure_ascii=False),
-        # TODO(要確認): 稼働率の定義(定義が決まったらここで計算して保存する)
-        utilization=None,
+        teitori_snapshot=teitori, teitori_status_snapshot=teitori_status,  # 詳細: docs/design/metrics.md
     )
     session.add(c)
     session.flush()

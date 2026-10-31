@@ -119,8 +119,11 @@ class RunCompletion(Base):
     takt_sec_snapshot: Mapped[float | None] = mapped_column(Float)
     lots_snapshot: Mapped[str | None] = mapped_column(Text)  # JSON: [{lot_no, product_name, planned_qty}]
     ng_snapshot: Mapped[str | None] = mapped_column(Text)  # JSON: ロットと面ごとの最新のNG数
-    # TODO(要確認): 稼働率の定義(今は計算しない)
-    utilization: Mapped[float | None] = mapped_column(Float)
+    # 完了時の丁取り数とその status の写し。効率は完了した計画ではこの値を使う(詳細: docs/design/metrics.md)。
+    # status が空 = 写しを残す前の完了(今の値を使う)
+    teitori_snapshot: Mapped[int | None] = mapped_column(Integer)
+    teitori_status_snapshot: Mapped[str | None] = mapped_column(String)
+    utilization: Mapped[float | None] = mapped_column(Float)  # 使わない(効率は services/metrics.py で計算する)
 
     __table_args__ = (Index("ix_run_completions_kitting", "kitting_no"),)
 

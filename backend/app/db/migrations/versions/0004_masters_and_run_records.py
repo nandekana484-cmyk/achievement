@@ -21,7 +21,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 # (名前, 区分, 設備が必須, 理由の記入が必須, 付帯作業として使える, 再開理由として使える)
-# TODO(要確認): 付帯作業を稼働率に含めるか(counts_in_utilization は今はすべて false)
+# counts_in_utilization は使わない(効率は理由によらず付帯作業の時間を分母に入れない。列は残す。詳細: docs/design/metrics.md)
 REASONS = [
     ("部品探し", "loss", False, False, True, True),
     ("欠品", "loss", False, False, True, True),

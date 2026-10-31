@@ -14,6 +14,7 @@ from app.core import clock
 from app.domain.intervals import split_at
 from app.domain.workday import workday_range
 from app.services.masters import get_line
+from app.services.metrics import EfficiencyOut, efficiency_from_intervals
 from app.services.ng_inputs import latest_ng
 from app.services.report_intervals import KIND_LINE_EVENT, IntervalOut, build_intervals
 from app.services.views import LineOut, line_out
@@ -51,6 +52,7 @@ class DailyReportOut(BaseModel):
     generated_at: dt.datetime  # 出力した日時
     produced_total: int  # 生産数の合計(この稼働日の生産の区切り)
     ng_total: int  # NG数の合計(日報に出る計画の最新のNG数)
+    efficiency: EfficiencyOut  # この稼働日の効率(画面のバーと同じ計算)
     rows: list[RowOut]
     intervals: list[IntervalOut]
 
@@ -94,5 +96,6 @@ def daily_report(session: Session, line_code: str, day: dt.date, day_start: dt.t
     return DailyReportOut(
         line=line_out(line), date=day, workday_start=start, workday_end=end,
         halves=[HalfOut(start=boundaries[i], end=boundaries[i + 1]) for i in range(2)], generated_at=now,
-        produced_total=sum(i.produced_qty or 0 for i in intervals), ng_total=ng_total, rows=rows, intervals=intervals,
+        produced_total=sum(i.produced_qty or 0 for i in intervals), ng_total=ng_total,
+        efficiency=efficiency_from_intervals(session, line.line_code, intervals, now), rows=rows, intervals=intervals,
     )

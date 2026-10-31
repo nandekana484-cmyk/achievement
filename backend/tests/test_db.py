@@ -13,7 +13,7 @@ def test_upgrade_creates_tables_and_is_repeatable(engine):
     names = set(inspect(engine).get_table_names())
     assert {"plans", "plan_sync_runs", "plan_sync_warnings", "alembic_version"} <= names
     with engine.connect() as c:
-        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0014"
+        assert c.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0015"
 
 
 def test_models_match_migrations(engine):
@@ -42,7 +42,7 @@ def test_reasons_are_seeded(engine):
     assert by_name["その他トラブル"] == ("loss", 0, 1, 1, 1, 0)
     assert by_name["立上立会"] == ("non_loss", 0, 0, 1, 0, 0)
     assert by_name["人員交代"] == ("non_loss", 0, 0, 0, 1, 0)
-    assert all(r[6] == 0 for r in rows)  # 稼働率に含めるかは要確認。今はすべて含めない
+    assert all(r[6] == 0 for r in rows)  # 使わない列。初期値はすべて含めない
 
 
 def test_migrations_dir_does_not_depend_on_cwd(tmp_path, monkeypatch):

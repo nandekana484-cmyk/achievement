@@ -52,6 +52,23 @@ CREATE TABLE workers (
 );
 """
 
+# 既存アプリのビュー v_board_teitori の代わり(実物は表 board_teitori_map と parts_attributes を結んだビュー)。
+# 列はビューと同じ。キーは正規化した値
+TEITORI_DDL = """
+CREATE TABLE teitori_rows (
+  setup_file_no TEXT NOT NULL, mounting_line TEXT NOT NULL, part_no TEXT, teitori INTEGER, status TEXT NOT NULL,
+  fetched_at TEXT, PRIMARY KEY (setup_file_no, mounting_line)
+);
+CREATE VIEW v_board_teitori AS
+SELECT setup_file_no, mounting_line, part_no, teitori, status, fetched_at FROM teitori_rows;
+"""
+
+# (ファイルNo., 実装ライン) → (丁取り数, status)
+DEFAULT_TEITORI: dict[tuple[str, str], tuple[int | None, str]] = {
+    ("0722", "S"): (2, "ok"),
+    ("0722", "T"): (4, "ok"),
+}
+
 # 想定タクトのマスタ (setup_file_no, mounting_line, production_side) → takt_time。値は既存アプリと同じく文字列
 DEFAULT_TAKT: dict[tuple[str, str, str], str] = {
     ("0722", "S", "1"): "30",
@@ -78,15 +95,45 @@ def make_plan_db(path: Path) -> None:
         c.executescript(PLAN_DDL)
 
 
-def make_master_db(path: Path, takt: Mapping[tuple[str, str, str], str | None] = DEFAULT_TAKT) -> None:
+def make_master_db(path: Path, takt: Mapping[tuple[str, str, str], str | None] = DEFAULT_TAKT,
+                   teitori: Mapping[tuple[str, str], tuple[int | None, str]] | None = DEFAULT_TEITORI) -> None:
+    """teitori が None なら、ビューが無い master.db(既存アプリが 4.1.0 より前)。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     with _connect(path) as c:
         c.executescript(MASTER_DDL)
+        if teitori is not None:
+            c.executescript(TEITORI_DDL)
+            for (file_no, line), (value, status) in teitori.items():
+                c.execute("INSERT INTO teitori_rows (setup_file_no, mounting_line, part_no, teitori, status, fetched_at) "
+                          "VALUES (?,?,?,?,?,?)", (file_no, line, "96-0001", value, status, "2026-10-20 08:00:00"))
         for (file_no, line, side), value in takt.items():
             c.execute(
                 "INSERT INTO production_side_master (row_key, setup_file_no, mounting_line, production_side, takt_time) VALUES (?,?,?,?,?)",
                 (f"{file_no}|{line}|{side}", file_no, line, side, value),
             )
+
+
+def put_teitori(master: Path, file_no: str, line: str, teitori: int | None, status: str = "ok") -> None:
+    """ビューの行を足す、または変える(既存アプリが取得し直した場合)。"""
+    with _connect(master) as c:
+        c.execute(
+            "INSERT INTO teitori_rows (setup_file_no, mounting_line, part_no, teitori, status, fetched_at) VALUES (?,?,?,?,?,?) "
+            "ON CONFLICT(setup_file_no, mounting_line) DO UPDATE SET teitori=excluded.teitori, status=excluded.status",
+            (file_no, line, "96-0001", teitori, status, "2026-10-21 08:00:00"),
+        )
+
+
+def set_takt(master: Path, file_no: str, line: str, side: str, value: str | None) -> None:
+    """想定タクトを変える(値が None なら NULL = 数値として読めない)。"""
+    with _connect(master) as c:
+        c.execute("UPDATE production_side_master SET takt_time=? WHERE setup_file_no=? AND mounting_line=? AND production_side=?",
+                  (value, file_no, line, side))
+
+
+def drop_teitori_view(master: Path) -> None:
+    """ビューが無い master.db にする(既存アプリが 4.1.0 より前)。"""
+    with _connect(master) as c:
+        c.execute("DROP VIEW v_board_teitori")
 
 
 def put_worker(master: Path, worker_id: str, name: str, role: str = "operator", active: bool = True) -> None:

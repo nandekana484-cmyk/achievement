@@ -7,6 +7,7 @@ import datetime as dt
 from pydantic import BaseModel
 
 from app.services.kitting_plans import KittingGroup
+from app.services.views.metrics import EfficiencyOut
 from app.services.views import (
     CurrentOperatorOut,
     LineEventOut,
@@ -55,7 +56,8 @@ class BoardPlanOut(BaseModel):
     ng_choices: list[NgChoiceOut]
     completed: bool
     completion: RunCompletionOut | None  # 最新の完了
-    progress: float | None  # 計画の進捗率 = 生産数の合計 ÷ 計画数(計画数が0なら null)
+    in_progress: bool  # 生産中(最初の工程を始め、片付けが終わっていない)
+    progress: float | None  # 進捗率 = 工程の記録の時間の合計 ÷ 計画の時間。生産中でない・計画の時間が無いときは null
 
 
 class BoardOut(BaseModel):
@@ -69,9 +71,7 @@ class BoardOut(BaseModel):
     current_operator: CurrentOperatorOut | None
     plans: list[BoardPlanOut]
     line_events: list[LineEventOut]  # 表示範囲に重なる付帯作業
-    # TODO(要確認): ラインの進捗率の定義(今は 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計)
-    line_progress: float | None
-    utilization: float | None  # 今は計算しない(稼働率の定義は要確認)
+    efficiency: EfficiencyOut  # この稼働日の効率(詳細: docs/design/metrics.md)
 
 
 class SearchHitOut(BaseModel):

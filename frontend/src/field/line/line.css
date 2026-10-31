@@ -19,6 +19,10 @@
 .kpi-label { font-size: 16px; color: var(--muted); }
 .kpi-value { font-size: 24px; font-weight: 700; }
 .kpi-warn { color: var(--danger); }
+.kpi-note { font-size: 14px; color: var(--muted); }
+.kpi-progress { align-items: flex-start; max-width: 46vw; }
+.progress-list { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 18px; }
+.progress-over strong { color: var(--danger); }
 .kpi-button {
   min-height: var(--touch); padding: 4px 14px; font: inherit; cursor: pointer;
   background: #f6f8fa; border: 2px solid var(--border); border-radius: 8px;

@@ -13,6 +13,7 @@ from pathlib import Path
 from app.integration.legacy.plans import read_active_plans
 from app.integration.legacy.readonly import file_mtime
 from app.integration.legacy.takt import read_takt_master
+from app.integration.legacy.teitori import LegacyTeitori, read_teitori
 from app.integration.legacy.types import LegacySourceError, LegacySourceRead, MonthlyDbRead, SkippedDb
 from app.integration.legacy.workers import LegacyWorker, read_workers
 
@@ -87,3 +88,16 @@ def read_master_workers(legacy_app_dir: Path) -> list[LegacyWorker] | None:
     except (OSError, sqlite3.Error) as e:
         raise LegacySourceError(f"master.db の作業者を読めません({master}): {type(e).__name__}: {e}",
                                 "master.db の作業者を読めません。詳細はログを見てください") from e
+
+
+def read_master_teitori(legacy_app_dir: Path) -> list[LegacyTeitori] | None:
+    """master.db の丁取り(ビュー v_board_teitori)。計画の読み取りとは切り離す。
+
+    ビューが無ければ None。master.db を読めなければ LegacySourceError。
+    """
+    master = legacy_app_dir / "db" / MASTER_DB_NAME
+    try:
+        return read_teitori(master)
+    except (OSError, sqlite3.Error) as e:
+        raise LegacySourceError(f"master.db の丁取りを読めません({master}): {type(e).__name__}: {e}",
+                                "master.db の丁取りを読めません。詳細はログを見てください") from e
