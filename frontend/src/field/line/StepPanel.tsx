@@ -17,6 +17,12 @@ type Props = {
 
 export const stepKey = (p: BoardPlan, step: string) => `step:${p.plan.kitting_no}:${step}`;
 
+const CANCEL_KEYS: Record<string, "stepPanel.cancelled.vanished" | "stepPanel.cancelled.reissued" | "stepPanel.cancelled.carried_over"> = {
+  vanished: "stepPanel.cancelled.vanished",
+  reissued: "stepPanel.cancelled.reissued",
+  carried_over: "stepPanel.cancelled.carried_over",
+};
+
 export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
@@ -36,6 +42,8 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
           <Fact label={t("stepPanel.lots")} value={t("unit.lots", { count: p.lots.length })} />
         </dl>
         <LotTable plan={plan} />
+        {p.is_stale && <p className="plan-warning">{t("stepPanel.stale")}</p>}
+        {p.status === "cancelled" && <p className="plan-warning">{t(CANCEL_KEYS[p.cancel_reason ?? "vanished"] ?? "stepPanel.cancelled.vanished")}</p>}
         {p.warnings.length > 0 && <p className="plan-warning">{t("stepPanel.warnings", { items: p.warnings.join(" / ") })}</p>}
       </div>
 

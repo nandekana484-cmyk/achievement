@@ -47,6 +47,21 @@ class LegacyPlan:
 
 
 @dataclass(frozen=True)
+class StaleInfo:
+    """月次DBのビュー v_plan_stale の1行(有効な計画1件)。詳細: docs/design/legacy-integration.md"""
+
+    is_stale: bool
+    reason: str  # stale / in_latest_batch / outside_period / date_unparsable / no_period / no_latest_batch(知らない値もそのまま)
+    replacement_kitting_no: str | None  # is_stale のときだけ。候補がちょうど1つのときだけ値が入る
+    replacement_count: int  # is_stale のときの候補の数
+
+    @property
+    def stale(self) -> bool:
+        """古い計画として扱うか。is_stale=1 と reason='stale' が揃ったときだけ(食い違いは古くない扱い)。"""
+        return self.is_stale and self.reason == "stale"
+
+
+@dataclass(frozen=True)
 class ReadWarning:
     legacy_plan_item_id: int | None
     kitting_no: str | None
@@ -67,6 +82,8 @@ class ReadResult:
     warnings: list[ReadWarning]
     # ロットごとの最終書き込み時刻。時刻が読めないロットは None
     lot_last_written: dict[str, datetime | None] = field(default_factory=dict)
+    # 古い計画の判定。ビューが無い・読めない月次DBは None(古い計画なしとは違い、「分からない」)
+    stale: dict[tuple[str, str], StaleInfo] | None = None
 
 
 @dataclass(frozen=True)

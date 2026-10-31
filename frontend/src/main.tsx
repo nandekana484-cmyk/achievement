@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AccessPage } from "./admin/access/AccessPage";
+import { HandoverPage } from "./admin/handover/HandoverPage";
 import { TeitoriPage } from "./admin/teitori/TeitoriPage";
 import { ActualsPage } from "./admin/actuals/ActualsPage";
 import { AdminLayout } from "./admin/AdminLayout";
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="operators" element={<OperatorsPage />} />
             <Route path="access" element={<AccessPage />} />
             <Route path="teitori" element={<TeitoriPage />} />
+            <Route path="handover" element={<HandoverPage />} />
             <Route path="password" element={<PasswordPage />} />
           </Route>
         </Routes>

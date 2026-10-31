@@ -13,6 +13,7 @@ const MENU: [string, AdminKey][] = [
   ["operators", "menu.operators"],
   ["access", "menu.access"],
   ["teitori", "menu.teitori"],
+  ["handover", "menu.handover"],
   ["password", "menu.password"],
 ];
 

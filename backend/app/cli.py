@@ -35,7 +35,7 @@ from app.db.models import Equipment, Line, Operator, Reason
 from app.db.session import get_sessionmaker, init_db
 from app.domain.normalize import normalize_mounting_line
 from app.services import admin_auth, ip_allowlist, masters
-from app.services.demo_seed import seed_demo
+from app.services.demo_seed import seed_demo, seed_handover
 from app.services.errors import NotFound, RuleViolation
 
 DEMO_REFUSED = "config.toml に paths.legacy_app_dir が設定されているため、確認用のデータは入れません(実データと混ざらないように)"
@@ -92,6 +92,7 @@ def _parser() -> argparse.ArgumentParser:
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
     demo.add_argument("--date", required=True, type=dt.date.fromisoformat, help="YYYY-MM-DD")
+    demo.add_argument("--handover", action="store_true", help="引き継ぎの確認の確認用の計画(出し直しで古くなった計画と、出し直し後の計画)だけを入れる")
     demo.add_argument("--lot-suffix", default="", help="ロットNo.の末尾に付ける文字(ほかのラインの確認用のデータとロットを分けるとき)")
     return p
 
@@ -169,6 +170,10 @@ def _list_lines(s: Session, _args: argparse.Namespace) -> None:
 
 
 def _demo_seed(s: Session, args: argparse.Namespace) -> None:
+    if args.handover:
+        old, new = seed_handover(s, args.line, args.date)
+        print(f"引き継ぎの確認用の計画を入れました: 古い計画 {old}(出し直しで古くなった)、出し直し後 {new}")
+        return
     knos = seed_demo(s, args.line, args.date, args.lot_suffix)
     unique = list(dict.fromkeys(knos))
     print(f"確認用のデータを入れました({args.date}、ライン {normalize_mounting_line(args.line)}): "

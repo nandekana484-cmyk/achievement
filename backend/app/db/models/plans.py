@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, Float, Index, Integer, String, Text
+from sqlalchemy import Date, Float, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -12,6 +12,11 @@ from app.db.types import TZDateTime
 
 PLAN_ACTIVE = "active"
 PLAN_CANCELLED = "cancelled"
+
+# 取消の理由(plans.cancel_reason。空は前のアプリで取り消したもの = 読めなくなった扱い)
+CANCEL_VANISHED = "vanished"  # 既存アプリから読めなくなった(削除・出し直しの取り込みなど)
+CANCEL_REISSUED = "reissued"  # 出し直しで古くなった(既存アプリのビュー v_plan_stale の判定。実績が無いもの)
+CANCEL_CARRIED_OVER = "carried_over"  # 実績を新しいキッティングNo.へ引き継いだ(管理者が確定)
 
 SYNC_OK = "ok"
 SYNC_ERROR = "error"
@@ -50,6 +55,11 @@ class Plan(Base):
     issue_seq: Mapped[int] = mapped_column(Integer)
     # 本アプリでの状態
     status: Mapped[str] = mapped_column(String, default=PLAN_ACTIVE)
+    cancel_reason: Mapped[str | None] = mapped_column(String)  # 取消のときの理由(CANCEL_*)
+    # 既存アプリのビュー v_plan_stale の判定(同期のたびに合わせる。ビューが無い月次DBの計画は前の値のまま)
+    is_stale: Mapped[bool] = mapped_column(default=False, server_default=text("0"))
+    replacement_kitting_no: Mapped[str | None] = mapped_column(String)  # 古いときの、出し直し後のキッティングNo.(候補が1つのときだけ)
+    replacement_count: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     first_seen_at: Mapped[datetime] = mapped_column(TZDateTime)
     updated_at: Mapped[datetime] = mapped_column(TZDateTime)
     cancelled_at: Mapped[datetime | None] = mapped_column(TZDateTime)

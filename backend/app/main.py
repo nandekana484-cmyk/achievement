@@ -16,7 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.api import admin, admin_access, admin_actuals, admin_masters, admin_reports, admin_teitori, corrections, health, lines, plans, runs
+from app.api import admin, admin_access, admin_actuals, admin_handover, admin_masters, admin_reports, admin_teitori, corrections, health, lines, plans, runs
 from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
@@ -86,6 +86,7 @@ app.include_router(admin_reports.router)
 app.include_router(admin_actuals.router)
 app.include_router(admin_access.router)
 app.include_router(admin_teitori.router)
+app.include_router(admin_handover.router)
 
 
 @app.exception_handler(RuleViolation)

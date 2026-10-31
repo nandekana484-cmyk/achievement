@@ -24,6 +24,12 @@ from app.services.kitting_plans import KittingGroup, load_group
 from app.services.side_links import LinkCheckOut, link_checks, link_for_side1, side1_for_side2
 
 W_CANCELLED = "取消の計画です(既存アプリに計画がありません)"
+# 取消の理由ごとの文(plans.cancel_reason)。空は前のアプリで取り消したもの = 読めなくなった
+W_CANCELLED_BY = {
+    "vanished": W_CANCELLED,
+    "reissued": "取消の計画です(出し直しで古くなりました。新しいキッティングNo.で出します)",
+    "carried_over": "取消の計画です(実績は新しいキッティングNo.へ引き継ぎ済みです)",
+}
 W_NO_WORKER = "片付けを終えた人の作業者IDがありません"
 W_NO_SOURCE = "元のDB(正とした月次DB)が分かりません"
 W_PENDING = "面2の計画があるのに、キッティングNo.でつながりません。「ひも付けの確認」で面2の計画を選んでください"
@@ -126,7 +132,7 @@ def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion
 
 
 def _common_warnings(group: KittingGroup, worker_id: str | None) -> list[str]:
-    return [*([W_CANCELLED] if group.status == PLAN_CANCELLED else []), *([] if worker_id else [W_NO_WORKER])]
+    return [*([W_CANCELLED_BY.get(group.cancel_reason or 'vanished', W_CANCELLED)] if group.status == PLAN_CANCELLED else []), *([] if worker_id else [W_NO_WORKER])]
 
 
 def _pairing(session: Session, group: KittingGroup, lot_no: str) -> _Pairing:
