@@ -20,6 +20,9 @@ logs/
 # 既存アプリのDBの複製(テスト用。各PCに置き、コミットしない)
 legacy-db/
 
+# exe を GENBA_HOME なしで packaging/dist/<版>/ から起動すると、exe の2つ上(packaging/)に作られるDB・ロック(ログは logs/ で除外済み)
+packaging/data/
+
 # PyInstaller
 build/
 dist/

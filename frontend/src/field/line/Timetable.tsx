@@ -4,7 +4,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { localName } from "../../i18n/translate";
 import type { Board, BoardPlan } from "../../shared/api";
 import { planSummary } from "./planMatch";
-import { activeEvents, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
+import { activeEvents, formatPercent, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
 import { assignLanes, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
 
 export const PX_PER_HOUR = 90;
@@ -41,7 +41,7 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     const s = span(p.plan.planned_start, p.plan.planned_end, TOUCH_MIN);
     if (!s) return [];
     const selected = planKey(p) === selectedKey;
-    const state = p.completed ? t("common.done") : selected ? t("common.selected") : `${Math.round((p.progress ?? 0) * 100)}%`;
+    const state = p.completed ? t("common.done") : selected ? t("common.selected") : formatPercent(p.in_progress ? p.progress : null);
     const clip = `${s.clippedStart ? " tt-clip-start" : ""}${s.clippedEnd ? " tt-clip-end" : ""}`;
     // 枠はキッティングNo.ごとに1つ。ロットの数と計画数の合計を出す
     return [{

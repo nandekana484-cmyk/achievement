@@ -15,6 +15,7 @@ from app.db.models.plans import (
     PlanSyncRun,
     PlanSyncWarning,
 )
+from app.db.models.teitori import BoardTeitori
 from app.db.models.records import (
     ApiRequest,
     LineEvent,
@@ -34,6 +35,7 @@ __all__ = [
     "AdminLoginAttempt",
     "AdminSession",
     "AuditLog",
+    "BoardTeitori",
     "PLAN_ACTIVE",
     "PLAN_CANCELLED",
     "SYNC_ERROR",

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import clock
-from app.db.models import PLAN_ACTIVE, Equipment, Operator, Plan
+from app.db.models import PLAN_ACTIVE, BoardTeitori, Equipment, Operator, Plan
 from app.db.session import write_transaction
 from app.domain.kitting_no import parse_kitting_no
 from app.domain.normalize import normalize_mounting_line
@@ -26,6 +26,11 @@ DEMO_SOURCE = "demo"
 OPERATORS = (("山田", "Y001", "operator"), ("佐藤", "S002", "operator"), ("山田", "Y015", "operator"),
              ("管理 花子", "A001", "admin"))  # 管理画面の確認用(パスワードは admin set-password で別に設定する)
 EQUIPMENT = ("マウンター1", "リフロー炉")
+# ファイルNo. → (丁取り数, status)。効率の計算から外れる計画(丁取りが引けない・タクトなし)も確かめられるようにする
+TEITORI: dict[str, tuple[int | None, str]] = {
+    "0722": (2, "ok"), "0800": (None, "tsv_not_found"), "0915": (4, "ok"), "0930": (1, "ok"), "0940": (None, "no_k_row"),
+    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"),
+}
 
 
 @dataclass(frozen=True)
@@ -81,6 +86,7 @@ def seed_demo(session: Session, line_code: str, day: dt.date, lot_suffix: str = 
             if exists is None:
                 session.add(Equipment(line_code=line, name=name, active=True, sort_order=(i + 1) * 10))
         knos = [_upsert_plan(session, p, line, day, issue, lot_suffix) for p in PLANS]
+        _upsert_teitori(session, line)
         session.commit()
     return knos
 
@@ -105,6 +111,16 @@ def _upsert_plan(session: Session, p: _DemoPlan, line: str, day: dt.date, issue:
     row.issue_date, row.issue_seq = parsed.issue_date, parsed.issue_seq
     row.status, row.cancelled_at, row.updated_at = PLAN_ACTIVE, None, now
     return kno
+
+
+def _upsert_teitori(session: Session, line: str) -> None:
+    now = clock.now()
+    for file_no, (teitori, status) in TEITORI.items():
+        row = session.get(BoardTeitori, (file_no, line))
+        if row is None:
+            row = BoardTeitori(setup_file_no=file_no, mounting_line=line)
+            session.add(row)
+        row.teitori, row.status, row.part_no, row.fetched_at, row.synced_at = teitori, status, None, None, now
 
 
 def _at(day: dt.date, hm: str) -> dt.datetime:

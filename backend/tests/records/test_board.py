@@ -20,11 +20,14 @@ def test_board(client, staffed, fake_clock):
     assert b["current_operator"]["operator_name"] == "山田"
     assert [p["plan"]["kitting_no"] for p in b["plans"]] == [K1, K2]
     p1, p2 = b["plans"]
-    assert (p1["produced_qty"], p1["progress"], p1["completed"], p1["ng_entries"]) == (150, 0.5, False, [])
-    assert (p2["produced_qty"], p2["progress"]) == (60, 0.2)
+    assert (p1["produced_qty"], p1["in_progress"], p1["completed"], p1["ng_entries"]) == (150, True, False, [])
+    assert (p2["produced_qty"], p2["in_progress"]) == (60, True)
+    assert p1["progress"] is not None and p1["progress"] >= 0  # 進捗率は工程の時間 ÷ 計画の時間(詳細は test_metrics.py)
     assert [e["seq"] for e in p2["events"]] == [1, 2]
-    assert b["line_progress"] == pytest.approx(210 / 600)
-    assert b["utilization"] is None
+    # 記録は 10/21 8:00(8:15 より前)なので、稼働日 10/20 の効率に入る
+    eff = ok(client.get("/api/lines/S/board", params={"date": "2026-10-20"}))["efficiency"]
+    assert eff["included"] == 2  # 時計が進んでいないので実所要時間は0(効率は null)
+    assert b["efficiency"]["included"] == 0 and b["efficiency"]["efficiency"] is None
     assert [e["id"] for e in b["line_events"]] == [ev["id"]]
     for t in (p1["events"][0]["start_at"], p1["events"][0]["end_at"], b["current_operator"]["start_at"], b["line_events"][0]["start_at"]):
         assert t.endswith("+09:00")
@@ -34,7 +37,7 @@ def test_board(client, staffed, fake_clock):
     # 別の稼働日でも、片付けが終わっていない計画(遅れ)は出る。付帯作業は出ない
     other = ok(client.get("/api/lines/S/board", params={"date": "2026-10-24"}))
     assert [p["plan"]["kitting_no"] for p in other["plans"]] == [K1, K2]
-    assert other["line_events"] == [] and other["line_progress"] is None
+    assert other["line_events"] == [] and other["efficiency"]["efficiency"] is None
 
 
 def test_board_with_zero_qty_plan(client, staffed):
@@ -46,8 +49,9 @@ def test_board_with_zero_qty_plan(client, staffed):
     b = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
 
     zero = b["plans"][-1]
-    assert zero["plan"]["planned_qty"] == 0 and zero["progress"] is None  # 計画数が0でも落ちない
-    assert b["line_progress"] == pytest.approx(5 / 600)
+    assert zero["plan"]["planned_qty"] == 0 and zero["in_progress"]  # 計画数が0でも落ちない
+    eff = ok(client.get("/api/lines/S/board", params={"date": "2026-10-20"}))["efficiency"]
+    assert {"reason": "no_row", "count": 1} in eff["reasons"]  # ファイルNo. 0800 は目標タクトも丁取りも無い
 
 
 def test_board_all_zero_qty(client, staffed):
@@ -56,7 +60,7 @@ def test_board_all_zero_qty(client, staffed):
     insert_plan(staffed["db"], kitting_no="0800-1-S-251014-03", file_no="0800", qty=0)
     sync_plans(staffed["app"])
     b = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
-    assert [p["progress"] for p in b["plans"]] == [None] and b["line_progress"] is None
+    assert [p["progress"] for p in b["plans"]] == [None] and b["efficiency"]["efficiency"] is None
 
 
 def test_board_unknown_line(client, world):

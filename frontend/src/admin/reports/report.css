@@ -13,6 +13,7 @@
 .report-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 6mm; }
 .report-title { margin: 0; font-size: 16pt; }
 .report-total { font-weight: 700; font-size: 11pt; }
+.report-excluded { font-size: 9pt; color: #444; }
 .report-generated, .report-pageno { color: #444; }
 .report-pageno { margin-left: auto; }
 .report-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1mm 4mm; width: 100%; font-size: 8pt; }

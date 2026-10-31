@@ -17,21 +17,20 @@ from app.services.kitting_plans import KittingGroup, load_active_groups, load_gr
 from app.services.line_operators import current_row
 from app.services.masters import get_line
 from app.services.ng_inputs import latest_ng, ng_choices
-from app.services.plan_query import board_kitting_nos, kitting_nos_overlapping
+from app.services.metrics import efficiency_from_intervals, plan_progress
+from app.services.plan_query import board_kitting_nos
+from app.services.report_intervals import build_intervals
 from app.services.plan_views import BoardOut, BoardPlanOut, kitting_plan_out
 from app.services.completions import latest_completion, produced_total
 from app.services.views import current_operator_out, line_event_out, run_completion_out, run_event_out
 
 
-def _ratio(numerator: int, denominator: int) -> float | None:
-    return numerator / denominator if denominator > 0 else None
-
-
 def board_plan_out(session: Session, g: KittingGroup) -> BoardPlanOut:
-    """まとまり1件の、工程の記録・生産数の合計・NG数・最新の完了・計画の進捗率。"""
+    """まとまり1件の、工程の記録・生産数の合計・NG数・最新の完了・進捗率(生産中のみ)。"""
     events = session.scalars(select(RunEvent).where(RunEvent.kitting_no == g.kitting_no).order_by(RunEvent.start_at, RunEvent.id))
     produced = produced_total(session, g.kitting_no)
     completion = latest_completion(session, g.kitting_no)
+    progress = plan_progress(session, g, clock.now())
     return BoardPlanOut(
         plan=kitting_plan_out(g),
         events=[run_event_out(session, e) for e in events],
@@ -40,7 +39,7 @@ def board_plan_out(session: Session, g: KittingGroup) -> BoardPlanOut:
         ng_choices=ng_choices(session, g),
         completed=completion is not None,
         completion=run_completion_out(completion) if completion is not None else None,
-        progress=_ratio(produced, g.planned_qty),
+        in_progress=progress.in_progress, progress=progress.progress,
     )
 
 
@@ -59,15 +58,14 @@ def get_board(session: Session, line_code: str, day: dt.date | None, day_start: 
 
     groups = load_active_groups(session, board_kitting_nos(session, line.line_code, disp_start, disp_end, now))
     operator = current_row(session, line.line_code)
+    intervals = build_intervals(session, day, day, line.line_code, day_start)
     return BoardOut(
         line_code=line.line_code, date=day,
         workday_start=work_start, workday_end=work_end, display_start=disp_start, display_end=disp_end, server_time=now,
         current_operator=current_operator_out(session, operator) if operator is not None else None,
         plans=[board_plan_out(session, g) for g in groups],
         line_events=[line_event_out(session, e) for e in _line_events(session, line.line_code, disp_start, disp_end, now)],
-        line_progress=_line_progress(session, line.line_code, work_start, work_end),
-        # TODO(要確認): 稼働率の定義
-        utilization=None,
+        efficiency=efficiency_from_intervals(session, line.line_code, intervals, now),
     )
 
 
@@ -80,12 +78,3 @@ def _line_events(session: Session, line_code: str, start: dt.datetime, end: dt.d
         ).order_by(LineEvent.start_at, LineEvent.id)
     ))
 
-
-def _line_progress(session: Session, line_code: str, work_start: dt.datetime, work_end: dt.datetime) -> float | None:
-    """ラインの進捗率。画面に出さない計画(未着手で過ぎたもの)も含めて、稼働日に重なるまとまりで計算する。
-
-    TODO(要確認): ラインの進捗率の定義(今は 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計)
-    """
-    groups = load_active_groups(session, kitting_nos_overlapping(session, line_code, work_start, work_end))
-    produced = sum(produced_total(session, g.kitting_no) for g in groups)
-    return _ratio(produced, sum(g.planned_qty for g in groups))

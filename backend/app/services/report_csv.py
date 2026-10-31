@@ -49,6 +49,8 @@ COLUMNS: list[tuple[str, Callable[[IntervalOut], object]]] = [
     ("終了した人", lambda r: r.ended_by or ""),
     ("後から追加", lambda r: _flag(r.added_later)),
     ("訂正あり", lambda r: _flag(r.corrected)),
+    ("目標タクト(秒)", lambda r: r.takt_sec if r.takt_sec is not None else ""),
+    ("丁取り数", lambda r: r.teitori if r.teitori is not None else ""),
 ]
 
 HEADERS = [h for h, _ in COLUMNS]

@@ -3,6 +3,7 @@
 import { STEP_COLORS } from "../../field/line/steps";
 import type { StepType } from "../../shared/api";
 import { type AdminKey, at } from "../messages";
+import { efficiencyText, excludedText } from "./efficiency";
 import { barBox, type DailyReport, formatDateTime, formatTime, type Half, hourTicks, paginate, type ReportRow } from "./gantt";
 
 const STEPS: StepType[] = ["setup", "n1_check", "production", "first_article", "xray", "cleanup"];
@@ -32,6 +33,8 @@ function ReportHeader({ report, page, pages }: { report: DailyReport; page: numb
       <span>{at("report.workday", { date: report.date, start: formatTime(report.workday_start), end: formatTime(report.workday_end) })}</span>
       <span className="report-total">{at("report.producedTotal", { qty: report.produced_total })}</span>
       <span className="report-total">{at("report.ngTotal", { qty: report.ng_total })}</span>
+      <span className="report-total">{efficiencyText(report)}</span>
+      {excludedText(report) && <span className="report-excluded">{excludedText(report)}</span>}
       <span className="report-generated">{at("report.generatedAt", { time: formatDateTime(report.generated_at) })}</span>
       <span className="report-pageno">{at("report.page", { page, pages })}</span>
       <Legend />

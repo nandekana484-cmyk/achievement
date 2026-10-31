@@ -875,6 +875,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/teitori/unresolved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unresolved
+         * @description 丁取りが引けない有効な計画(キッティングNo.、ファイルNo.、ライン、status)。
+         */
+        get: operations["unresolved_api_admin_teitori_unresolved_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1086,10 +1106,7 @@ export interface components {
             plans: components["schemas"]["BoardPlanOut"][];
             /** Line Events */
             line_events: components["schemas"]["LineEventOut"][];
-            /** Line Progress */
-            line_progress: number | null;
-            /** Utilization */
-            utilization: number | null;
+            efficiency: components["schemas"]["EfficiencyOut"];
         };
         /** BoardPlanOut */
         BoardPlanOut: {
@@ -1105,6 +1122,8 @@ export interface components {
             /** Completed */
             completed: boolean;
             completion: components["schemas"]["RunCompletionOut"] | null;
+            /** In Progress */
+            in_progress: boolean;
             /** Progress */
             progress: number | null;
         };
@@ -1229,10 +1248,33 @@ export interface components {
             produced_total: number;
             /** Ng Total */
             ng_total: number;
+            efficiency: components["schemas"]["EfficiencyOut"];
             /** Rows */
             rows: components["schemas"]["RowOut"][];
             /** Intervals */
             intervals: components["schemas"]["IntervalOut"][];
+        };
+        /**
+         * EfficiencyOut
+         * @description その稼働日の効率。efficiency は割合(0.8 = 80%)。計算に入れた計画が無い・実所要時間が0なら null。
+         */
+        EfficiencyOut: {
+            /** Efficiency */
+            efficiency: number | null;
+            /** Standard Seconds */
+            standard_seconds: number;
+            /** Actual Seconds */
+            actual_seconds: number;
+            /** Included */
+            included: number;
+            /** Excluded */
+            excluded: number;
+            /** Reasons */
+            reasons: components["schemas"]["ReasonCountOut"][];
+            /** Excluded Plans */
+            excluded_plans: components["schemas"]["ExcludedPlanOut"][];
+            /** Warnings */
+            warnings: string[];
         };
         /** EquipmentAdminOut */
         EquipmentAdminOut: {
@@ -1283,6 +1325,13 @@ export interface components {
             sort_order?: number | null;
             /** Active */
             active?: boolean | null;
+        };
+        /** ExcludedPlanOut */
+        ExcludedPlanOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Reason */
+            reason: string;
         };
         /** ExportIn */
         ExportIn: {
@@ -1411,6 +1460,10 @@ export interface components {
             corrected: boolean;
             /** Open */
             open: boolean;
+            /** Takt Sec */
+            takt_sec?: number | null;
+            /** Teitori */
+            teitori?: number | null;
         };
         /**
          * KittingPlanOut
@@ -1867,6 +1920,13 @@ export interface components {
             /** Active */
             active: boolean;
         };
+        /** ReasonCountOut */
+        ReasonCountOut: {
+            /** Reason */
+            reason: string;
+            /** Count */
+            count: number;
+        };
         /** ReasonIn */
         ReasonIn: {
             /** Name */
@@ -2260,6 +2320,32 @@ export interface components {
             last_run: components["schemas"]["SyncRunOut"] | null;
             /** Warning Count */
             warning_count: number;
+        };
+        /** UnresolvedOut */
+        UnresolvedOut: {
+            /** Total Plans */
+            total_plans: number;
+            /** Unresolved */
+            unresolved: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** Plans */
+            plans: components["schemas"]["UnresolvedPlanOut"][];
+            /** Truncated */
+            truncated: boolean;
+        };
+        /** UnresolvedPlanOut */
+        UnresolvedPlanOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** File No */
+            file_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Status */
+            status: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3756,6 +3842,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unresolved_api_admin_teitori_unresolved_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnresolvedOut"];
                 };
             };
         };

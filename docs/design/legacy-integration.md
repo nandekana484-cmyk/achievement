@@ -49,6 +49,12 @@
 - `nan` / `inf` は受け付けない(`nan` は等しさの比較ができず、毎回「変更あり」になってしまうため)
 - 単位は1枚あたりの秒(2026-10-23 に確定)
 
+### 丁取り(master.db のビュー v_board_teitori)
+
+- 既存アプリ 4.1.0 以降のビュー(`setup_file_no`、`mounting_line`、`part_no`、`teitori`、`status`、`fetched_at`)を、計画の同期のたびに全件読む。キーは正規化した (ファイルNo., 実装ライン) で、面は問わない
+- 本アプリの表 `board_teitori`(0015)に上書きする。**計画と作業者と違い、読めなくても同期全体は失敗にしない**(ビューが無い・読めない → 前回の値を使い、`plan_sync_warnings` に警告、起動後の最初の1回だけログ)
+- 丁取りの変化は計画の内容比較に入れない。詳細と確かめ方: [metrics.md](metrics.md)
+
 ### 正規化(domain/normalize.py)
 
 既存アプリの `models/production_side_master.py` の `normalize_setup_file_no` / `normalize_mounting_line` を、結果が完全に同じになるよう移植した。数字だけのファイルNo.は文字列のまま `zfill(4)` する(int に変換しないので `"00004"` は `"00004"` のまま)。キッティングNo.のライン記号との比較も正規化した値どうしで行う。
