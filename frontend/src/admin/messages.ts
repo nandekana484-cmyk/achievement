@@ -50,7 +50,6 @@ const text = {
   "col.requiresText": "記入が必要",
   "col.lineEvent": "付帯作業",
   "col.restart": "再開理由",
-  "col.utilization": "稼働率に含める",
   "col.code": "記号",
   "col.autoNamed": "自動で付けた名前",
   "col.workerId": "作業者ID",

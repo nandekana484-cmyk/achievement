@@ -606,7 +606,7 @@ export interface paths {
         head?: never;
         /**
          * Update Reason
-         * @description 理由の名前・区分・入力の決まり・使い道・稼働率に含めるか・並び順を変える。active=false で無効にする。
+         * @description 理由の名前・区分・入力の決まり・使い道・並び順(counts_in_utilization は使わない)を変える。active=false で無効にする。
          */
         patch: operations["update_reason_api_admin_reasons__reason_id__patch"];
         trace?: never;

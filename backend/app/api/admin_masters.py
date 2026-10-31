@@ -113,7 +113,7 @@ def add_reason(body: ReasonIn, admin: Admin, session: Db) -> object:
 
 @router.patch("/reasons/{reason_id}", response_model=ReasonAdminOut)
 def update_reason(reason_id: int, body: ReasonPatch, admin: Admin, session: Db) -> object:
-    """理由の名前・区分・入力の決まり・使い道・稼働率に含めるか・並び順を変える。active=false で無効にする。"""
+    """理由の名前・区分・入力の決まり・使い道・並び順(counts_in_utilization は使わない)を変える。active=false で無効にする。"""
     return svc.update_reason(session, admin.id, reason_id, body.changes())
 
 

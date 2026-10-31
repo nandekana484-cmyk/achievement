@@ -33,7 +33,7 @@ test("⑯ 理由の一覧と変更", async ({ page }) => {
   await row.getByRole("button", { name: "編集" }).click();
   const editing = table.locator(".admin-editing");
   await editing.getByLabel("ベトナム語の名前").fill("Tìm linh kiện (kho)");
-  await editing.getByLabel("稼働率に含める").check();
+  await expect(editing.getByLabel("稼働率に含める")).toHaveCount(0); // 使わない設定は出さない
   await editing.getByRole("button", { name: "保存" }).click();
   await expect(page.getByRole("status")).toHaveText("保存しました");
   await expect(table.getByRole("row", { name: /部品探し/ })).toContainText("Tìm linh kiện (kho)");
@@ -49,7 +49,6 @@ test("⑯ 理由の一覧と変更", async ({ page }) => {
   await expect(table.getByRole("row", { name: /計画切替/ }).getByRole("button", { name: "無効にする" })).toBeVisible();
   await table.getByRole("row", { name: /部品探し/ }).getByRole("button", { name: "編集" }).click();
   await editing.getByLabel("ベトナム語の名前").fill("Tìm linh kiện");
-  await editing.getByLabel("稼働率に含める").uncheck();
   await editing.getByRole("button", { name: "保存" }).click();
   await expect(table.getByRole("row", { name: /部品探し/ })).not.toContainText("(kho)");
 });

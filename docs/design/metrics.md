@@ -10,7 +10,7 @@
 | ラインの進捗率 | `services/board.py` の `_line_progress`、`BoardOut.line_progress` | 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計 | 廃止。生産中の計画ごとの進捗率に置き換え |
 | 計画の進捗率 | `services/board.py` の `board_plan_out`、`BoardPlanOut.progress` | 生産数の合計 ÷ 計画数 | 時間の進捗率に置き換え(下) |
 | 表示 | `TopBar.tsx`、`Timetable.tsx`(枠の「%」)、`StepPanel.tsx`(計画の進捗率) | 上の値を出す | `BoardPlanOut.in_progress` / `progress` と `BoardOut.efficiency` を出す |
-| 理由の「稼働率に含める」 | `reasons.counts_in_utilization`、管理画面「理由」 | 付帯作業を稼働率に含めるかの設定(未使用) | **そのまま残す**(効率は付帯作業の時間を分母に入れないので使わない。扱いは下の「未確定」) |
+| 理由の「稼働率に含める」 | `reasons.counts_in_utilization`、管理画面「理由」 | 付帯作業を稼働率に含めるかの設定(未使用) | **列は残し、使わない**。管理画面の理由の設定からは欄を隠した(効率は理由によらず付帯作業の時間を分母に入れない) |
 
 ## 効率
 
@@ -70,6 +70,6 @@
 - 区間 CSV: 末尾(既存の列の順は変えない)に「目標タクト(秒)」「丁取り数」。工程の行にだけ入る(完了した計画は完了の写し)。丁取りが引けないとき、丁取り数は空。この2列と「生産数」「時間(分)」から効率を Excel で再計算できる(付帯作業と重なる分は「付帯作業」の行から引く)
 - 3つとも同じ関数(`efficiency_from_intervals`)と入力(`inputs_for`)を通る。テスト: `test_board_daily_report_and_csv_agree`
 
-## 未確定(コードに残した)
+## 決めたこと(ユーザー、AD-15 のレビュー)
 
-- 付帯作業を効率に含める理由の設定(`counts_in_utilization`)は使っていない。付帯作業の時間は分母に入れない決めなので、当面は不要。表示や列の名前の扱いは要確認
+- 付帯作業の時間は、理由によらず効率の分母に入れない。`reasons.counts_in_utilization` と `run_completions.utilization` の列は消さずに残すが、**どちらも使っていない**(管理画面の理由の設定からも隠した。API の項目は残る)

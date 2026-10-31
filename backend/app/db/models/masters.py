@@ -71,7 +71,7 @@ class Reason(Base):
     name: Mapped[str] = mapped_column(String)
     name_vi: Mapped[str | None] = mapped_column(String)  # ベトナム語の名前。空なら画面は日本語の名前を出す
     category: Mapped[str] = mapped_column(String)  # loss=ロス / non_loss=ロス以外
-    # TODO(要確認): 付帯作業を効率に含めるか(今は使わない。効率は付帯作業の時間を分母に入れない。docs/design/metrics.md)
+    # 使わない(効率は、理由によらず付帯作業の時間を分母に入れない)。列は残す。詳細: docs/design/metrics.md
     counts_in_utilization: Mapped[bool] = mapped_column(Boolean, default=False)
     requires_equipment: Mapped[bool] = mapped_column(Boolean, default=False)
     requires_text: Mapped[bool] = mapped_column(Boolean, default=False)
