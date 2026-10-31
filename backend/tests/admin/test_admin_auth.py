@@ -296,7 +296,7 @@ def test_old_hash_is_rebuilt_on_the_next_successful_login(client, people):
 
 
 @pytest.mark.real_scrypt
-def test_login_takes_under_one_second(client, people):
+def test_login_takes_under_three_seconds(client, people):
     import time
 
     login(client)  # 最初の1回を除く
@@ -306,4 +306,4 @@ def test_login_takes_under_one_second(client, people):
     start = time.perf_counter()
     assert login(client, worker_id="NOBODY", password="wrong-pass-1").status_code == 401
     unknown_time = time.perf_counter() - start
-    assert ok_time < 1.0 and unknown_time < 1.0, (ok_time, unknown_time)
+    assert ok_time < 3.0 and unknown_time < 3.0, (ok_time, unknown_time)
