@@ -33,6 +33,8 @@ class KittingPlanOut(BaseModel):
     issue_date: dt.date
     issue_seq: int
     status: str  # active / cancelled(すべてのロットが取消のとき)
+    cancel_reason: str | None  # 取消の理由: vanished(読めなくなった)/ reissued(出し直し)/ carried_over(引き継ぎ済み)
+    is_stale: bool  # 出し直しで古くなった計画(実績があるので取り消していない。管理画面の「引き継ぎの確認」の対象)
     takt_sec: float | None  # 想定タクト(1枚あたりの秒)
     source_db: str | None
     lots: list[LotOut]
@@ -90,6 +92,6 @@ def kitting_plan_out(g: KittingGroup) -> KittingPlanOut:
         kitting_no=g.kitting_no, file_no=g.file_no, line_code=g.line_code, run_no=g.run_no,
         product_name=g.product_name, planned_qty=g.planned_qty,
         planned_start=g.planned_start, planned_end=g.planned_end, deadline=min(deadlines, default=None),
-        issue_date=first.issue_date, issue_seq=first.issue_seq, status=g.status, takt_sec=g.takt_sec,
+        issue_date=first.issue_date, issue_seq=first.issue_seq, status=g.status, cancel_reason=g.cancel_reason, is_stale=g.is_stale, takt_sec=g.takt_sec,
         source_db=first.source_db, lots=[lot_out(lot) for lot in g.lots], warnings=g.warnings,
     )

@@ -96,17 +96,17 @@ def test_deactivated_becomes_cancelled(sync, session_factory, legacy_db, fake_cl
     assert p.cancelled_at == fake_clock.current
 
 
-def test_delete_flag_is_ignored(sync, session_factory, legacy_db):
+def test_delete_flag_one_is_unreadable_and_cancelled(sync, session_factory, legacy_db):
     insert_plan(legacy_db, kitting_no=K1)
     sync()
 
     insert_plan(legacy_db, kitting_no=K1, delete_flag=1)
     r = sync()
 
-    # 削除フラグは考慮しない(取消にも、内容の変更にもしない)。保存だけする
-    assert (r.cancelled, r.changed, r.unchanged) == (0, 0, 1)
+    # delete_flag=1 の行は読まない(既存アプリの有効な計画の条件)。読めなくなった計画として、取消の印を付ける(消さない)
+    assert (r.cancelled, r.changed, r.unchanged) == (1, 0, 0)
     p = _plans(session_factory)[(K1, "L001")]
-    assert p.status == "active" and p.delete_flag is True
+    assert (p.status, p.cancel_reason) == ("cancelled", "vanished")
 
 
 def test_cancelled_plan_comes_back(sync, session_factory, legacy_db):

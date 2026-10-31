@@ -29,7 +29,7 @@ EQUIPMENT = ("マウンター1", "リフロー炉")
 # ファイルNo. → (丁取り数, status)。効率の計算から外れる計画(丁取りが引けない・タクトなし)も確かめられるようにする
 TEITORI: dict[str, tuple[int | None, str]] = {
     "0722": (2, "ok"), "0800": (None, "tsv_not_found"), "0915": (4, "ok"), "0930": (1, "ok"), "0940": (None, "no_k_row"),
-    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"),
+    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"), "1100": (2, "ok"), "1101": (2, "ok"), "1102": (2, "ok"),
 }
 
 
@@ -111,6 +111,31 @@ def _upsert_plan(session: Session, p: _DemoPlan, line: str, day: dt.date, issue:
     row.issue_date, row.issue_seq = parsed.issue_date, parsed.issue_seq
     row.status, row.cancelled_at, row.updated_at = PLAN_ACTIVE, None, now
     return kno
+
+
+def seed_handover(session: Session, line_code: str, day: dt.date) -> list[str]:
+    """引き継ぎの確認の確認用: 出し直しで古くなった計画(実績を入れる前提)と、出し直し後の計画を入れる。
+
+    古い計画は plans.is_stale と replacement_kitting_no を持つ(実際は既存アプリのビュー v_plan_stale から同期で入る)。
+    """
+    line = normalize_mounting_line(line_code)
+    issue = day - dt.timedelta(days=7)
+    old = _DemoPlan("1100", 1, 21, "DEMO-H1", "出し直し基板H", 100, 30.0, "09:00", "12:00")
+    new = _DemoPlan("1100", 1, 22, "DEMO-H1", "出し直し基板H", 100, 30.0, "09:00", "12:00")
+    with write_transaction(session):
+        register_lines(session, [line])
+        session.flush()
+        old_kno, new_kno = (_upsert_plan(session, p, line, day, issue, "") for p in (old, new))
+        row = session.get(Plan, (old_kno, old.lot_no))
+        row.is_stale, row.replacement_kitting_no, row.replacement_count = True, new_kno, 1
+        # 移す先の候補が無い、古い計画(手で選ぶ・「移さない」の確認用)と、手で選べる有効な計画
+        lone = _DemoPlan("1101", 1, 23, "DEMO-H2", "候補なし基板I", 80, 30.0, "13:00", "15:00")
+        other = _DemoPlan("1102", 1, 24, "DEMO-H3", "手で選ぶ基板J", 80, 30.0, "13:00", "15:00")
+        lone_kno, other_kno = (_upsert_plan(session, p, line, day, issue, "") for p in (lone, other))
+        session.get(Plan, (lone_kno, lone.lot_no)).is_stale = True
+        _upsert_teitori(session, line)
+        session.commit()
+    return [old_kno, new_kno]
 
 
 def _upsert_teitori(session: Session, line: str) -> None:

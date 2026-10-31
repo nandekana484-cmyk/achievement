@@ -33,6 +33,23 @@ CREATE TABLE kitting_plan_items (
 CREATE UNIQUE INDEX ux_active ON kitting_plan_items(kitting_list_no, lot_no) WHERE is_active = 1;
 """
 
+# 既存アプリ 5.0.0 の月次DBのビュー v_plan_stale の代わり。判定(is_stale など)は表 stale_rows に入れた値(無ければ「古くない」)。
+# 列と、有効な計画1件につき1行・lot_no は NULL も '' で返す、という形はビューと同じ
+STALE_DDL = """
+CREATE TABLE stale_rows (
+  kitting_list_no TEXT NOT NULL, lot_no TEXT NOT NULL, is_stale INTEGER, judge_reason TEXT,
+  replacement_kitting_list_no TEXT, replacement_count INTEGER
+);
+CREATE VIEW v_plan_stale AS
+SELECT k.kitting_list_no AS kitting_list_no, COALESCE(k.lot_no, '') AS lot_no,
+       COALESCE(s.is_stale, 0) AS is_stale, COALESCE(s.judge_reason, 'in_latest_batch') AS judge_reason,
+       0 AS has_legacy_actuals, s.replacement_kitting_list_no AS replacement_kitting_list_no,
+       COALESCE(s.replacement_count, 0) AS replacement_count, NULL AS latest_batch_id, NULL AS judged_at
+  FROM kitting_plan_items k
+  LEFT JOIN stale_rows s ON s.kitting_list_no = k.kitting_list_no AND s.lot_no = COALESCE(k.lot_no, '')
+ WHERE COALESCE(k.is_active, 1) = 1 AND COALESCE(k.delete_flag, 0) = 0;
+"""
+
 MASTER_DDL = """
 CREATE TABLE production_side_master (
   row_key TEXT PRIMARY KEY,
@@ -89,10 +106,29 @@ def _connect(path: Path) -> Iterator[sqlite3.Connection]:
         yield c
 
 
-def make_plan_db(path: Path) -> None:
+def make_plan_db(path: Path, stale_view: bool = True) -> None:
+    """stale_view が False なら、ビュー v_plan_stale が無い月次DB(既存アプリ 5.0.0 でまだ開いていない)。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     with _connect(path) as c:
         c.executescript(PLAN_DDL)
+        if stale_view:
+            c.executescript(STALE_DDL)
+
+
+def set_stale(path: Path, kitting_no: str, lot_no: str = "L001", reason: str = "stale",
+              replacement: str | None = None, count: int | None = None) -> None:
+    """ビューの判定を決める。reason='stale' なら古い計画(is_stale=1)。replacement は出し直し後のキッティングNo."""
+    with _connect(path) as c:
+        c.execute("DELETE FROM stale_rows WHERE kitting_list_no=? AND lot_no=?", (kitting_no, lot_no))
+        c.execute("INSERT INTO stale_rows VALUES (?,?,?,?,?,?)", (
+            kitting_no, lot_no, int(reason == "stale"), reason, replacement,
+            count if count is not None else (1 if replacement else 0) if reason == "stale" else 0))
+
+
+def drop_stale_view(path: Path) -> None:
+    """ビューが無い月次DBにする。"""
+    with _connect(path) as c:
+        c.execute("DROP VIEW v_plan_stale")
 
 
 def make_master_db(path: Path, takt: Mapping[tuple[str, str, str], str | None] = DEFAULT_TAKT,
@@ -169,9 +205,9 @@ def make_legacy_app(root: Path, takt: Mapping[tuple[str, str, str], str | None] 
     return root
 
 
-def add_monthly_db(app_dir: Path, name: str) -> Path:
+def add_monthly_db(app_dir: Path, name: str, stale_view: bool = True) -> Path:
     path = app_dir / "db" / name / "inventory.db"
-    make_plan_db(path)
+    make_plan_db(path, stale_view)
     return path
 
 

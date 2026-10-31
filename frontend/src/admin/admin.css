@@ -74,3 +74,4 @@
 .admin-dialog-buttons .admin-btn { margin-right: 0; }
 .admin-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .admin-code { color: var(--muted); font-size: 12px; }
+.admin-table .admin-btn { white-space: nowrap; }

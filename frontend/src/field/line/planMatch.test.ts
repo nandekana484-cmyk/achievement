@@ -7,7 +7,7 @@ const t = makeTranslate("ja");
 
 const plan = (kitting_no: string, lot_no = "L1", start: string | null = "2026-10-21T09:00:00+09:00", end: string | null = "2026-10-21T12:00:00+09:00"): Plan => ({
   kitting_no, file_no: "0722", line_code: "S", product_name: "基板", run_no: 1, planned_qty: 100,
-  planned_start: start, planned_end: end, deadline: null, issue_date: "2026-10-14", issue_seq: 1, status: "active",
+  planned_start: start, planned_end: end, deadline: null, issue_date: "2026-10-14", issue_seq: 1, status: "active", cancel_reason: null, is_stale: false,
   takt_sec: null, source_db: null, lots: [{ lot_no, product_name: "基板", planned_qty: 100 }], warnings: [],
 });
 

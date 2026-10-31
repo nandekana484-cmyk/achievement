@@ -54,6 +54,9 @@ class KittingGroup:
     run_no = property(lambda self: self.first.run_no)
     takt_sec = property(lambda self: self.first.takt_sec)
     product_name = property(lambda self: self.first.product_name)
+    # 取消の理由と、出し直しで古くなったか(Plan の列。既存DBから読んだ LegacyPlan には無い)
+    cancel_reason = property(lambda self: getattr(self.first, "cancel_reason", None))
+    is_stale = property(lambda self: any(getattr(lot, "is_stale", False) for lot in self.lots))
 
     @property
     def planned_qty(self) -> int:

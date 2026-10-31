@@ -895,6 +895,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/handovers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Handovers
+         * @description 引き継ぎの確認の一覧(移す先の候補つき)と、確定した履歴(新しい順に50件)。
+         */
+        get: operations["list_handovers_api_admin_handovers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/handovers/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Targets
+         * @description 手で選ぶ移す先(有効な計画。キッティングNo.の一部で探す)。
+         */
+        get: operations["targets_api_admin_handovers_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/handovers/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline
+         * @description 「移さない」と確定する(履歴と audit_log に残し、一覧に再び出さない)。
+         */
+        post: operations["decline_api_admin_handovers_decline_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/handovers/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm
+         * @description 実績を新しいキッティングNo.へ移す(候補にない有効な計画を手で選んでもよい)。移す先に実績がある・有効な計画でないときは 409。自動では移さない。
+         */
+        post: operations["confirm_api_admin_handovers_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1127,6 +1207,26 @@ export interface components {
             /** Progress */
             progress: number | null;
         };
+        /** CandidateOut */
+        CandidateOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /**
+             * Issue Date
+             * Format: date
+             */
+            issue_date: string;
+            /** Planned Start */
+            planned_start: string | null;
+            /** Planned End */
+            planned_end: string | null;
+            /** Lot Nos */
+            lot_nos: string[];
+            /** From Legacy */
+            from_legacy: boolean;
+            /** Has Actuals */
+            has_actuals: boolean;
+        };
         /** ChangeOperatorIn */
         ChangeOperatorIn: {
             /**
@@ -1141,6 +1241,19 @@ export interface components {
              * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
              */
             worker_id?: string | null;
+        };
+        /** ConfirmIn */
+        ConfirmIn: {
+            /**
+             * Old Kitting No
+             * @description 実績のある、取り消された・古い計画
+             */
+            old_kitting_no: string;
+            /**
+             * New Kitting No
+             * @description 実績を移す先(候補の中から選ぶ)
+             */
+            new_kitting_no: string;
         };
         /** CorrectionChangeOut */
         CorrectionChangeOut: {
@@ -1253,6 +1366,11 @@ export interface components {
             rows: components["schemas"]["RowOut"][];
             /** Intervals */
             intervals: components["schemas"]["IntervalOut"][];
+        };
+        /** DeclineIn */
+        DeclineIn: {
+            /** Old Kitting No */
+            old_kitting_no: string;
         };
         /**
          * EfficiencyOut
@@ -1399,6 +1517,75 @@ export interface components {
              */
             end: string;
         };
+        /** HandoverHistoryOut */
+        HandoverHistoryOut: {
+            /** Id */
+            id: number;
+            /** Old Kitting No */
+            old_kitting_no: string;
+            /** New Kitting No */
+            new_kitting_no: string | null;
+            /** Decision */
+            decision: string;
+            /** Confirmed By */
+            confirmed_by: string;
+            /**
+             * Confirmed At
+             * Format: date-time
+             */
+            confirmed_at: string;
+            /** Moved */
+            moved: {
+                [key: string]: number;
+            };
+            /** Warnings */
+            warnings: string[];
+        };
+        /** HandoverItemOut */
+        HandoverItemOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** File No */
+            file_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Run No */
+            run_no: number;
+            /** Product Name */
+            product_name: string;
+            /** Lot Nos */
+            lot_nos: string[];
+            /** Reason */
+            reason: string;
+            /** Completed */
+            completed: boolean;
+            /** Replacement Count */
+            replacement_count: number;
+            /** Candidates */
+            candidates: components["schemas"]["CandidateOut"][];
+        };
+        /** HandoverListOut */
+        HandoverListOut: {
+            /** Items */
+            items: components["schemas"]["HandoverItemOut"][];
+            /** History */
+            history: components["schemas"]["HandoverHistoryOut"][];
+        };
+        /** HandoverResultOut */
+        HandoverResultOut: {
+            /** Old Kitting No */
+            old_kitting_no: string;
+            /** New Kitting No */
+            new_kitting_no: string | null;
+            /** Decision */
+            decision: string;
+            /** Moved */
+            moved: {
+                [key: string]: number;
+            };
+            /** Warnings */
+            warnings: string[];
+        };
         /** IntervalOut */
         IntervalOut: {
             /**
@@ -1497,6 +1684,10 @@ export interface components {
             issue_seq: number;
             /** Status */
             status: string;
+            /** Cancel Reason */
+            cancel_reason: string | null;
+            /** Is Stale */
+            is_stale: boolean;
             /** Takt Sec */
             takt_sec: number | null;
             /** Source Db */
@@ -2320,6 +2511,24 @@ export interface components {
             last_run: components["schemas"]["SyncRunOut"] | null;
             /** Warning Count */
             warning_count: number;
+        };
+        /**
+         * TargetOut
+         * @description 手で選べる移す先(有効な計画)。
+         */
+        TargetOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** File No */
+            file_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Run No */
+            run_no: number;
+            /** Lot Nos */
+            lot_nos: string[];
+            /** Has Actuals */
+            has_actuals: boolean;
         };
         /** UnresolvedOut */
         UnresolvedOut: {
@@ -3862,6 +4071,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnresolvedOut"];
+                };
+            };
+        };
+    };
+    list_handovers_api_admin_handovers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverListOut"];
+                };
+            };
+        };
+    };
+    targets_api_admin_handovers_targets_get: {
+        parameters: {
+            query: {
+                q: string;
+                exclude?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TargetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decline_api_admin_handovers_decline_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_api_admin_handovers_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoverResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

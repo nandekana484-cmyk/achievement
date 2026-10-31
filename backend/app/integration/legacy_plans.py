@@ -16,6 +16,7 @@ from app.integration.legacy.types import (
     ReadResult,
     ReadWarning,
     SkippedDb,
+    StaleInfo,
     TaktKey,
 )
 
@@ -30,6 +31,7 @@ __all__ = [
     "ReadResult",
     "ReadWarning",
     "SkippedDb",
+    "StaleInfo",
     "TaktKey",
     "find_monthly_dbs",
     "open_readonly",
