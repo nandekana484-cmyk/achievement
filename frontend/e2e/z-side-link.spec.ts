@@ -1,5 +1,5 @@
 // 現場の画面での面1と面2の紐づけ(AD-19)。1回目 Sライン、2回目 Uライン(キー H ではつながらない)を、2回目の画面で紐づけ、
-// 管理画面に出るまで(㉚㉛)。書き出したあとに外すと、「書き出し後に紐づけが変わった計画」に出る(㉜)。
+// 管理画面に出るまで(㉚㉛)。書き出したあとに外すと、「書き出し後に紐づけ・割り振りが変わった計画」に出る(㉜)。
 // 計画は demo-seed --side-pair(e2e/serve.mjs)。記録は「押し忘れの追加」で過去の時刻に入れる。最後(z-)に動かす。
 import { expect, type Page, test } from "@playwright/test";
 
@@ -69,12 +69,12 @@ test("㉚㉛㉜ 現場で面1と面2を紐づけ、管理画面に出る。書�
   await dialog.getByRole("button", { name: "外す" }).click();
   await expect(page.getByLabel("1回目のキッティングNo.", { exact: true }).getByRole("button", { name: "紐づける" })).toBeVisible();
 
-  // 管理画面: 書き出し後に紐づけが変わった計画
+  // 管理画面: 書き出し後に紐づけ・割り振りが変わった計画
   await adminActuals(page);
-  const changes = page.getByRole("table", { name: "書き出し後に紐づけが変わった計画" });
+  const changes = page.getByRole("table", { name: "書き出し後に紐づけ・割り振りが変わった計画" });
   await expect(changes.getByRole("row", { name: new RegExp(SIDE2) })).toContainText(SIDE1);
   await expect(changes.getByRole("row", { name: new RegExp(SIDE2) })).toContainText("山田(Y001)(現場)");
   await page.screenshot({ path: `${SCREENS}/34-side-link-changes.png`, fullPage: true });
   await changes.getByRole("button", { name: "確認済み" }).click();
-  await expect(page.getByRole("table", { name: "書き出し後に紐づけが変わった計画" })).toHaveCount(0);
+  await expect(page.getByRole("table", { name: "書き出し後に紐づけ・割り振りが変わった計画" })).toHaveCount(0);
 });

@@ -21,6 +21,8 @@ from app.db.models import ActualsExport, Operator
 from app.db.session import write_transaction
 from app.services.actuals_rows import ActualsListOut, ActualsRowOut, build_rows
 from app.services.errors import NotFound, RuleViolation
+from app.services.kitting_plans import load_group
+from app.services.lot_allocation import apply_save, current_values
 from app.services.side_link_export import record_exported_rows
 
 ACTUALS_FOLDER = "actuals"
@@ -80,6 +82,16 @@ def apply_quantities(listing: ActualsListOut, quantities: list[QuantityIn]) -> l
     return exportable
 
 
+def _save_allocations(session: Session, admin: Operator, quantities: list[QuantityIn]) -> None:
+    """画面で直した割り振りを、保存した割り振りにする(以後の書き出しと生産記録票も同じ値になる)。"""
+    edits: dict[str, dict[str, int]] = {}
+    for q in quantities:
+        edits.setdefault(q.kitting_no, {})[q.lot_no] = q.produced_qty
+    for kno, changed in edits.items():
+        group = load_group(session, kno)
+        apply_save(session, admin.id, "admin", group, {**current_values(session, group), **changed}, mark_exported=False)
+
+
 def actuals_csv(rows: list[ActualsRowOut], exported_at: dt.datetime) -> str:
     """CSV の文字列(BOM は保存とダウンロードのときに付ける)。
 
@@ -101,6 +113,7 @@ def export_actuals(session: Session, admin: Operator, body: ExportIn, exchange_d
     with write_transaction(session):
         listing = build_rows(session, body.date_from, body.date_to, body.line_code, day_start)
         rows = apply_quantities(listing, body.quantities)
+        _save_allocations(session, admin, body.quantities)
         now = clock.now()
         content = actuals_csv(rows, now)
         row = ActualsExport(exported_at=now, exported_by=admin.id, row_count=len(rows), file_name="",

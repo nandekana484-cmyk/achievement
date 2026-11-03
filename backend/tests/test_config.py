@@ -146,3 +146,14 @@ def test_reports_settings(tmp_path):
     p.write_text("[reports]\nmax_days = 31\n", encoding="utf-8")
     assert load_config(p).reports.max_days == 31
     assert load_config(Path(__file__).resolve().parents[2] / "config.example.toml").reports.max_days == 93
+
+
+def test_production_record_settings(tmp_path):
+    d = load_config(tmp_path / "none.toml").production_record  # 書かなければ様式(Ver.02)の値
+    assert (d.approver, d.checker, d.author, d.revision_date, d.version) == ("木下", "北村", "シマダ", "2025/02/25", "02")
+    p = tmp_path / "config.toml"
+    p.write_text('[production_record]\napprover = "承認 太郎"\nversion = "1.2"\nchecker = ""\n', encoding="utf-8")
+    cfg = load_config(p).production_record
+    assert (cfg.approver, cfg.version, cfg.checker, cfg.author) == ("承認 太郎", "1.2", "", "シマダ")  # "" は空欄
+    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").production_record
+    assert (example.approver, example.revision_date, example.version) == ("木下", "2025/02/25", "02")

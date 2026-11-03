@@ -5,7 +5,7 @@ const row = (lot_no: string, produced_qty: number, extra: Partial<ActualsRow> = 
   kitting_no: "0900-1-S-251014-04", lot_no, file_no: "0900", side: 1, line_code: "S", product_name: "基板",
   planned_qty: 100, produced_qty, kitting_produced_total: 160, kitting_hidden_qty: 0, ng_side1: 0, ng_side2: 0,
   worker_id: "Y100", operator_name: "鈴木", completed_on: "2026-10-21", source_db: "2026-10", side1_kitting_no: null,
-  exportable: true, warnings: [], notes: [], ...extra,
+  exportable: true, warnings: [], notes: [], allocation_stale: false, ...extra,
 });
 
 describe("実績の書き出しの合計の確かめ", () => {

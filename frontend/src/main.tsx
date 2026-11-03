@@ -15,12 +15,15 @@ import { ReasonsPage } from "./admin/ReasonsPage";
 import { ReportsPage } from "./admin/reports/ReportsPage";
 import { Dashboard } from "./field/Dashboard";
 import { LineScreen } from "./field/line/LineScreen";
+import { RecordListPage } from "./print/RecordListPage";
+import { RecordPage } from "./print/RecordPage";
 import { I18nProvider } from "./i18n/I18nProvider";
 import "./shared/base.css";
 import "./field/line/line.css";
 import "./field/line/corrections/corrections.css";
 import "./admin/admin.css";
 import "./admin/reports/report.css";
+import "./print/record.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -30,6 +33,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Navigate to="/field" replace />} />
           <Route path="/field" element={<Dashboard />} />
           <Route path="/field/lines/:lineCode" element={<LineScreen />} />
+          <Route path="/field/print/production-record" element={<RecordListPage />} />
+          <Route path="/field/print/production-record/:kittingNo" element={<RecordPage />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="equipment" replace />} />

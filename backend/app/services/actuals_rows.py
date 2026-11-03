@@ -3,7 +3,7 @@
 - 面2の計画があるロットは、つながる面2の行にまとめる(面1の行は出さない)。面2が無いロットは面1の行を出す
 - 面1と面2は、ロットNo. + キッティングNo.の回を除いた部分(キー H)か、人が確定したひも付けでつなぐ(services/side_links.py)。
   面2があるのにつながらない面1は、書き出しの対象から外し、「ひも付けの確認」に出す
-- 生産数はキッティングNo.の累計(取り消した記録を除く)を、ロットに割り振る(domain/allocation.py)
+- 生産数はキッティングNo.の累計(取り消した記録を除く)を、ロットに割り振る(保存した割り振り、無ければ domain/allocation.py の規則。services/lot_allocation.py)
 詳細: docs/design/actuals-export.md
 """
 
@@ -17,10 +17,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import PLAN_CANCELLED, Operator, RunCompletion, RunEvent, RunNgInput
-from app.domain.allocation import allocate
 from app.domain.workday import workday_of, workday_range
 from app.services.completions import latest_completion, produced_total, valid_completion
 from app.services.kitting_plans import KittingGroup, load_group
+from app.services.lot_allocation import STALE_MESSAGE, effective
 from app.services.side_links import LinkCheckOut, link_checks, link_for_side1, side1_for_side2
 
 W_CANCELLED = "取消の計画です(既存アプリに計画がありません)"
@@ -58,6 +58,7 @@ class ActualsRowOut(BaseModel):
     exportable: bool
     warnings: list[str]  # 書き出しの対象から外す理由
     notes: list[str]  # 書き出すが、確かめてほしいこと
+    allocation_stale: bool = False  # 保存した割り振りが今の生産数と合わないので、今の規則で計算した(「割り振りを直す必要があります」)
 
 
 class ActualsListOut(BaseModel):
@@ -103,9 +104,18 @@ def _completed_kittings(session: Session, start: dt.datetime, end: dt.datetime) 
         RunCompletion.completed_at >= start, RunCompletion.completed_at < end, valid_completion()))))
 
 
+def lot_actuals(session: Session, group: KittingGroup, day_start: dt.time) -> dict[str, int]:
+    """その計画の、ロットNo.ごとの書き出しの生産数(割り振った値)。完了していなければ空。生産記録票が同じ値を出すために使う。"""
+    completion = latest_completion(session, group.kitting_no)
+    if completion is None:
+        return {}
+    return {r.lot_no: r.produced_qty for r in _group_rows(session, group, completion, day_start)}
+
+
 def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion, day_start: dt.time) -> list[ActualsRowOut]:
     total = produced_total(session, group.kitting_no)
-    qtys = allocate(total, [lot.planned_qty for lot in group.lots])
+    alloc = effective(session, group, total)
+    qtys = alloc.qtys
     pairings = [_pairing(session, group, lot.lot_no) for lot in group.lots]
     hidden_qty = sum(q for q, p in zip(qtys, pairings, strict=True) if p.hidden)
     worker_id, name = _cleanup_operator(session, completion)
@@ -116,6 +126,8 @@ def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion
             continue
         warnings = [*common, *([p.warning] if p.warning else []), *([] if lot.source_db else [W_NO_SOURCE])]
         ng1, ng2, notes = _ng(session, group, lot.lot_no, p.side1_kitting_no)
+        if alloc.stale:
+            notes.append(STALE_MESSAGE)
         if group.run_no == 2 and not p.side1_kitting_no:
             notes.append(N_NO_SIDE1)
         if p.side1_kitting_no and latest_completion(session, p.side1_kitting_no) is None:
@@ -126,7 +138,7 @@ def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion
             kitting_produced_total=total, kitting_hidden_qty=hidden_qty, ng_side1=ng1, ng_side2=ng2,
             worker_id=worker_id, operator_name=name, completed_on=workday_of(completion.completed_at, day_start),
             source_db=lot.source_db, side1_kitting_no=p.side1_kitting_no, exportable=not warnings,
-            warnings=warnings, notes=notes,
+            warnings=warnings, notes=notes, allocation_stale=alloc.stale,
         ))
     return rows
 

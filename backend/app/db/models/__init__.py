@@ -1,6 +1,7 @@
 """本アプリのDBのテーブル(開発指針 8)。列を変えたら、マイグレーション(app/db/migrations/versions)を追加する。"""
 
 from app.db.models.access import AllowedNetwork
+from app.db.models.allocations import LotAllocationChange
 from app.db.models.admin import AdminCredential, AdminLoginAttempt, AdminSession, AuditLog
 from app.db.models.exports import ActualsExport, ExportedRow, SideLink
 from app.db.models.handover import KittingHandover
@@ -32,6 +33,7 @@ from app.db.models.records import (
 )
 
 __all__ = [
+    "LotAllocationChange",
     "ActualsExport",
     "ExportedRow",
     "SideLink",

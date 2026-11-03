@@ -106,7 +106,7 @@ def test_export_writes_csv_and_history_without_changing_records(client, two_lots
     second = ok(export(client, **body))
     assert second["id"] != first["id"] and count_rows(ActualsExport) == 2
     assert count_rows(RunEvent) == events_before  # 実績の記録は変わらない
-    assert listing(client)[0]["produced_qty"] == 100  # 直した数は保存しない(一覧は割り振りのまま)
+    assert listing(client)[0]["produced_qty"] == 90  # 直した数は割り振りとして保存される(AD-18d。書き出しの画面の初期値になる)
 
     history = ok(client.get(f"{URL}/exports"))
     assert [h["id"] for h in history] == [second["id"], first["id"]]

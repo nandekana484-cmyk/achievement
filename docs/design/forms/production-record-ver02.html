@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実装工程 生産記録票 (BIỂU GHI CHÉP SẢN XUẤT)</title>
+<style>
+  /* 印刷・全体レイアウト設定 */
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  * {
+    box-sizing: border-box;
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Arial", sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 10px;
+    background-color: #f5f5f5;
+    display: flex;
+    justify-content: center;
+  }
+  .sheet {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    padding: 10mm;
+    box-shadow: 0 0 5px rgba(0,0,0,0.2);
+  }
+
+  /* テーブル共通設定 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2px solid #000;
+    margin-bottom: 5px;
+    font-size: 11px;
+    table-layout: fixed;
+  }
+  th, td {
+    border: 1px solid #000;
+    padding: 2px 4px;
+    text-align: center;
+    vertical-align: middle;
+    word-wrap: break-word;
+  }
+
+  /* 各種調整用クラス */
+  .sub-text {
+    font-size: 8.5px;
+    font-weight: normal;
+    display: block;
+    line-height: 1.1;
+  }
+  .title-area {
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 2px;
+  }
+  .title-sub {
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .large-step {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  .text-left { text-align: left; }
+  .valign-top { vertical-align: top; }
+  
+  .trouble-box {
+    height: 48px;
+  }
+
+  @media print {
+    body {
+      background: none;
+      padding: 0;
+    }
+    .sheet {
+      box-shadow: none;
+      padding: 0;
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <!-- ヘッダー部分（承認枠・タイトル・版数） -->
+  <table style="margin-bottom: 2px;">
+    <colgroup>
+      <col style="width: 8%;">
+      <col style="width: 8%;">
+      <col style="width: 8%;">
+      <col style="width: 50%;">
+      <col style="width: 13%;">
+      <col style="width: 13%;">
+    </colgroup>
+    <tr>
+      <td style="font-size: 10px;">承認</td>
+      <td style="font-size: 10px;">確認</td>
+      <td style="font-size: 10px;">作成</td>
+      <td rowspan="2">
+        <div class="title-area">実装工程 生産記録票</div>
+        <div class="title-sub">BIỂU GHI CHÉP SẢN XUẤT</div>
+      </td>
+      <td rowspan="2" style="font-size: 11px; font-weight: bold;">工程抜け<br>確認印</td>
+      <td rowspan="2"></td>
+    </tr>
+    <tr style="height: 38px;">
+      <td>木下</td>
+      <td>北村</td>
+      <td>シマダ</td>
+    </tr>
+    <tr>
+      <td colspan="4" style="border: none;"></td>
+      <td colspan="2" style="border: none; text-align: right; font-size: 10px; padding-top: 3px;">
+        改正 2025/02/25 &nbsp; Ver.02
+      </td>
+    </tr>
+  </table>
+
+  <!-- 製品情報・数量テーブル -->
+  <table style="margin-bottom: 6px;">
+    <colgroup>
+      <col style="width: 12%;">
+      <col style="width: 38%;">
+      <col style="width: 25%;">
+      <col style="width: 25%;">
+    </colgroup>
+    <tr style="background: #fafafa; font-weight: bold;">
+      <td>File №</td>
+      <td>製品名</td>
+      <td>LOT No.</td>
+      <td>数量</td>
+    </tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+    <tr style="height: 20px;"><td></td><td></td><td></td><td>&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /</td></tr>
+  </table>
+
+  <!-- ================= 1回目 ================= -->
+  <table style="margin-bottom: 6px;">
+    <colgroup>
+      <col style="width: 18%;">
+      <col style="width: 27%;">
+      <col style="width: 15%;">
+      <col style="width: 3%;">
+      <col style="width: 15%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+    </colgroup>
+    
+    <!-- ヘッダー行 -->
+    <tr style="height: 48px;">
+      <td rowspan="2" class="large-step">1回目</td>
+      <td>ライン<span class="sub-text">ĐÓNG DẤU CHUYỀN</span></td>
+      <td colspan="2">使用半田ロットNo<span class="sub-text">SỐ LÔ HÀN</span></td>
+      <td>使用ボンドロットNo<span class="sub-text">SỐ LÔ KEO</span></td>
+      <td colspan="2">基板番号 / N° DA PLACA<span class="sub-text">MÃ SỐ BO MẠCH</span></td>
+    </tr>
+    <tr style="height: 24px;">
+      <td></td>
+      <td colspan="2"></td>
+      <td></td>
+      <td colspan="2"></td>
+    </tr>
+
+    <!-- 明細ヘッダー -->
+    <tr style="font-weight: bold; background: #fafafa;">
+      <td>作業 / CÔNG VIỆC</td>
+      <td></td>
+      <td>開始時間 / BẮT ĐẦU</td>
+      <td>～</td>
+      <td>終了時間 / KẾT THÚC</td>
+      <td colspan="2"></td>
+    </tr>
+
+    <!-- 段取り -->
+    <tr style="height: 24px;">
+      <td>段取り</td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2"></td>
+    </tr>
+
+    <!-- マスターチェック -->
+    <tr style="height: 24px;">
+      <td>マスターチェック</td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td style="font-size: 9px; font-weight: bold;">生産台数<span class="sub-text">SẢN LƯỢNG</span></td>
+      <td style="font-size: 8.5px; font-weight: bold;">初品確認<span class="sub-text">XÁC NHẬN ĐẦU HÀNG</span></td>
+    </tr>
+
+    <!-- 生産 / X線検査 -->
+    <tr style="height: 22px;">
+      <td rowspan="2" class="valign-top text-left" style="padding-left: 6px;">
+        生産/<br>
+        <div style="text-align: right; padding-right: 5px;">X線検査/</div>
+      </td>
+      <td rowspan="2"></td>
+      <td rowspan="2"></td>
+      <td rowspan="2">～</td>
+      <td rowspan="2"></td>
+      <td rowspan="4"></td>
+      <td>1</td>
+    </tr>
+    <tr style="height: 22px;">
+      <td>2</td>
+    </tr>
+
+    <!-- 生産 1 -->
+    <tr style="height: 22px;">
+      <td rowspan="2">生産</td>
+      <td rowspan="2"></td>
+      <td rowspan="2"></td>
+      <td rowspan="2">～</td>
+      <td rowspan="2"></td>
+      <td>3</td>
+    </tr>
+    <tr style="height: 22px;">
+      <td>4</td>
+    </tr>
+
+    <!-- 生産 2 -->
+    <tr style="height: 26px;">
+      <td>生産</td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2" style="background:#eee; border-left:none;"></td>
+    </tr>
+
+    <!-- 片付け -->
+    <tr style="height: 26px;">
+      <td>片付け</td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2" style="background:#eee; border-left:none;"></td>
+    </tr>
+
+    <!-- トラブル欄 -->
+    <tr>
+      <td colspan="7" class="text-left" style="background: #fafafa; font-weight: bold; border-bottom: none;">
+        トラブル (SỰ CỐ / VẤN ĐỀ)
+      </td>
+    </tr>
+    <tr>
+      <td colspan="7" class="trouble-box"></td>
+    </tr>
+  </table>
+
+  <!-- ================= 2回目 ================= -->
+  <table>
+    <colgroup>
+      <col style="width: 18%;">
+      <col style="width: 27%;">
+      <col style="width: 15%;">
+      <col style="width: 3%;">
+      <col style="width: 15%;">
+      <col style="width: 11%;">
+      <col style="width: 11%;">
+    </colgroup>
+    
+    <!-- ヘッダー行 -->
+    <tr style="height: 48px;">
+      <td rowspan="2" class="large-step">2回目</td>
+      <td>ライン<span class="sub-text">ĐÓNG DẤU CHUYỀN</span></td>
+      <td colspan="2">使用半田ロットNo<span class="sub-text">SỐ LÔ HÀN</span></td>
+      <td colspan="3">使用ボンドロットNo<span class="sub-text">SỐ LÔ KEO</span></td>
+    </tr>
+    <tr style="height: 24px;">
+      <td></td>
+      <td colspan="2"></td>
+      <td colspan="3"></td>
+    </tr>
+
+    <!-- 明細ヘッダー -->
+    <tr style="font-weight: bold; background: #fafafa;">
+      <td>作業 / CÔNG VIỆC</td>
+      <td>作業者名 / TÊN NGƯỜI THAO TÁC</td>
+      <td>開始時間 / BẮT ĐẦU</td>
+      <td>～</td>
+      <td>終了時間 / KẾT THÚC</td>
+      <td colspan="2"></td>
+    </tr>
+
+    <!-- 段取り -->
+    <tr style="height: 26px;">
+      <td>段取り<span class="sub-text">CHUẨN BỊ</span></td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2"></td>
+    </tr>
+
+    <!-- マスターチェック -->
+    <tr style="height: 26px;">
+      <td>マスターチェック<span class="sub-text">KIỂM TRA MASTER</span></td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td style="font-size: 9px; font-weight: bold;">生産台数<span class="sub-text">SẢN LƯỢNG</span></td>
+      <td style="font-size: 8.5px; font-weight: bold;">初品確認<span class="sub-text">XÁC NHẬN ĐẦU HÀNG</span></td>
+    </tr>
+
+    <!-- 生産/PRODUÇÃO & X線検査/RAIO X -->
+    <tr style="height: 22px;">
+      <td rowspan="2" class="valign-top text-left" style="padding-left: 6px;">
+        生産 / SẢN XUẤT<br>
+        <div style="text-align: right; padding-right: 5px;">X線検査 / KIỂM TRA X-RAY</div>
+      </td>
+      <td rowspan="2"></td>
+      <td rowspan="2"></td>
+      <td rowspan="2">～</td>
+      <td rowspan="2"></td>
+      <td rowspan="4"></td>
+      <td>1</td>
+    </tr>
+    <tr style="height: 22px;">
+      <td>2</td>
+    </tr>
+
+    <!-- 生産 1 -->
+    <tr style="height: 22px;">
+      <td rowspan="2">生産<span class="sub-text">SẢN XUẤT</span></td>
+      <td rowspan="2"></td>
+      <td rowspan="2"></td>
+      <td rowspan="2">～</td>
+      <td rowspan="2"></td>
+      <td>3</td>
+    </tr>
+    <tr style="height: 22px;">
+      <td>4</td>
+    </tr>
+
+    <!-- 生産 2 -->
+    <tr style="height: 26px;">
+      <td>生産<span class="sub-text">SẢN XUẤT</span></td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2" style="background:#eee; border-left:none;"></td>
+    </tr>
+
+    <!-- 片付け -->
+    <tr style="height: 26px;">
+      <td>片付け<span class="sub-text">DỌN DẸP</span></td>
+      <td></td>
+      <td></td>
+      <td>～</td>
+      <td></td>
+      <td colspan="2" style="background:#eee; border-left:none;"></td>
+    </tr>
+
+    <!-- トラブル欄 -->
+    <tr>
+      <td colspan="7" class="text-left" style="background: #fafafa; font-weight: bold; border-bottom: none;">
+        トラブル (SỰ CỐ / VẤN ĐỀ)
+      </td>
+    </tr>
+    <tr>
+      <td colspan="7" class="trouble-box"></td>
+    </tr>
+  </table>
+
+</div>
+
+</body>
+</html>

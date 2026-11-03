@@ -1,0 +1,93 @@
+/* 生産記録票(A4縦、余白 上下5mm・左右3mm)と、印刷の一覧・操作バー。日報(A4 横)の @page とぶつからないよう、名前付きのページにする */
+@page record { size: A4 portrait; margin: 5mm 3mm; }
+
+.record-page { background: #e8e8e8; min-height: 100vh; padding-bottom: 24px; }
+.record-toolbar {
+  position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 10px 16px; background: #fff; border-bottom: 1px solid #ccc;
+}
+.record-toolbar .record-hint { margin: 0; color: #444; }
+.record-toolbar .record-unlinked { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px; background: #fff4d6; border: 1px solid #e0b84a; border-radius: 6px; }
+.record-body { display: flex; justify-content: center; padding: 16px; overflow-x: auto; }
+
+.record-alloc { background: #fff; border-bottom: 1px solid #ccc; padding: 8px 16px; }
+.record-alloc-bar { display: flex; align-items: center; gap: 12px; }
+.record-alloc-panel { margin-top: 8px; max-width: 760px; }
+.record-alloc-table input[type="text"], .record-alloc-table input:not([type]) { width: 90px; min-height: 40px; font-size: 16px; padding: 0 6px; }
+.record-alloc-table input[type="radio"] { width: 24px; height: 24px; }
+.record-alloc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.record-alloc-actions input { min-height: 40px; font-size: 16px; width: 140px; padding: 0 6px; }
+
+/* --- 用紙。原紙(Excel)と様式(docs/design/forms/production-record-ver02.html)に寄せる。高さは mm で決め、--k で縮める。詳細: docs/design/production-record.md --- */
+.record-sheet {
+  page: record; box-sizing: border-box; width: 204mm; margin: 0 auto; background: #fff; color: #000; padding: 0; line-height: normal;
+  font-family: "Arial", "Meiryo", "Hiragino Kaku Gothic ProN", sans-serif; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  --fs: 11px; --fs-sub: 8.5px; --k: 1; --row: 9.5mm; --line: 12px;
+}
+.record-dense { --k: 0.8; }
+.record-tight { --k: 0.65; --fs: 10px; } /* 先に行の高さを縮め、文字はあとから縮める(最小 8px) */
+.record-tiny { --k: 0.5; --fs: 9px; --fs-sub: 8px; }
+.record-sheet, .record-sheet * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rec-table { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 2mm; font-size: var(--fs); table-layout: fixed; }
+.rec-table td { border: 1px solid #000; padding: 1px 3px; text-align: center; vertical-align: middle; word-wrap: break-word; }
+.rec-face { margin-bottom: 2mm; }
+.rec-face .rec-table { margin-bottom: 0; }
+.rec-face .rec-detail { border-top: none; }
+.rec-small { font-size: calc(var(--fs) - 1px); height: calc(5mm * var(--k)); }
+.rec-bold { font-weight: 700; }
+.rec-title { font-size: calc(var(--fs) + 9px); font-weight: 700; letter-spacing: 2px; }
+.rec-title-sub { font-size: calc(var(--fs) + 1px); font-weight: 700; letter-spacing: 1px; }
+.rec-names { height: calc(10mm * var(--k)); }
+.rec-noborder { border: none !important; height: calc(5mm * var(--k)); }
+.rec-revision { text-align: right !important; font-size: calc(var(--fs) - 1px); }
+.rec-colhead td { background: #fafafa; font-weight: 700; }
+.rec-lots .rec-colhead { height: calc(5mm * var(--k)); }
+.rec-lot { height: calc(5.5mm * var(--k)); }
+.rec-a-old { font-weight: 400; }
+.rec-a-actual { font-weight: 700; }
+.rec-sub { display: block; font-size: var(--fs-sub); font-weight: 400; line-height: 1.1; }
+.rec-sub-inline { font-size: var(--fs-sub); font-weight: 400; }
+.rec-large { font-size: calc(var(--fs) * 2.18); font-weight: 700; }
+.rec-h-a { height: calc(7mm * var(--k)); }
+.rec-h-b { height: calc(8mm * var(--k)); }
+.rec-linebox { padding: 1mm 2px !important; }
+.rec-linesym { font-size: 24px; font-weight: 700; line-height: 1; margin-bottom: 1mm; }
+.rec-kno { font-size: var(--fs-sub); line-height: 1.1; word-break: break-all; }
+.rec-h-col { height: calc(5mm * var(--k)); }
+.rec-h-col td { font-size: calc(var(--fs) - 1.5px); padding: 0 1px; white-space: nowrap; }
+.rec-row { height: calc(var(--row) * var(--k)); }
+.rec-fs9 { font-size: calc(var(--fs) - 2px); }
+.rec-fs85 { font-size: calc(var(--fs) - 2.5px); }
+.rec-gray { background: #eee; }
+.rec-n { font-weight: 700; font-size: calc(var(--fs) - 1px); }
+.rec-box { vertical-align: top !important; text-align: left !important; padding: 0 3px !important; overflow: hidden; }
+.rec-box-line { height: var(--line); line-height: var(--line); font-size: calc(var(--fs) - 1px); white-space: nowrap; overflow: hidden; }
+.rec-more { font-size: var(--fs-sub); }
+.rec-good { font-size: calc(var(--fs) + 3px); font-weight: 700; }
+.rec-left { text-align: left !important; }
+.rec-trouble-head { border-bottom: none !important; height: calc(4.5mm * var(--k)); }
+.rec-trouble-box { height: calc(12mm * var(--k)); vertical-align: top !important; }
+
+@media print {
+  html, body { background: #fff !important; }
+  .record-page { background: #fff; padding: 0; min-height: 0; }
+  .record-toolbar, .record-hint, .record-alloc { display: none !important; }
+  .record-body { display: block; padding: 0; overflow: visible; }
+  .record-sheet { width: 100%; box-shadow: none; }
+}
+
+/* --- 印刷用の一覧(現場の画面) --- */
+.record-list { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.record-filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; margin-bottom: 12px; }
+.record-filters label { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.record-filters input, .record-filters select { min-height: 44px; font-size: 16px; padding: 0 8px; }
+.record-table { width: 100%; border-collapse: collapse; background: #fff; }
+.record-table th, .record-table td { border-bottom: 1px solid #ccc; padding: 8px; text-align: left; font-size: 15px; }
+.record-table .btn { min-height: 44px; }
+.record-flag { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #fff4d6; border: 1px solid #e0b84a; font-size: 13px; }
+
+/* ライン画面の上部の「生産記録票」(担当者のボタンと見た目をそろえる) */
+.record-link {
+  display: inline-flex; align-items: center; min-height: var(--touch); padding: 4px 14px; font: inherit; font-weight: 600;
+  color: var(--text); text-decoration: none; background: #f6f8fa; border: 2px solid var(--border); border-radius: 8px;
+}

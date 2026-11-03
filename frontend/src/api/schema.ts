@@ -503,6 +503,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{kitting_no}/allocation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Allocation
+         * @description 今のロットへの割り振り。balance_lot_no を付けると、そのロットで差を調整した提案(0 未満なら proposal_error)。
+         */
+        get: operations["get_allocation_api_runs__kitting_no__allocation_get"];
+        /**
+         * Save Allocation
+         * @description 割り振りを保存する(合計が生産数の合計と合わなければ 409)。
+         */
+        put: operations["save_allocation_api_runs__kitting_no__allocation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/allocation/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Allocation
+         * @description 保存した割り振りを外して、今の規則に戻す。
+         */
+        post: operations["reset_allocation_api_runs__kitting_no__allocation_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/production-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Production Records
+         * @description 印刷できる組(どちらかの面の完了日が過去31日以内)を、完了日の新しい順に返す。
+         */
+        get: operations["list_production_records_api_production_records_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/production-records/{kitting_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Production Record
+         * @description キッティングNo.(どちらの面でもよい)の組の、生産記録票に印刷する値。
+         */
+        get: operations["get_production_record_api_production_records__kitting_no__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -906,7 +990,7 @@ export interface paths {
         put?: never;
         /**
          * Check Link Change
-         * @description 「確認済み」にする(既存アプリの値を直したあと)。
+         * @description 「確認済み」にする(既存アプリの値を直したあと)。kind=allocation はロットへの割り振りの変更。
          */
         post: operations["check_link_change_api_admin_actuals_link_changes__change_id__check_post"];
         delete?: never;
@@ -1182,6 +1266,11 @@ export interface components {
             warnings: string[];
             /** Notes */
             notes: string[];
+            /**
+             * Allocation Stale
+             * @default false
+             */
+            allocation_stale: boolean;
         };
         /** AdminMeOut */
         AdminMeOut: {
@@ -1203,6 +1292,75 @@ export interface components {
              * Format: date
              */
             workday: string;
+        };
+        /** AllocLotOut */
+        AllocLotOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Planned Qty */
+            planned_qty: number;
+            /** Qty */
+            qty: number;
+        };
+        /** AllocationOut */
+        AllocationOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Total */
+            total: number;
+            /** Planned Total */
+            planned_total: number;
+            /** Saved */
+            saved: boolean;
+            /** Stale */
+            stale: boolean;
+            /** Editable */
+            editable: boolean;
+            /** Exported */
+            exported: boolean;
+            /** Exported At */
+            exported_at: string | null;
+            /** Lots */
+            lots: components["schemas"]["AllocLotOut"][];
+            /** Proposal Error */
+            proposal_error?: string | null;
+        };
+        /** AllocationResetIn */
+        AllocationResetIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+        };
+        /** AllocationSaveIn */
+        AllocationSaveIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /**
+             * Quantities
+             * @description ロットNo. → 割り振る数(合計が生産数の合計と一致する)
+             */
+            quantities: {
+                [key: string]: number;
+            };
         };
         /** AllowedNetworkIn */
         AllowedNetworkIn: {
@@ -1620,6 +1778,31 @@ export interface components {
             /** Line Code */
             line_code: string | null;
         };
+        /** FaceOut */
+        FaceOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Completed */
+            completed: boolean;
+            /** Setup */
+            setup: components["schemas"]["StepRowOut"][];
+            /** N1 Check */
+            n1_check: components["schemas"]["StepRowOut"][];
+            /** Production */
+            production: components["schemas"]["StepRowOut"][];
+            /** Xray */
+            xray: components["schemas"]["StepRowOut"][];
+            /** Cleanup */
+            cleanup: components["schemas"]["StepRowOut"][];
+            /** First Article */
+            first_article: components["schemas"]["StepRowOut"][];
+            /** Good Total */
+            good_total: number;
+            /** Troubles */
+            troubles: components["schemas"]["TroubleOut"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1706,6 +1889,19 @@ export interface components {
             };
             /** Warnings */
             warnings: string[];
+        };
+        /** HeaderOut */
+        HeaderOut: {
+            /** Approver */
+            approver: string;
+            /** Checker */
+            checker: string;
+            /** Author */
+            author: string;
+            /** Revision Date */
+            revision_date: string;
+            /** Version */
+            version: string;
         };
         /** IntervalOut */
         IntervalOut: {
@@ -1989,8 +2185,17 @@ export interface components {
         };
         /** LinkChangeOut */
         LinkChangeOut: {
+            /**
+             * Kind
+             * @default link
+             */
+            kind: string;
             /** Id */
             id: number;
+            /** Kitting No */
+            kitting_no?: string | null;
+            /** Detail */
+            detail?: string | null;
             /** Side2 Kitting No */
             side2_kitting_no: string | null;
             /** Previous Partner */
@@ -2083,6 +2288,19 @@ export interface components {
             product_name: string;
             /** Planned Qty */
             planned_qty: number;
+        };
+        /** LotRowOut */
+        LotRowOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Produced */
+            produced: number | null;
+            /** Cumulative */
+            cumulative: number | null;
+            /** Ordered */
+            ordered: number | null;
+            /** Actual */
+            actual?: number | null;
         };
         /** MastersOut */
         MastersOut: {
@@ -2352,6 +2570,53 @@ export interface components {
             sort_order?: number | null;
             /** Active */
             active?: boolean | null;
+        };
+        /** RecordRowOut */
+        RecordRowOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Side1 Kitting No */
+            side1_kitting_no: string | null;
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            /** Side1 Line */
+            side1_line: string | null;
+            /** Side2 Line */
+            side2_line: string | null;
+            /** Lot Nos */
+            lot_nos: string[];
+            /** Product Name */
+            product_name: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /** Side1 Completed */
+            side1_completed: boolean;
+            /** Side2 Completed */
+            side2_completed: boolean;
+            /** Side2 Unlinked */
+            side2_unlinked: boolean;
+        };
+        /** RecordSheetOut */
+        RecordSheetOut: {
+            header: components["schemas"]["HeaderOut"];
+            /** File No */
+            file_no: string;
+            /** Product Name */
+            product_name: string;
+            /** Lots */
+            lots: components["schemas"]["LotRowOut"][];
+            /** Qty Differs */
+            qty_differs: string[];
+            side1: components["schemas"]["FaceOut"] | null;
+            side2: components["schemas"]["FaceOut"] | null;
+            /** Side2 Unlinked */
+            side2_unlinked: boolean;
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            allocation?: components["schemas"]["AllocationOut"] | null;
         };
         /** RemarkIn */
         RemarkIn: {
@@ -2683,6 +2948,19 @@ export interface components {
             event: components["schemas"]["RunEventOut"];
             completion?: components["schemas"]["RunCompletionOut"] | null;
         };
+        /** StepRowOut */
+        StepRowOut: {
+            /** Date */
+            date: string;
+            /** Worker */
+            worker: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string | null;
+            /** Good Qty */
+            good_qty?: number | null;
+        };
         /** StepStartIn */
         StepStartIn: {
             /** Operator Id */
@@ -2763,6 +3041,15 @@ export interface components {
             lot_nos: string[];
             /** Has Actuals */
             has_actuals: boolean;
+        };
+        /** TroubleOut */
+        TroubleOut: {
+            /** Name */
+            name: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string | null;
         };
         /** UnlinkIn */
         UnlinkIn: {
@@ -3709,6 +3996,177 @@ export interface operations {
             };
         };
     };
+    get_allocation_api_runs__kitting_no__allocation_get: {
+        parameters: {
+            query?: {
+                /** @description 差を引くロット(提案の値を返す。保存しない) */
+                balance_lot_no?: string | null;
+            };
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_allocation_api_runs__kitting_no__allocation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_allocation_api_runs__kitting_no__allocation_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationResetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_production_records_api_production_records_get: {
+        parameters: {
+            query?: {
+                /** @description ライン記号(どちらかの面のライン) */
+                line?: string | null;
+                /** @description キッティングNo.(部分一致) */
+                kitting_no?: string | null;
+                /** @description ロットNo.(部分一致) */
+                lot_no?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_production_record_api_production_records__kitting_no__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_admin_login_post: {
         parameters: {
             query?: never;
@@ -4338,7 +4796,9 @@ export interface operations {
     };
     check_link_change_api_admin_actuals_link_changes__change_id__check_post: {
         parameters: {
-            query?: never;
+            query?: {
+                kind?: string;
+            };
             header?: never;
             path: {
                 change_id: number;
