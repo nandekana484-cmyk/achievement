@@ -11,6 +11,7 @@ import { LineDialogs, type DialogState } from "./LineDialogs";
 import { LineEventPanel } from "./LineEventPanel";
 import { isOutsideDisplay, outsideMessage } from "./planMatch";
 import { PlanSearch } from "./PlanSearch";
+import { SideLinkPanel } from "./SideLinkPanel";
 import { SideMenu } from "./SideMenu";
 import { StepPanel } from "./StepPanel";
 import type { StepStatus } from "./steps";
@@ -103,6 +104,7 @@ export function LineScreen() {
             onFix={(step: StepType) => open({ kind: "fix", plan: selected, step })()}
             onAdd={open({ kind: "add", plan: selected })}
             onHistory={() => setDialog({ kind: "history", plan: selected })}
+            sideLink={<SideLinkPanel plan={selected} op={op} requireOperator={withOperator} />}
           />
         ) : (
           <p className="placeholder select-hint">{t("lineScreen.selectHint")}</p>

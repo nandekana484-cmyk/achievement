@@ -21,6 +21,12 @@ export function LinkChecks({ checks, onConfirmed, onError }: Props) {
     else onError(r.message);
   };
 
+  const unlink = async (c: LinkCheck) => {
+    const r = await call(() => adminApi.POST("/api/admin/actuals/links/unlink", { body: { side2_kitting_no: c.side2_kitting_no ?? "" } }));
+    if (r.ok) onConfirmed(at("links.unlinked", { kitting: c.side2_kitting_no ?? "" }));
+    else onError(r.message);
+  };
+
   return (
     <section className="actuals-links" aria-label={at("links.title")}>
       <h2>{at("links.title")}</h2>
@@ -44,7 +50,7 @@ export function LinkChecks({ checks, onConfirmed, onError }: Props) {
               </td>
               <td>
                 <strong>{at(c.state === "pending" ? "links.state.pending" : c.state === "confirmed" ? "links.state.confirmed" : "links.state.unlinked")}</strong>
-                {c.decided_by && <span className="actuals-total">{at("links.decided", { who: c.decided_by, at: (c.decided_at ?? "").slice(0, 16).replace("T", " ") })}</span>}
+                {c.decided_by && <span className="actuals-total">{at("links.decided", { who: c.decided_by, source: at(c.decided_source === "field" ? "links.source.field" : "links.source.admin"), at: (c.decided_at ?? "").slice(0, 16).replace("T", " ") })}</span>}
               </td>
               <td>
                 <select aria-label={at("links.choiceLabel", { kitting: c.side1_kitting_no, lot: c.lot_no })} value={choiceOf(c)}
@@ -64,6 +70,9 @@ export function LinkChecks({ checks, onConfirmed, onError }: Props) {
                 <button type="button" className="admin-btn admin-primary" disabled={choiceOf(c) === ""} onClick={() => void confirm(c)}>
                   {at("links.confirm")}
                 </button>
+                {c.state === "confirmed" && c.side2_kitting_no && (
+                  <button type="button" className="admin-btn" onClick={() => void unlink(c)}>{at("links.unlink")}</button>
+                )}
               </td>
             </tr>
           ))}

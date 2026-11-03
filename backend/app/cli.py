@@ -35,7 +35,7 @@ from app.db.models import Equipment, Line, Operator, Reason
 from app.db.session import get_sessionmaker, init_db
 from app.domain.normalize import normalize_mounting_line
 from app.services import admin_auth, ip_allowlist, masters
-from app.services.demo_seed import seed_demo, seed_handover
+from app.services.demo_seed import seed_demo, seed_handover, seed_side_pair
 from app.services.errors import NotFound, RuleViolation
 
 DEMO_REFUSED = "config.toml に paths.legacy_app_dir が設定されているため、確認用のデータは入れません(実データと混ざらないように)"
@@ -93,6 +93,7 @@ def _parser() -> argparse.ArgumentParser:
     demo.add_argument("--line", required=True)
     demo.add_argument("--date", required=True, type=dt.date.fromisoformat, help="YYYY-MM-DD")
     demo.add_argument("--handover", action="store_true", help="引き継ぎの確認の確認用の計画(出し直しで古くなった計画と、出し直し後の計画)だけを入れる")
+    demo.add_argument("--side-pair", action="store_true", help="面1と面2の紐づけの確認用の組(1回目 Sライン、2回目 Uライン、同じロットNo.・ファイルNo.)だけを入れる")
     demo.add_argument("--lot-suffix", default="", help="ロットNo.の末尾に付ける文字(ほかのラインの確認用のデータとロットを分けるとき)")
     return p
 
@@ -170,6 +171,10 @@ def _list_lines(s: Session, _args: argparse.Namespace) -> None:
 
 
 def _demo_seed(s: Session, args: argparse.Namespace) -> None:
+    if args.side_pair:
+        first, second = seed_side_pair(s, args.date)
+        print(f"面1と面2の紐づけの確認用の組を入れました: 1回目 {first}(Sライン)、2回目 {second}(Uライン)。キー H ではつながりません")
+        return
     if args.handover:
         old, new = seed_handover(s, args.line, args.date)
         print(f"引き継ぎの確認用の計画を入れました: 古い計画 {old}(出し直しで古くなった)、出し直し後 {new}")

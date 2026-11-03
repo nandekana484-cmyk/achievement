@@ -443,6 +443,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{kitting_no}/side-link/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Side Link
+         * @description 紐づける前の確かめ(断る理由、合わないロットの警告、書き出し済みか)。何も記録しない。
+         */
+        post: operations["check_side_link_api_runs__kitting_no__side_link_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/side-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link Side
+         * @description 面2に面1を紐づける(直しも同じ。最後に保存したものが有効)。断る理由があれば 409。
+         */
+        post: operations["link_side_api_runs__kitting_no__side_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/side-link/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink Side
+         * @description 面2の明示の紐づけを外す(キッティングNo.でつながっているものは外せない)。
+         */
+        post: operations["unlink_side_api_runs__kitting_no__side_link_unlink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -789,6 +849,66 @@ export interface paths {
         get: operations["export_file_api_admin_actuals_exports__export_id__file_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/links/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink
+         * @description 面2の明示の紐づけを外す(管理者。キー H の自動のつなぎには戻る)。
+         */
+        post: operations["unlink_api_admin_actuals_links_unlink_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/link-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Link Changes
+         * @description 書き出し後に紐づけが変わった計画で、まだ「確認済み」にしていないもの。既存アプリの値は管理者が直す。
+         */
+        get: operations["link_changes_api_admin_actuals_link_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/actuals/link-changes/{change_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Link Change
+         * @description 「確認済み」にする(既存アプリの値を直したあと)。
+         */
+        post: operations["check_link_change_api_admin_actuals_link_changes__change_id__check_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1202,6 +1322,7 @@ export interface components {
             /** Completed */
             completed: boolean;
             completion: components["schemas"]["RunCompletionOut"] | null;
+            side_link: components["schemas"]["SideLinkViewOut"] | null;
             /** In Progress */
             in_progress: boolean;
             /** Progress */
@@ -1866,6 +1987,33 @@ export interface components {
             /** Paired With */
             paired_with: string | null;
         };
+        /** LinkChangeOut */
+        LinkChangeOut: {
+            /** Id */
+            id: number;
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            /** Previous Partner */
+            previous_partner: string | null;
+            /** New Partner */
+            new_partner: string | null;
+            /** Action */
+            action: string;
+            /** Changed By */
+            changed_by: string;
+            /** Source */
+            source: string;
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /**
+             * Exported At
+             * Format: date-time
+             */
+            exported_at: string;
+        };
         /**
          * LinkCheckOut
          * @description ひも付けの確認の1行(面1の計画のロットごと)。
@@ -1893,6 +2041,8 @@ export interface components {
             side2_kitting_no: string | null;
             /** Decided By */
             decided_by: string | null;
+            /** Decided Source */
+            decided_source: string | null;
             /** Decided At */
             decided_at: string | null;
             /** Suggested */
@@ -2424,6 +2574,90 @@ export interface components {
             /** Matched */
             matched: string[];
         };
+        /** SideLinkCheckIn */
+        SideLinkCheckIn: {
+            /**
+             * Side1 Kitting No
+             * @description 1回目のキッティングNo.(全角・前後の空白は整えてから探す)
+             */
+            side1_kitting_no: string;
+        };
+        /** SideLinkCheckOut */
+        SideLinkCheckOut: {
+            /** Side1 Kitting No */
+            side1_kitting_no: string;
+            /** Errors */
+            errors: string[];
+            /** Mismatched Lots */
+            mismatched_lots: string[];
+            /** Exported */
+            exported: boolean;
+            /** Exported At */
+            exported_at: string | null;
+            /** Current Partner */
+            current_partner: string | null;
+        };
+        /** SideLinkIn */
+        SideLinkIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /** Side1 Kitting No */
+            side1_kitting_no: string;
+            /**
+             * Confirm Lot Mismatch
+             * @description 合わないロットの警告を確認した
+             * @default false
+             */
+            confirm_lot_mismatch: boolean;
+        };
+        /**
+         * SideLinkViewOut
+         * @description 画面に出す紐づけの状態。2回目(side2)は入力欄、1回目(side1)は紐づいた面2の表示だけ。
+         */
+        SideLinkViewOut: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "side1" | "side2";
+            /** Partner */
+            partner: string | null;
+            /** Partner Source */
+            partner_source: string | null;
+            /** Decided By */
+            decided_by: string | null;
+            /** Decided At */
+            decided_at: string | null;
+            /** Suggested */
+            suggested: string | null;
+            /** Candidates */
+            candidates: string[];
+        };
+        /** SideUnlinkIn */
+        SideUnlinkIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+        };
         /** StepEndIn */
         StepEndIn: {
             /** Operator Id */
@@ -2529,6 +2763,14 @@ export interface components {
             lot_nos: string[];
             /** Has Actuals */
             has_actuals: boolean;
+        };
+        /** UnlinkIn */
+        UnlinkIn: {
+            /**
+             * Side2 Kitting No
+             * @description 外す面2の計画
+             */
+            side2_kitting_no: string;
         };
         /** UnresolvedOut */
         UnresolvedOut: {
@@ -3362,6 +3604,111 @@ export interface operations {
             };
         };
     };
+    check_side_link_api_runs__kitting_no__side_link_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SideLinkCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SideLinkCheckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_side_api_runs__kitting_no__side_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SideLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SideLinkViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_side_api_runs__kitting_no__side_link_unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SideUnlinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SideLinkViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_admin_login_post: {
         parameters: {
             query?: never;
@@ -3925,6 +4272,88 @@ export interface operations {
                 };
                 content: {
                     "text/csv": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_api_admin_actuals_links_unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnlinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_changes_api_admin_actuals_link_changes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkChangeOut"][];
+                };
+            };
+        };
+    };
+    check_link_change_api_admin_actuals_link_changes__change_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                change_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkChangeOut"];
                 };
             };
             /** @description Validation Error */

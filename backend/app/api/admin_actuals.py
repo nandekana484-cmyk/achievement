@@ -14,7 +14,7 @@ from app.api.admin import current_admin, require_header_for_writes
 from app.core.config import get_config
 from app.db.models import Operator
 from app.db.session import get_session
-from app.services import actuals_export, side_links
+from app.services import actuals_export, field_side_link, side_link_export, side_links
 from app.services.actuals_export import ExportIn, ExportOut
 from app.services.actuals_rows import ActualsListOut, build_rows
 from app.services.errors import RuleViolation
@@ -84,6 +84,31 @@ class LinkIn(BaseModel):
     lot_no: str = Field(max_length=100)
     side1_kitting_no: str = Field(max_length=100, description="面1の計画")
     side2_kitting_no: str | None = Field(default=None, max_length=100, description="面2の計画。空(null)は「つながない」")
+
+
+class UnlinkIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    side2_kitting_no: str = Field(max_length=100, description="外す面2の計画")
+
+
+@router.post("/links/unlink", status_code=204)
+def unlink(admin: Admin, session: Db, body: UnlinkIn) -> Response:
+    """面2の明示の紐づけを外す(管理者。キー H の自動のつなぎには戻る)。"""
+    field_side_link.unlink(session, admin.id, "admin", body.side2_kitting_no)
+    return Response(status_code=204)
+
+
+@router.get("/link-changes", response_model=list[side_link_export.LinkChangeOut])
+def link_changes(_: Admin, session: Db) -> list[side_link_export.LinkChangeOut]:
+    """書き出し後に紐づけが変わった計画で、まだ「確認済み」にしていないもの。既存アプリの値は管理者が直す。"""
+    return side_link_export.changes_after_export(session)
+
+
+@router.post("/link-changes/{change_id}/check", response_model=side_link_export.LinkChangeOut)
+def check_link_change(admin: Admin, session: Db, change_id: int) -> side_link_export.LinkChangeOut:
+    """「確認済み」にする(既存アプリの値を直したあと)。"""
+    return side_link_export.mark_checked(session, admin, change_id)
 
 
 @router.post("/links", response_model=LinkCheckOut)

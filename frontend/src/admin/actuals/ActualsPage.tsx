@@ -8,6 +8,7 @@ import { Feedback, useAdminList } from "../parts";
 import { type ActualsRow, type Edits, type LinkCheck, mismatches, parseQty, quantitiesToSend, rowKey } from "./actuals";
 import { ActualsTable } from "./ActualsTable";
 import { ExportHistory } from "./ExportHistory";
+import { LinkChanges } from "./LinkChanges";
 import { LinkChecks } from "./LinkChecks";
 
 const loadLines = () => adminApi.GET("/api/admin/lines");
@@ -107,6 +108,7 @@ function ActualsContent({ workday }: { workday: string }) {
         </>
       )}
       <Feedback message={message} />
+      <LinkChanges refreshKey={checks} />
       {checks.list.length > 0 && (
         <LinkChecks checks={checks.list} onConfirmed={reloadShown} onError={(text) => setMessage({ ok: false, text })} />
       )}

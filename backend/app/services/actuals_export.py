@@ -21,6 +21,7 @@ from app.db.models import ActualsExport, Operator
 from app.db.session import write_transaction
 from app.services.actuals_rows import ActualsListOut, ActualsRowOut, build_rows
 from app.services.errors import NotFound, RuleViolation
+from app.services.side_link_export import record_exported_rows
 
 ACTUALS_FOLDER = "actuals"
 FORMAT_VERSION = 2  # 書式版。列を変えたら上げる(既存アプリの取込口が、知らない版を断れるように)。2 = 「面1のキッティングNo.」を足した
@@ -106,6 +107,7 @@ def export_actuals(session: Session, admin: Operator, body: ExportIn, exchange_d
                             date_from=body.date_from, date_to=body.date_to, line_code=body.line_code, content=content)
         session.add(row)
         session.flush()
+        record_exported_rows(session, row.id, rows)
         row.file_name = f"actuals_{now.astimezone(clock.JST):%Y%m%d_%H%M%S}_{row.id:04d}.csv"
         try:
             _save(exchange_dir / ACTUALS_FOLDER, row.file_name, content)
