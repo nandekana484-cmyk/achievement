@@ -167,3 +167,12 @@
 .lot-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .plan-warning { margin: 6px 0 0; font-size: 16px; color: var(--warn); }
 .hit-matched { font-size: 16px; color: var(--accent); }
+
+/* 面1と面2の紐づけ */
+.side-link { margin: 10px 0 0; padding: 8px 10px; border: 2px solid var(--border); border-radius: 8px; background: var(--surface); }
+.side-link-title { font-size: 16px; color: var(--muted); }
+.side-link-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.side-link-row input { flex: 1 1 240px; min-height: var(--touch); font-size: 20px; padding: 4px 10px; }
+.side-link-row select { min-height: var(--touch); font-size: 18px; }
+.side-link-partner { margin: 4px 0 0; font-size: 20px; font-weight: 700; }
+.side-link-by, .side-link-note { font-size: 15px; font-weight: 400; color: var(--muted); }

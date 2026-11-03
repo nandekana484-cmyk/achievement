@@ -29,7 +29,7 @@ EQUIPMENT = ("マウンター1", "リフロー炉")
 # ファイルNo. → (丁取り数, status)。効率の計算から外れる計画(丁取りが引けない・タクトなし)も確かめられるようにする
 TEITORI: dict[str, tuple[int | None, str]] = {
     "0722": (2, "ok"), "0800": (None, "tsv_not_found"), "0915": (4, "ok"), "0930": (1, "ok"), "0940": (None, "no_k_row"),
-    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"), "1100": (2, "ok"), "1101": (2, "ok"), "1102": (2, "ok"),
+    "0950": (2, "ok"), "0960": (2, "ok"), "1000": (3, "ok"), "1100": (2, "ok"), "1101": (2, "ok"), "1102": (2, "ok"), "1200": (2, "ok"),
 }
 
 
@@ -136,6 +136,26 @@ def seed_handover(session: Session, line_code: str, day: dt.date) -> list[str]:
         _upsert_teitori(session, line)
         session.commit()
     return [old_kno, new_kno]
+
+
+def seed_side_pair(session: Session, day: dt.date, side1_line: str = "S", side2_line: str = "U") -> list[str]:
+    """面1と面2の紐づけ(現場の画面)の確認用: 1回目 Sライン、2回目 Uライン、同じロットNo.・同じファイルNo.の組。
+
+    ラインが違うのでキー H ではつながらない(ロットNo.に --lot-suffix は使わない)。2回目の画面では、同じロットNo.・ファイルNo.の
+    1回目がちょうど1つなので、候補として欄に入る。
+    """
+    issue = day - dt.timedelta(days=7)
+    first = _DemoPlan("1200", 1, 31, "DEMO-L1", "紐づけ基板L", 100, 30.0, "09:00", "11:00")
+    second = _DemoPlan("1200", 2, 32, "DEMO-L1", "紐づけ基板L", 100, 40.0, "11:30", "13:30")
+    with write_transaction(session):
+        register_lines(session, [side1_line, side2_line])
+        session.flush()
+        knos = [_upsert_plan(session, first, normalize_mounting_line(side1_line), day, issue, ""),
+                _upsert_plan(session, second, normalize_mounting_line(side2_line), day, issue, "")]
+        _upsert_teitori(session, normalize_mounting_line(side1_line))
+        _upsert_teitori(session, normalize_mounting_line(side2_line))
+        session.commit()
+    return knos
 
 
 def _upsert_teitori(session: Session, line: str) -> None:

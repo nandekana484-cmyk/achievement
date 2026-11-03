@@ -14,6 +14,7 @@ from app.core import clock
 from app.db.models import LineEvent, RunEvent
 from app.domain.workday import display_range, workday_of, workday_range
 from app.services.kitting_plans import KittingGroup, load_active_groups, load_group
+from app.services.field_side_link import view
 from app.services.line_operators import current_row
 from app.services.masters import get_line
 from app.services.ng_inputs import latest_ng, ng_choices
@@ -39,7 +40,7 @@ def board_plan_out(session: Session, g: KittingGroup) -> BoardPlanOut:
         ng_choices=ng_choices(session, g),
         completed=completion is not None,
         completion=run_completion_out(completion) if completion is not None else None,
-        in_progress=progress.in_progress, progress=progress.progress,
+        side_link=view(session, g), in_progress=progress.in_progress, progress=progress.progress,
     )
 
 

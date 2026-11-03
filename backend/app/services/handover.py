@@ -30,13 +30,14 @@ from app.db.models import (
     RunEvent,
     RunInput,
     RunNgInput,
-    SideLink,
 )
 from app.db.session import write_transaction
 from app.services import audit
 from app.services.completions import latest_completion
 from app.services.errors import NotFound, RuleViolation
 from app.services.plan_reconcile import kitting_nos_with_actuals
+from app.services.side_link_export import last_export_at
+from app.services.side_link_store import ACTION_LINK, ACTION_SKIP, SOURCE_ADMIN, add_row, current_links
 
 HISTORY_LIMIT = 50
 _TABLES = (("run_events", RunEvent), ("run_inputs", RunInput), ("run_ng_inputs", RunNgInput),
@@ -190,10 +191,28 @@ def _warnings(session: Session, old: str, old_rows: list[Plan], new_rows: list[P
     ng_lots = set(session.scalars(select(RunNgInput.lot_no).where(RunNgInput.kitting_no == old)))
     if ng_lots - new_lots:
         out.append("NG数のロットNo.に、新しい計画に無いものがあります(" + "、".join(sorted(ng_lots - new_lots)) + ")")
-    if session.scalars(select(SideLink.id).where((SideLink.side1_kitting_no == old) | (SideLink.side2_kitting_no == old))).first():
-        out.append("「ひも付けの確認」の確定に、古いキッティングNo.があります。移したあとで確かめ直してください")
     if {p.lot_no for p in old_rows} != new_lots:
         out.append("古い計画と新しい計画で、ロットNo.の組が違います")
+    return out
+
+
+def _move_side_links(session: Session, admin_id: int, old: str, new: str) -> list[str]:
+    """面1と面2の紐づけ(現場・管理者のもの)を、新しいキッティングNo.へ移す(履歴は消さず、新しい行を足す)。"""
+    links = current_links(session)
+    out: list[str] = []
+    for rec, as_side2 in ((links.by_side2.get(old), True), (links.by_side1.get(old), False)):
+        if rec is None or rec.side2 is None:
+            continue
+        taken = links.by_side2.get(new) if as_side2 else links.by_side1.get(new)
+        if taken is not None:
+            out.append(f"新しい計画 {new} には、すでに紐づけがあります(相手 {taken.side1 if as_side2 else taken.side2})。古い計画の紐づけは移していません")
+            continue
+        side1, side2 = (rec.side1, new) if as_side2 else (new, rec.side2)
+        add_row(session, action=ACTION_LINK, side1=side1, side2=side2, source=SOURCE_ADMIN, actor_id=admin_id,
+                previous_partner=old, exported_at=last_export_at(session, {side1, side2, old}))
+    skip = links.skip.get(old)
+    if skip is not None and new not in links.skip:
+        add_row(session, action=ACTION_SKIP, side1=new, side2=None, source=SOURCE_ADMIN, actor_id=admin_id)
     return out
 
 
@@ -218,6 +237,7 @@ def confirm_handover(session: Session, admin: Operator, old_kno: str, new_kno: s
         # NG数の「NGが出た面の計画」が古いキッティングNo.の行も、新しいキッティングNo.に合わせる(書き出しで使う)
         moved["run_ng_inputs_side"] = session.execute(
             update(RunNgInput).where(RunNgInput.side_kitting_no == old_kno).values(side_kitting_no=new_kno)).rowcount
+        warnings += _move_side_links(session, admin.id, old_kno, new_kno)
         for p in old_rows:
             p.status, p.cancel_reason, p.cancelled_at, p.updated_at = PLAN_CANCELLED, CANCEL_CARRIED_OVER, now, now
         session.add(KittingHandover(

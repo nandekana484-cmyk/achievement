@@ -2,7 +2,7 @@
 
 from app.db.models.access import AllowedNetwork
 from app.db.models.admin import AdminCredential, AdminLoginAttempt, AdminSession, AuditLog
-from app.db.models.exports import ActualsExport, SideLink
+from app.db.models.exports import ActualsExport, ExportedRow, SideLink
 from app.db.models.handover import KittingHandover
 from app.db.models.masters import Equipment, Line, Operator, Reason
 from app.db.models.plans import (
@@ -33,6 +33,7 @@ from app.db.models.records import (
 
 __all__ = [
     "ActualsExport",
+    "ExportedRow",
     "SideLink",
     "AdminCredential",
     "AllowedNetwork",

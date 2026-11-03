@@ -7,6 +7,7 @@ import datetime as dt
 from pydantic import BaseModel
 
 from app.services.kitting_plans import KittingGroup
+from app.services.views.side_link import SideLinkViewOut
 from app.services.views.metrics import EfficiencyOut
 from app.services.views import (
     CurrentOperatorOut,
@@ -58,6 +59,7 @@ class BoardPlanOut(BaseModel):
     ng_choices: list[NgChoiceOut]
     completed: bool
     completion: RunCompletionOut | None  # 最新の完了
+    side_link: SideLinkViewOut | None  # 面1と面2の紐づけ(面2は入力欄、面1は紐づいた面2の表示だけ)
     in_progress: bool  # 生産中(最初の工程を始め、片付けが終わっていない)
     progress: float | None  # 進捗率 = 工程の記録の時間の合計 ÷ 計画の時間。生産中でない・計画の時間が無いときは null
 
