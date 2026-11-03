@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts
+const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts", "print/recordTexts.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts。生産記録票の様式の文言(日本語とベトナム語の併記で固定)は print/recordTexts.ts
 
 // ひらがな・カタカナ・漢字と、全角の記号(「、」「〜」「(」など)
 const JAPANESE = /[　-〿぀-ヿ㐀-鿿＀-￯]/;

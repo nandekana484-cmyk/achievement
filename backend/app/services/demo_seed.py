@@ -158,6 +158,28 @@ def seed_side_pair(session: Session, day: dt.date, side1_line: str = "S", side2_
     return knos
 
 
+def seed_record_samples(session: Session, day: dt.date, line_code: str = "R") -> list[str]:
+    """生産記録票(印刷)の確認用: 10ロットの両面の組(キッティングNo.でつながる)、片面だけの計画、面1とつながらない面2。
+
+    数量は、この計画での生産数 100、これまでの累計 200、発注数 300(ロットごと)。記録は画面かAPIで入れる。
+    """
+    line = normalize_mounting_line(line_code)
+    issue = day - dt.timedelta(days=7)
+    plans = [_DemoPlan("1300", run, 41, f"DEMO-R{i:02d}", "10ロット基板M", 100, 30.0, "08:00", "09:00") for run in (1, 2) for i in range(1, 11)]
+    plans.append(_DemoPlan("1301", 1, 43, "DEMO-R20", "片面基板N", 100, 30.0, "08:00", "09:00"))
+    plans.append(_DemoPlan("1302", 2, 45, "DEMO-R30", "面2だけ基板P", 100, 30.0, "08:00", "09:00"))
+    with write_transaction(session):
+        register_lines(session, [line])
+        session.flush()
+        knos = [_upsert_plan(session, p, line, day, issue, "") for p in plans]
+        for p, kno in zip(plans, knos, strict=True):
+            row = session.get(Plan, (kno, p.lot_no))
+            row.cumulative_qty, row.order_qty = 200, 300
+        _upsert_teitori(session, line)
+        session.commit()
+    return list(dict.fromkeys(knos))
+
+
 def _upsert_teitori(session: Session, line: str) -> None:
     now = clock.now()
     for file_no, (teitori, status) in TEITORI.items():

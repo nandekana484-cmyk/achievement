@@ -40,6 +40,8 @@ execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "U", "--date", E2E
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "V", "--date", E2E_DATE, "--handover"], { cwd: backend, env, stdio: "inherit" });
 // 面1と面2の紐づけ(e2e/z-side-link.spec.ts)。1回目 Sライン、2回目 Uライン、同じロットNo.・ファイルNo.(--lot-suffix は使わない)
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE, "--side-pair"], { cwd: backend, env, stdio: "inherit" });
+// 生産記録票の印刷(e2e/zz-production-record.spec.ts)。別のラインRに、10ロットの両面の組・片面だけ・面1とつながらない面2を入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "R", "--date", E2E_DATE, "--record-samples"], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

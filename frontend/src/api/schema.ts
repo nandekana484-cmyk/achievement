@@ -503,6 +503,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/production-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Production Records
+         * @description 印刷できる組(どちらかの面の完了日が過去31日以内)を、完了日の新しい順に返す。
+         */
+        get: operations["list_production_records_api_production_records_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/production-records/{kitting_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Production Record
+         * @description キッティングNo.(どちらの面でもよい)の組の、生産記録票に印刷する値。
+         */
+        get: operations["get_production_record_api_production_records__kitting_no__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -1620,6 +1660,31 @@ export interface components {
             /** Line Code */
             line_code: string | null;
         };
+        /** FaceOut */
+        FaceOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Completed */
+            completed: boolean;
+            /** Setup */
+            setup: components["schemas"]["StepRowOut"][];
+            /** N1 Check */
+            n1_check: components["schemas"]["StepRowOut"][];
+            /** Production */
+            production: components["schemas"]["StepRowOut"][];
+            /** Xray */
+            xray: components["schemas"]["StepRowOut"][];
+            /** Cleanup */
+            cleanup: components["schemas"]["StepRowOut"][];
+            /** First Article */
+            first_article: components["schemas"]["StepRowOut"][];
+            /** Good Total */
+            good_total: number;
+            /** Troubles */
+            troubles: components["schemas"]["TroubleOut"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1706,6 +1771,19 @@ export interface components {
             };
             /** Warnings */
             warnings: string[];
+        };
+        /** HeaderOut */
+        HeaderOut: {
+            /** Approver */
+            approver: string;
+            /** Checker */
+            checker: string;
+            /** Author */
+            author: string;
+            /** Revision Date */
+            revision_date: string;
+            /** Version */
+            version: string;
         };
         /** IntervalOut */
         IntervalOut: {
@@ -2084,6 +2162,17 @@ export interface components {
             /** Planned Qty */
             planned_qty: number;
         };
+        /** LotRowOut */
+        LotRowOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Produced */
+            produced: number | null;
+            /** Cumulative */
+            cumulative: number | null;
+            /** Ordered */
+            ordered: number | null;
+        };
         /** MastersOut */
         MastersOut: {
             /** Lines */
@@ -2352,6 +2441,52 @@ export interface components {
             sort_order?: number | null;
             /** Active */
             active?: boolean | null;
+        };
+        /** RecordRowOut */
+        RecordRowOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Side1 Kitting No */
+            side1_kitting_no: string | null;
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
+            /** Side1 Line */
+            side1_line: string | null;
+            /** Side2 Line */
+            side2_line: string | null;
+            /** Lot Nos */
+            lot_nos: string[];
+            /** Product Name */
+            product_name: string;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+            /** Side1 Completed */
+            side1_completed: boolean;
+            /** Side2 Completed */
+            side2_completed: boolean;
+            /** Side2 Unlinked */
+            side2_unlinked: boolean;
+        };
+        /** RecordSheetOut */
+        RecordSheetOut: {
+            header: components["schemas"]["HeaderOut"];
+            /** File No */
+            file_no: string;
+            /** Product Name */
+            product_name: string;
+            /** Lots */
+            lots: components["schemas"]["LotRowOut"][];
+            /** Qty Differs */
+            qty_differs: string[];
+            side1: components["schemas"]["FaceOut"] | null;
+            side2: components["schemas"]["FaceOut"] | null;
+            /** Side2 Unlinked */
+            side2_unlinked: boolean;
+            /** Side2 Kitting No */
+            side2_kitting_no: string | null;
         };
         /** RemarkIn */
         RemarkIn: {
@@ -2683,6 +2818,17 @@ export interface components {
             event: components["schemas"]["RunEventOut"];
             completion?: components["schemas"]["RunCompletionOut"] | null;
         };
+        /** StepRowOut */
+        StepRowOut: {
+            /** Date */
+            date: string;
+            /** Worker */
+            worker: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string | null;
+        };
         /** StepStartIn */
         StepStartIn: {
             /** Operator Id */
@@ -2763,6 +2909,15 @@ export interface components {
             lot_nos: string[];
             /** Has Actuals */
             has_actuals: boolean;
+        };
+        /** TroubleOut */
+        TroubleOut: {
+            /** Name */
+            name: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string | null;
         };
         /** UnlinkIn */
         UnlinkIn: {
@@ -3696,6 +3851,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SideLinkViewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_production_records_api_production_records_get: {
+        parameters: {
+            query?: {
+                /** @description ライン記号(どちらかの面のライン) */
+                line?: string | null;
+                /** @description キッティングNo.(部分一致) */
+                kitting_no?: string | null;
+                /** @description ロットNo.(部分一致) */
+                lot_no?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordRowOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_production_record_api_production_records__kitting_no__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSheetOut"];
                 };
             };
             /** @description Validation Error */

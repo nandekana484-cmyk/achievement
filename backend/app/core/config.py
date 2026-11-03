@@ -93,6 +93,17 @@ class ReportsConfig:
 
 
 @dataclass(frozen=True)
+class ProductionRecordConfig:
+    """生産記録票の上の欄(承認・確認・作成、改正日、Ver.)。無ければ空欄で印刷する。詳細: docs/design/production-record.md"""
+
+    approver: str = ""
+    checker: str = ""
+    author: str = ""
+    revision_date: str = ""
+    version: str = ""
+
+
+@dataclass(frozen=True)
 class AppConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
@@ -102,6 +113,7 @@ class AppConfig:
     admin: AdminConfig = field(default_factory=AdminConfig)
     corrections: CorrectionsConfig = field(default_factory=CorrectionsConfig)
     reports: ReportsConfig = field(default_factory=ReportsConfig)
+    production_record: ProductionRecordConfig = field(default_factory=ProductionRecordConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
 
@@ -172,7 +184,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
 
     raw = _read_toml(path)
     s, b, a = raw.get("server", {}), raw.get("backup", {}), raw.get("admin", {})
-    c, r = raw.get("corrections", {}), raw.get("reports", {})
+    c, r, pr = raw.get("corrections", {}), raw.get("reports", {}), raw.get("production_record", {})
     return _resolve(AppConfig(
         server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
                             expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
@@ -190,6 +202,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
             field_margin_hours=int(c.get("field_margin_hours", CorrectionsConfig.field_margin_hours)),
         ),
         reports=ReportsConfig(max_days=int(r.get("max_days", ReportsConfig.max_days))),
+        production_record=ProductionRecordConfig(**{k: str(pr.get(k, "")) for k in ProductionRecordConfig.__dataclass_fields__}),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     ), home)
 
@@ -202,7 +215,7 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
     return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
-                     corrections=cfg.corrections, reports=cfg.reports, timezone=cfg.timezone, home=home)
+                     corrections=cfg.corrections, reports=cfg.reports, production_record=cfg.production_record, timezone=cfg.timezone, home=home)
 
 
 @lru_cache

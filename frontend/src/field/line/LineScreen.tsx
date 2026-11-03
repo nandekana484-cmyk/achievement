@@ -1,6 +1,6 @@
 // ライン画面(開発指針 7.1): 上部、左のメニュー(検索)、中央のタイムテーブル、右のパネル。
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { BoardPlan, LineEvent, Plan, Reason, StepType } from "../../shared/api";
 import { lineName as displayLineName } from "../../shared/lineName";
@@ -30,7 +30,8 @@ export function LineScreen() {
   const op = useOperation(reload);
   const actions = useLineActions(lineCode, op);
   const nowMs = useNow(5_000, offsetMs);
-  const [selectedKno, setSelectedKno] = useState<string | null>(null);
+  const [query] = useSearchParams();
+  const [selectedKno, setSelectedKno] = useState<string | null>(query.get("kitting_no")); // 生産記録票の「1回目と紐づける」から来たとき
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const timetable = useRef<TimetableHandle>(null);
   const lineEvents = useRef<HTMLElement>(null);
@@ -69,7 +70,7 @@ export function LineScreen() {
 
   return (
     <div className="line-screen">
-      <TopBar lineName={lineName} board={board} onChangeOperator={openOperator} />
+      <TopBar lineCode={lineCode} lineName={lineName} board={board} onChangeOperator={openOperator} />
       <SideMenu
         search={<PlanSearch lineCode={lineCode} onPick={select} />}
         onTimetable={() => timetable.current?.scrollToNow()}

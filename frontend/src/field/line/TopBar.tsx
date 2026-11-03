@@ -1,4 +1,5 @@
 // ライン画面の上部: ライン名、今日の効率、生産中の計画ごとの進捗率、今の担当者(押すと交代の画面)、表示言語の切り替え。
+import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import { LanguageSwitch } from "../../i18n/LanguageSwitch";
 import type { Board } from "../../shared/api";
@@ -6,9 +7,9 @@ import { excludedCount, progressItems } from "./metrics";
 import { operatorLabel } from "./operatorLabel";
 import { formatPercent } from "./steps";
 
-type Props = { lineName: string; board: Board | null; onChangeOperator: () => void };
+type Props = { lineCode: string; lineName: string; board: Board | null; onChangeOperator: () => void };
 
-export function TopBar({ lineName, board, onChangeOperator }: Props) {
+export function TopBar({ lineCode, lineName, board, onChangeOperator }: Props) {
   const { t } = useI18n();
   const operator = board?.current_operator;
   return (
@@ -34,6 +35,7 @@ export function TopBar({ lineName, board, onChangeOperator }: Props) {
           {operator ? operatorLabel(operator.operator_name, operator.operator_worker_id, t) : t("topBar.operatorUnset")}
         </span>
       </button>
+      <Link to={`/field/print/production-record?line=${encodeURIComponent(lineCode)}`} className="kpi record-link">{t("record.button")}</Link>
       <LanguageSwitch />
     </header>
   );
