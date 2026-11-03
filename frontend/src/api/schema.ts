@@ -503,6 +503,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{kitting_no}/allocation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Allocation
+         * @description 今のロットへの割り振り。balance_lot_no を付けると、そのロットで差を調整した提案(0 未満なら proposal_error)。
+         */
+        get: operations["get_allocation_api_runs__kitting_no__allocation_get"];
+        /**
+         * Save Allocation
+         * @description 割り振りを保存する(合計が生産数の合計と合わなければ 409)。
+         */
+        put: operations["save_allocation_api_runs__kitting_no__allocation_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/allocation/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Allocation
+         * @description 保存した割り振りを外して、今の規則に戻す。
+         */
+        post: operations["reset_allocation_api_runs__kitting_no__allocation_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/production-records": {
         parameters: {
             query?: never;
@@ -946,7 +990,7 @@ export interface paths {
         put?: never;
         /**
          * Check Link Change
-         * @description 「確認済み」にする(既存アプリの値を直したあと)。
+         * @description 「確認済み」にする(既存アプリの値を直したあと)。kind=allocation はロットへの割り振りの変更。
          */
         post: operations["check_link_change_api_admin_actuals_link_changes__change_id__check_post"];
         delete?: never;
@@ -1222,6 +1266,11 @@ export interface components {
             warnings: string[];
             /** Notes */
             notes: string[];
+            /**
+             * Allocation Stale
+             * @default false
+             */
+            allocation_stale: boolean;
         };
         /** AdminMeOut */
         AdminMeOut: {
@@ -1243,6 +1292,75 @@ export interface components {
              * Format: date
              */
             workday: string;
+        };
+        /** AllocLotOut */
+        AllocLotOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Planned Qty */
+            planned_qty: number;
+            /** Qty */
+            qty: number;
+        };
+        /** AllocationOut */
+        AllocationOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Total */
+            total: number;
+            /** Planned Total */
+            planned_total: number;
+            /** Saved */
+            saved: boolean;
+            /** Stale */
+            stale: boolean;
+            /** Editable */
+            editable: boolean;
+            /** Exported */
+            exported: boolean;
+            /** Exported At */
+            exported_at: string | null;
+            /** Lots */
+            lots: components["schemas"]["AllocLotOut"][];
+            /** Proposal Error */
+            proposal_error?: string | null;
+        };
+        /** AllocationResetIn */
+        AllocationResetIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+        };
+        /** AllocationSaveIn */
+        AllocationSaveIn: {
+            /** Operator Id */
+            operator_id?: number | null;
+            /**
+             * Worker Id
+             * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
+             */
+            worker_id?: string | null;
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /**
+             * Quantities
+             * @description ロットNo. → 割り振る数(合計が生産数の合計と一致する)
+             */
+            quantities: {
+                [key: string]: number;
+            };
         };
         /** AllowedNetworkIn */
         AllowedNetworkIn: {
@@ -2067,8 +2185,17 @@ export interface components {
         };
         /** LinkChangeOut */
         LinkChangeOut: {
+            /**
+             * Kind
+             * @default link
+             */
+            kind: string;
             /** Id */
             id: number;
+            /** Kitting No */
+            kitting_no?: string | null;
+            /** Detail */
+            detail?: string | null;
             /** Side2 Kitting No */
             side2_kitting_no: string | null;
             /** Previous Partner */
@@ -2489,6 +2616,7 @@ export interface components {
             side2_unlinked: boolean;
             /** Side2 Kitting No */
             side2_kitting_no: string | null;
+            allocation?: components["schemas"]["AllocationOut"] | null;
         };
         /** RemarkIn */
         RemarkIn: {
@@ -3868,6 +3996,110 @@ export interface operations {
             };
         };
     };
+    get_allocation_api_runs__kitting_no__allocation_get: {
+        parameters: {
+            query?: {
+                /** @description 差を引くロット(提案の値を返す。保存しない) */
+                balance_lot_no?: string | null;
+            };
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_allocation_api_runs__kitting_no__allocation_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationSaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_allocation_api_runs__kitting_no__allocation_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationResetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_production_records_api_production_records_get: {
         parameters: {
             query?: {
@@ -4564,7 +4796,9 @@ export interface operations {
     };
     check_link_change_api_admin_actuals_link_changes__change_id__check_post: {
         parameters: {
-            query?: never;
+            query?: {
+                kind?: string;
+            };
             header?: never;
             path: {
                 change_id: number;

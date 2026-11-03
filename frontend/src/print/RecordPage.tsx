@@ -6,7 +6,9 @@ import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../shared/api";
 import { Notice } from "../shared/Notice";
 import { type Density, denserIfOverflow, type Sheet } from "./recordLayout";
+import { showAllocation } from "./allocationEdit";
 import { linkScreenUrl } from "./recordList";
+import { RecordAllocation } from "./RecordAllocation";
 import { RecordSheet } from "./RecordSheet";
 
 export function RecordPage() {
@@ -15,6 +17,7 @@ export function RecordPage() {
   const { t } = useI18n();
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0); // 割り振りを保存したあと、シートを読み直す
 
   useEffect(() => {
     let alive = true;
@@ -26,7 +29,7 @@ export function RecordPage() {
       })
       .catch(() => alive && setError(t("error.connection")));
     return () => { alive = false; };
-  }, [kittingNo, t]);
+  }, [kittingNo, t, reload]);
 
   // 1枚の A4 に収まるまで、行の高さと文字を縮める(収まる高さは、描いたあとに測る)
   const body = useRef<HTMLDivElement>(null);
@@ -53,6 +56,7 @@ export function RecordPage() {
         )}
         <p className="record-hint">{t("record.printHint")}</p>
       </div>
+      {showAllocation(sheet?.allocation) && <RecordAllocation key={sheet.allocation.kitting_no} allocation={sheet.allocation} onChanged={() => setReload(reload + 1)} />}
       {error && <Notice kind="error">{error}</Notice>}
       {!sheet && !error && <p className="placeholder">{t("common.loading")}</p>}
       {sheet && <div className="record-body" ref={body}><RecordSheet sheet={sheet} density={density} /></div>}

@@ -186,6 +186,6 @@ def test_demo_seed_record_samples(client, world):
 
     with new_session() as s:
         knos = seed_record_samples(s, dt.date(2026, 10, 21))
-        assert knos == ["1300-1-R-261014-41", "1300-2-R-261014-41", "1301-1-R-261014-43", "1302-2-R-261014-45"]
+        assert knos == ["1300-1-R-261014-41", "1300-2-R-261014-41", "1303-1-R-261014-47", "1303-2-R-261014-47", "1301-1-R-261014-43", "1302-2-R-261014-45"]
         assert s.query(Plan).filter(Plan.kitting_no == knos[0]).count() == 10  # 10ロット
         assert {(p.planned_qty, p.cumulative_qty, p.order_qty) for p in s.query(Plan).filter(Plan.line_code == "R")} == {(100, 200, 300)}

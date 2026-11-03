@@ -10,6 +10,14 @@
 .record-toolbar .record-unlinked { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px; background: #fff4d6; border: 1px solid #e0b84a; border-radius: 6px; }
 .record-body { display: flex; justify-content: center; padding: 16px; overflow-x: auto; }
 
+.record-alloc { background: #fff; border-bottom: 1px solid #ccc; padding: 8px 16px; }
+.record-alloc-bar { display: flex; align-items: center; gap: 12px; }
+.record-alloc-panel { margin-top: 8px; max-width: 760px; }
+.record-alloc-table input[type="text"], .record-alloc-table input:not([type]) { width: 90px; min-height: 40px; font-size: 16px; padding: 0 6px; }
+.record-alloc-table input[type="radio"] { width: 24px; height: 24px; }
+.record-alloc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.record-alloc-actions input { min-height: 40px; font-size: 16px; width: 140px; padding: 0 6px; }
+
 /* --- 用紙。原紙(Excel)と様式(docs/design/forms/production-record-ver02.html)に寄せる。高さは mm で決め、--k で縮める。詳細: docs/design/production-record.md --- */
 .record-sheet {
   page: record; box-sizing: border-box; width: 204mm; margin: 0 auto; background: #fff; color: #000; padding: 0; line-height: normal;
@@ -63,7 +71,7 @@
 @media print {
   html, body { background: #fff !important; }
   .record-page { background: #fff; padding: 0; min-height: 0; }
-  .record-toolbar, .record-hint { display: none !important; }
+  .record-toolbar, .record-hint, .record-alloc { display: none !important; }
   .record-body { display: block; padding: 0; overflow: visible; }
   .record-sheet { width: 100%; box-shadow: none; }
 }

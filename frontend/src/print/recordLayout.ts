@@ -52,6 +52,16 @@ export function actualDiffers(lot: Lot): boolean {
   return lot.actual != null && lot.produced != null && lot.actual !== lot.produced;
 }
 
+/** 数量の欄の表示。実績が A と違うとき、A と B に取消線を引き、実績と「B - A + 実績」を添える(C は変えない。印刷だけの表示)。 */
+export type QuantityView = { a: number | null; b: number | null; c: number | null; actual: number | null; newB: number | null };
+
+export function quantityView(lot: Lot): QuantityView {
+  const base = { a: lot.produced, b: lot.cumulative, c: lot.ordered };
+  if (!actualDiffers(lot)) return { ...base, actual: null, newB: null };
+  const actual = lot.actual as number;
+  return { ...base, actual, newB: lot.cumulative == null ? null : lot.cumulative - (lot.produced as number) + actual };
+}
+
 export function timeRange(start: string, end: string | null): string {
   return `${start}${TIME_RANGE_SEPARATOR}${end ?? ""}`;
 }

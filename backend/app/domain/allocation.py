@@ -20,3 +20,12 @@ def allocate(total: int, planned_qtys: Sequence[int]) -> list[int]:
         remaining -= given
     result.append(remaining)
     return result
+
+
+def balance(total: int, planned_qtys: Sequence[int], index: int) -> list[int] | None:
+    """index 番目のロットで差を調整する: ほかのロットは計画数どおり、そのロットは「合計 - ほかの合計」。0 未満になるときは None。"""
+    others = sum(max(q, 0) for i, q in enumerate(planned_qtys) if i != index)
+    rest = total - others
+    if rest < 0:
+        return None
+    return [rest if i == index else max(q, 0) for i, q in enumerate(planned_qtys)]

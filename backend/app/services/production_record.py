@@ -20,6 +20,7 @@ from app.services.actuals_rows import lot_actuals
 from app.services.completions import latest_completion, produced_total
 from app.services.errors import NotFound, RuleViolation
 from app.services.kitting_plans import KittingGroup, load_group
+from app.services.lot_allocation import AllocationOut, allocation_out
 from app.services.production_record_pair import RecordPair, pair_of
 from app.services.views import operator_name
 
@@ -78,6 +79,7 @@ class RecordSheetOut(BaseModel):
     side2: FaceOut | None
     side2_unlinked: bool  # 面1とつながっていない面2(印刷の上に「1回目と紐づける」を出す)
     side2_kitting_no: str | None
+    allocation: AllocationOut | None = None  # 数量の実績に使う割り振り(書き出しに使う面 = 面2、無ければ面1)。完了していなければ空
 
 
 def _hm(t: dt.datetime) -> str:
@@ -146,6 +148,12 @@ def _lots(pair: RecordPair, actuals: dict[str, int], faces_done: dict[str, bool]
     return rows, differs
 
 
+def _allocation(session: Session, pair: RecordPair, faces: dict[str, FaceOut]) -> AllocationOut | None:
+    """書き出しに使う面(面2、無ければ面1)の割り振り。その面が完了していなければ空。"""
+    group = pair.side2 or pair.side1
+    return allocation_out(session, group) if group is not None and faces[group.kitting_no].completed else None
+
+
 def build_sheet(session: Session, kitting_no: str) -> RecordSheetOut:
     """キッティングNo.(どちらの面でもよい)の組の生産記録票。取り消された計画は NotFound、どちらの面も完了していなければ 409。"""
     group = load_group(session, kitting_no)
@@ -164,4 +172,5 @@ def build_sheet(session: Session, kitting_no: str) -> RecordSheetOut:
         file_no=first.file_no, product_name=first.product_name, lots=lots, qty_differs=differs,
         side1=faces[pair.side1.kitting_no] if pair.side1 else None, side2=faces[pair.side2.kitting_no] if pair.side2 else None,
         side2_unlinked=pair.unlinked_side2, side2_kitting_no=pair.side2.kitting_no if pair.side2 else None,
+        allocation=_allocation(session, pair, faces),
     )

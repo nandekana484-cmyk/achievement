@@ -159,13 +159,14 @@ def seed_side_pair(session: Session, day: dt.date, side1_line: str = "S", side2_
 
 
 def seed_record_samples(session: Session, day: dt.date, line_code: str = "R") -> list[str]:
-    """生産記録票(印刷)の確認用: 10ロットの両面の組(キッティングNo.でつながる)、片面だけの計画、面1とつながらない面2。
+    """生産記録票(印刷)の確認用: 10ロットと3ロットの両面の組(キッティングNo.でつながる)、片面だけの計画、面1とつながらない面2。
 
     数量は、この計画での生産数 100、これまでの累計 200、発注数 300(ロットごと)。記録は画面かAPIで入れる。
     """
     line = normalize_mounting_line(line_code)
     issue = day - dt.timedelta(days=7)
     plans = [_DemoPlan("1300", run, 41, f"DEMO-R{i:02d}", "10ロット基板M", 100, 30.0, "08:00", "09:00") for run in (1, 2) for i in range(1, 11)]
+    plans += [_DemoPlan("1303", run, 47, f"DEMO-R{i}", "3ロット基板Q", 100, 30.0, "08:00", "09:00") for run in (1, 2) for i in (40, 41, 42)]
     plans.append(_DemoPlan("1301", 1, 43, "DEMO-R20", "片面基板N", 100, 30.0, "08:00", "09:00"))
     plans.append(_DemoPlan("1302", 2, 45, "DEMO-R30", "面2だけ基板P", 100, 30.0, "08:00", "09:00"))
     with write_transaction(session):

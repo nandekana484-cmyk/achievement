@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actualDiffers, boxCapacity, DENSITIES, denserIfOverflow, type Face, faceRows, firstArticleLines, type Lot, lotRowCount, type Sheet, timeRange } from "./recordLayout";
+import { actualDiffers, boxCapacity, DENSITIES, denserIfOverflow, type Face, faceRows, firstArticleLines, type Lot, lotRowCount, quantityView, type Sheet, timeRange } from "./recordLayout";
 import { completedText, filterQuery, linesText, linkScreenUrl, recordUrl } from "./recordList";
 import { fill, RECORD_TEXT } from "./recordTexts";
 
@@ -89,6 +89,20 @@ describe("数量 A の実績", () => {
 
   it("実績が A と同じなら添えない", () => {
     expect(actualDiffers(lot({ actual: 300 }))).toBe(false);
+  });
+
+  it("B も同じ形で直す: B - A + 実績(C はそのまま)。例 300 / 600 / 1000 で実績 298 → 298 / 598 / 1000", () => {
+    expect(quantityView(lot({ actual: 298 }))).toEqual({ a: 300, b: 600, c: 1000, actual: 298, newB: 598 });
+    expect(quantityView(lot({ actual: 310 })).newB).toBe(610);
+  });
+
+  it("A に取消線を引かないとき(同じ値、未完了、実績なし)は、B も直さない", () => {
+    expect(quantityView(lot({ actual: 300 }))).toEqual({ a: 300, b: 600, c: 1000, actual: null, newB: null });
+    expect(quantityView(lot({ actual: null }))).toEqual({ a: 300, b: 600, c: 1000, actual: null, newB: null });
+  });
+
+  it("B が無いときは、B の直しは無い", () => {
+    expect(quantityView(lot({ actual: 298, cumulative: null }))).toMatchObject({ actual: 298, newB: null });
   });
 
   it("完了していない(実績が無い)ときは添えない", () => {

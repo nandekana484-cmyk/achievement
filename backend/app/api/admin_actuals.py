@@ -106,9 +106,9 @@ def link_changes(_: Admin, session: Db) -> list[side_link_export.LinkChangeOut]:
 
 
 @router.post("/link-changes/{change_id}/check", response_model=side_link_export.LinkChangeOut)
-def check_link_change(admin: Admin, session: Db, change_id: int) -> side_link_export.LinkChangeOut:
-    """「確認済み」にする(既存アプリの値を直したあと)。"""
-    return side_link_export.mark_checked(session, admin, change_id)
+def check_link_change(admin: Admin, session: Db, change_id: int, kind: str = Query(default="link", pattern="^(link|allocation)$")) -> side_link_export.LinkChangeOut:
+    """「確認済み」にする(既存アプリの値を直したあと)。kind=allocation はロットへの割り振りの変更。"""
+    return side_link_export.mark_checked(session, admin, change_id, kind)
 
 
 @router.post("/links", response_model=LinkCheckOut)

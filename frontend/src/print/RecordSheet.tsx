@@ -1,6 +1,6 @@
 // 生産記録票(A4縦、日本語とベトナム語の併記)の上半分(承認欄、ロット)。各面の表は RecordFace.tsx。原紙に寄せた点: docs/design/production-record.md
 // 様式: docs/design/forms/production-record-ver02.html。文言は recordTexts.ts、行の組み立ては recordLayout.ts。
-import { actualDiffers, type Density, type Lot, lotRowCount, type Sheet } from "./recordLayout";
+import { type Density, type Lot, lotRowCount, quantityView, type Sheet } from "./recordLayout";
 import { FaceTable } from "./RecordFace";
 import { RECORD_TEXT } from "./recordTexts";
 
@@ -45,12 +45,10 @@ export function RecordSheet({ sheet, density }: { sheet: Sheet; density: Density
   );
 }
 
-/** 数量「A / B / C」。A の面が完了していて実績が A と違うときは、A に取消線を引き、すぐ右に実績を太字で出す(色は使わない)。 */
+/** 数量「A / B / C」。A の面が完了していて実績が A と違うときは、A と B に取消線を引き、すぐ右に実績と「B - A + 実績」を太字で出す(色は使わない)。 */
 function Quantity({ lot }: { lot: Lot }) {
-  const [a, b, c] = [lot.produced, lot.cumulative, lot.ordered].map((q) => q ?? "-");
-  return (
-    <>
-      {actualDiffers(lot) ? <><s className="rec-a-old">{a}</s> <b className="rec-a-actual">{lot.actual}</b></> : a} / {b} / {c}
-    </>
-  );
+  const q = quantityView(lot);
+  const show = (old: number | null, now: number | null) =>
+    now == null ? <>{old ?? "-"}</> : <><s className="rec-a-old">{old ?? "-"}</s> <b className="rec-a-actual">{now}</b></>;
+  return <>{show(q.a, q.actual)} / {q.newB == null ? (q.b ?? "-") : show(q.b, q.newB)} / {q.c ?? "-"}</>;
 }

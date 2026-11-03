@@ -35,6 +35,7 @@ from app.db.session import write_transaction
 from app.services import audit
 from app.services.completions import latest_completion
 from app.services.errors import NotFound, RuleViolation
+from app.services.lot_allocation import move_allocation
 from app.services.plan_reconcile import kitting_nos_with_actuals
 from app.services.side_link_export import last_export_at
 from app.services.side_link_store import ACTION_LINK, ACTION_SKIP, SOURCE_ADMIN, add_row, current_links
@@ -238,6 +239,7 @@ def confirm_handover(session: Session, admin: Operator, old_kno: str, new_kno: s
         moved["run_ng_inputs_side"] = session.execute(
             update(RunNgInput).where(RunNgInput.side_kitting_no == old_kno).values(side_kitting_no=new_kno)).rowcount
         warnings += _move_side_links(session, admin.id, old_kno, new_kno)
+        move_allocation(session, admin.id, old_kno, new_kno)
         for p in old_rows:
             p.status, p.cancel_reason, p.cancelled_at, p.updated_at = PLAN_CANCELLED, CANCEL_CARRIED_OVER, now, now
         session.add(KittingHandover(
