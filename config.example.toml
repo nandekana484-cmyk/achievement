@@ -52,12 +52,12 @@ field_margin_hours = 12
 max_days = 93
 
 [production_record]
-# 生産記録票(現場の画面から印刷)の上の欄。無ければ空欄で印刷する
-approver = ""       # 承認
-checker = ""        # 確認
-author = ""         # 作成
-revision_date = ""  # 改正日(例: 2026/11/01)
-version = ""        # Ver.(例: 1.0)
+# 生産記録票(現場の画面から印刷)の上の欄。書かなければ様式(改正 2025/02/25 Ver.02)の値。"" にすれば空欄で印刷する
+approver = "木下"     # 承認
+checker = "北村"      # 確認
+author = "シマダ"     # 作成
+revision_date = "2025/02/25"  # 改正日
+version = "02"       # Ver.
 
 [schedule]
 # 稼働日の始まり。稼働日 = この時刻から翌日のこの時刻まで(これより前は前日の稼働日)

@@ -1,11 +1,11 @@
 // 生産記録票の印刷用のページ。「印刷」で window.print を呼ぶ(PDF の生成やサーバー側の印刷はしない)。
 // 面1とつながっていない面2は、2回目だけを埋めて出し、印刷に出ない所に「1回目と紐づける」を置く。
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import { api } from "../shared/api";
 import { Notice } from "../shared/Notice";
-import { densityOf, type Sheet } from "./recordLayout";
+import { type Density, denserIfOverflow, type Sheet } from "./recordLayout";
 import { linkScreenUrl } from "./recordList";
 import { RecordSheet } from "./RecordSheet";
 
@@ -28,6 +28,16 @@ export function RecordPage() {
     return () => { alive = false; };
   }, [kittingNo, t]);
 
+  // 1枚の A4 に収まるまで、行の高さと文字を縮める(収まる高さは、描いたあとに測る)
+  const body = useRef<HTMLDivElement>(null);
+  const [density, setDensity] = useState<Density>("normal");
+  useEffect(() => setDensity("normal"), [sheet]);
+  useLayoutEffect(() => {
+    const height = body.current?.firstElementChild?.getBoundingClientRect().height ?? 0;
+    const next = denserIfOverflow(density, height);
+    if (next) setDensity(next);
+  }, [sheet, density]);
+
   const backLine = params.get("line");
   const listUrl = `/field/print/production-record${backLine ? `?line=${encodeURIComponent(backLine)}` : ""}`;
   return (
@@ -45,7 +55,7 @@ export function RecordPage() {
       </div>
       {error && <Notice kind="error">{error}</Notice>}
       {!sheet && !error && <p className="placeholder">{t("common.loading")}</p>}
-      {sheet && <div className="record-body"><RecordSheet sheet={sheet} density={densityOf(sheet)} /></div>}
+      {sheet && <div className="record-body" ref={body}><RecordSheet sheet={sheet} density={density} /></div>}
     </div>
   );
 }

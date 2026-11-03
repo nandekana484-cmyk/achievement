@@ -94,13 +94,13 @@ class ReportsConfig:
 
 @dataclass(frozen=True)
 class ProductionRecordConfig:
-    """生産記録票の上の欄(承認・確認・作成、改正日、Ver.)。無ければ空欄で印刷する。詳細: docs/design/production-record.md"""
+    """生産記録票の上の欄(承認・確認・作成、改正日、Ver.)。既定は様式(Ver.02)のとおり。空にすれば空欄で印刷する。詳細: docs/design/production-record.md"""
 
-    approver: str = ""
-    checker: str = ""
-    author: str = ""
-    revision_date: str = ""
-    version: str = ""
+    approver: str = "木下"
+    checker: str = "北村"
+    author: str = "シマダ"
+    revision_date: str = "2025/02/25"
+    version: str = "02"
 
 
 @dataclass(frozen=True)
@@ -202,7 +202,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
             field_margin_hours=int(c.get("field_margin_hours", CorrectionsConfig.field_margin_hours)),
         ),
         reports=ReportsConfig(max_days=int(r.get("max_days", ReportsConfig.max_days))),
-        production_record=ProductionRecordConfig(**{k: str(pr.get(k, "")) for k in ProductionRecordConfig.__dataclass_fields__}),
+        production_record=ProductionRecordConfig(**{k: str(pr.get(k, getattr(ProductionRecordConfig, k))) for k in ProductionRecordConfig.__dataclass_fields__}),
         timezone=raw.get("timezone", "Asia/Tokyo"),
     ), home)
 

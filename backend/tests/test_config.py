@@ -149,10 +149,11 @@ def test_reports_settings(tmp_path):
 
 
 def test_production_record_settings(tmp_path):
-    assert load_config(tmp_path / "none.toml").production_record.approver == ""  # 無ければ空欄
+    d = load_config(tmp_path / "none.toml").production_record  # 書かなければ様式(Ver.02)の値
+    assert (d.approver, d.checker, d.author, d.revision_date, d.version) == ("木下", "北村", "シマダ", "2025/02/25", "02")
     p = tmp_path / "config.toml"
-    p.write_text('[production_record]\napprover = "承認 太郎"\nversion = "1.2"\n', encoding="utf-8")
+    p.write_text('[production_record]\napprover = "承認 太郎"\nversion = "1.2"\nchecker = ""\n', encoding="utf-8")
     cfg = load_config(p).production_record
-    assert (cfg.approver, cfg.version, cfg.checker, cfg.revision_date) == ("承認 太郎", "1.2", "", "")
-    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").production_record  # 例は空欄
-    assert (example.approver, example.version) == ("", "")
+    assert (cfg.approver, cfg.version, cfg.checker, cfg.author) == ("承認 太郎", "1.2", "", "シマダ")  # "" は空欄
+    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").production_record
+    assert (example.approver, example.revision_date, example.version) == ("木下", "2025/02/25", "02")

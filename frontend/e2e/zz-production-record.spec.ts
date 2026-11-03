@@ -96,13 +96,13 @@ test("㉟〜㊴ 生産記録票: A4縦1ページに収まる。両面1組・片�
   await page.goto(`/field/print/production-record/${R2}`);
   const sheet = page.locator(".record-sheet");
   await expect(sheet).toContainText("DEMO-R10");
-  await expect(sheet.locator(".rec-steps").first().locator("tr")).toHaveCount(1 + 10); // 見出し + 工程10行(生産6行)
+  await expect(sheet.locator(".rec-face").first().locator("tr.rec-r-grid, tr.rec-r-tail")).toHaveCount(6 + 1 + 1); // 生産6行 + X線検査1行 + 片付け1行
   await page.screenshot({ path: `${SCREENS}/36-record-ten-lots-screen.png`, fullPage: true });
   const fit = await fitsOnePage(page);
   expect(fit.height).toBeLessThanOrEqual(A4_PRINT_HEIGHT_PX);
   expect(fit.pages).toBe(1);
   await expect(page.locator(".record-toolbar")).toBeHidden(); // 操作バーは印刷に出ない
-  const font = await sheet.locator(".rec-steps td").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const font = await sheet.locator(".rec-r-grid td").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(font).toBeGreaterThanOrEqual(8);
   await page.setViewportSize({ width: 794, height: 1123 });
   await page.screenshot({ path: `${SCREENS}/36-record-ten-lots.png`, fullPage: true });
@@ -122,8 +122,8 @@ test("㉟〜㊴ 生産記録票: A4縦1ページに収まる。両面1組・片�
 
   // 片面だけ: 2回目は空欄
   await page.goto(`/field/print/production-record/${ONE}`);
-  await expect(page.locator(".rec-face").nth(1)).toContainText("LẦN 2");
-  await expect(page.locator(".rec-face").nth(1).locator("tbody td").first()).toHaveText("");
+  await expect(page.locator(".rec-face").nth(1)).toContainText("2回目");
+  await expect(page.locator(".rec-face").nth(1)).not.toContainText("山田"); // 2回目は空欄
   expect((await fitsOnePage(page)).pages).toBe(1);
   await page.screenshot({ path: `${SCREENS}/38-record-one-side.png`, fullPage: true });
   await page.emulateMedia({ media: "screen" });

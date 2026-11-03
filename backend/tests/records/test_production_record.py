@@ -130,14 +130,15 @@ def test_troubles_are_limited_to_the_face_window_on_its_line(client, admin, fake
     assert [(x["name"], x["start"], x["end"]) for x in t] == [("その他トラブル / 窓の中", "09:20", "09:27")]
 
 
-def test_header_comes_from_config(client, admin, fake_clock, tmp_path):
+def test_header_comes_from_config_and_defaults_to_the_form(client, admin, fake_clock, tmp_path):
     done(client, fake_clock, K1)
-    assert set(sheet(client, K1)["header"].values()) == {""}  # 無ければ空欄
+    h = sheet(client, K1)["header"]
+    assert (h["approver"], h["checker"], h["author"], h["revision_date"], h["version"]) == ("木下", "北村", "シマダ", "2025/02/25", "02")
     cfg = tmp_path / "config.toml"
-    cfg.write_text(cfg.read_text(encoding="utf-8") + '[production_record]\napprover = "承認 太郎"\nversion = "1.2"\nrevision_date = "2026/11/01"\n', encoding="utf-8")
+    cfg.write_text(cfg.read_text(encoding="utf-8") + '[production_record]\napprover = "承認 太郎"\nversion = "1.2"\nchecker = ""\n', encoding="utf-8")
     get_config.cache_clear()
     h = sheet(client, K1)["header"]
-    assert (h["approver"], h["version"], h["revision_date"], h["checker"]) == ("承認 太郎", "1.2", "2026/11/01", "")
+    assert (h["approver"], h["version"], h["checker"], h["revision_date"]) == ("承認 太郎", "1.2", "", "2025/02/25")
 
 
 # --- 一覧 ---

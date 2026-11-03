@@ -10,44 +10,50 @@
 .record-toolbar .record-unlinked { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px; background: #fff4d6; border: 1px solid #e0b84a; border-radius: 6px; }
 .record-body { display: flex; justify-content: center; padding: 16px; overflow-x: auto; }
 
-/* --- 用紙 --- */
+/* --- 用紙。様式(docs/design/forms/production-record-ver02.html)の列の幅・行の高さ・線・文字の大きさに合わせる --- */
 .record-sheet {
-  page: record; box-sizing: border-box; width: 194mm; background: #fff; color: #000; padding: 0;
-  font-size: var(--rec-font); line-height: 1.2; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  --rec-font: 10px; --rec-row: 5.4mm;
+  page: record; box-sizing: border-box; width: 194mm; background: #fff; color: #000; padding: 0; line-height: normal;
+  font-family: "Arial", "Meiryo", "Hiragino Kaku Gothic ProN", sans-serif; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  --fs: 11px; --fs-sub: 8.5px; --k: 1;
 }
-.record-dense { --rec-font: 9px; --rec-row: 4.6mm; }
-.record-tight { --rec-font: 8px; --rec-row: 4.1mm; } /* 文字は最小 8px */
-.record-sheet, .record-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.record-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
-.record-sheet th, .record-sheet td {
-  border: 0.25mm solid #000; padding: 0 1mm; height: var(--rec-row); overflow: hidden; vertical-align: middle; font-weight: 400; text-align: left;
-}
-.record-sheet th { background: #f0f0f0; font-weight: 700; }
-.rec-text { display: inline; }
-.rec-vi { margin-left: 1mm; font-size: max(8px, 0.82em); font-weight: 400; color: #222; }
-.rec-num { text-align: center !important; font-variant-numeric: tabular-nums; }
-.rec-note { font-size: max(8px, 0.85em); font-weight: 400; margin: 0.5mm 0; color: #222; }
-
-.rec-head { display: grid; grid-template-columns: 1fr 88mm; gap: 3mm; align-items: center; margin-bottom: 2mm; }
-.rec-title { margin: 0; font-size: 1.6em; line-height: 1.25; }
-.rec-title .rec-vi { display: block; margin: 0; font-size: max(8px, 0.5em); }
-.rec-sign th, .rec-sign td { text-align: center !important; }
-.rec-sign-name td { height: 7mm; }
-.rec-lots { margin-bottom: 1mm; }
-.rec-materials { margin: 2mm 0 0; }
-.rec-face { margin-top: 2mm; break-inside: avoid; }
-.rec-face-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4mm; margin: 0 0 0.8mm; font-size: 1.15em; }
-.rec-face-line, .rec-face-kno { font-size: 0.9em; font-weight: 400; }
-.rec-face-open { font-size: 0.85em; color: #a00; }
-.rec-c-step { width: 38mm; }
-.rec-c-time { width: 20mm; }
-.rec-c-trouble-time { width: 36mm; }
-.rec-step-name { width: 38mm; }
-.rec-foot { margin-top: -0.25mm; }
-.rec-foot th { width: 24mm; }
-.rec-n { font-weight: 700; margin-right: 0.5mm; }
-.rec-trouble { margin-top: -0.25mm; }
+.record-dense { --fs: 10px; --fs-sub: 8px; --k: 0.85; }
+.record-tight { --fs: 9px; --fs-sub: 8px; --k: 0.7; } /* 文字は最小 8px */
+.record-sheet, .record-sheet * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.rec-table { width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 5px; font-size: var(--fs); table-layout: fixed; }
+.rec-table td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; word-wrap: break-word; }
+.rec-header { margin-bottom: 2px; }
+.rec-lots, .rec-side1 { margin-bottom: 6px; }
+.rec-small { font-size: calc(var(--fs) - 1px); }
+.rec-bold { font-weight: 700; }
+.rec-title { font-size: calc(var(--fs) + 9px); font-weight: 700; letter-spacing: 2px; }
+.rec-title-sub { font-size: calc(var(--fs) + 1px); font-weight: 700; letter-spacing: 1px; }
+.rec-names { height: calc(38px * var(--k)); }
+.rec-noborder { border: none !important; }
+.rec-revision { text-align: right !important; font-size: calc(var(--fs) - 1px); padding-top: 3px !important; }
+.rec-colhead td { background: #fafafa; font-weight: 700; }
+.rec-lot { height: calc(20px * var(--k)); }
+.rec-sub { display: block; font-size: var(--fs-sub); font-weight: 400; line-height: 1.1; }
+.rec-sub-inline { font-size: var(--fs-sub); font-weight: 400; }
+.rec-large { font-size: calc(var(--fs) * 2.18); font-weight: 700; }
+.rec-h-a { height: calc(48px * var(--k)); }
+.rec-h-b { height: calc(24px * var(--k)); }
+.rec-kno { font-size: var(--fs-sub); }
+.rec-open { color: #a00; font-weight: 700 !important; background: #fff !important; }
+.rec-r-step { height: calc(24px * var(--k)); }
+.rec-side2 .rec-r-step { height: calc(26px * var(--k)); }
+.rec-r-grid { height: calc(22px * var(--k)); }
+.rec-r-tail { height: calc(26px * var(--k)); }
+.rec-label-inline { text-align: left !important; padding-left: 6px !important; }
+.rec-fs9 { font-size: calc(var(--fs) - 2px); }
+.rec-fs85 { font-size: calc(var(--fs) - 2.5px); }
+.rec-gray { background: #eee; border-left: none !important; }
+.rec-first { font-size: calc(var(--fs) - 1px); }
+.rec-n { font-weight: 700; }
+.rec-more { font-size: var(--fs-sub); }
+.rec-good { font-size: calc(var(--fs) + 3px); font-weight: 700; }
+.rec-left { text-align: left !important; }
+.rec-trouble-head { border-bottom: none !important; }
+.rec-trouble-box { height: calc(48px * var(--k)); vertical-align: top !important; }
 
 @media print {
   html, body { background: #fff !important; }

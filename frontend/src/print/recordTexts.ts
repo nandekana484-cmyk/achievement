@@ -1,50 +1,48 @@
 // 生産記録票の様式の文言。日本語とベトナム語の併記で固定し、画面の言語の切り替えには従わない(紙の様式は1つ)。
+// 文言は様式(docs/design/forms/production-record-ver02.html)のとおり。ベトナム語が無い欄は vi を空にする。
 // ja.ts / vi.ts / admin/messages.ts とは別に、ここにまとめる(コンポーネントに直接書かない)。詳細: docs/design/production-record.md
 export type Bilingual = { ja: string; vi: string };
 
-const b = (ja: string, vi: string): Bilingual => ({ ja, vi });
+const b = (ja: string, vi = ""): Bilingual => ({ ja, vi });
 
 export const RECORD_TEXT = {
-  title: b("実装工程 生産記録票", "PHIẾU GHI CHÉP SẢN XUẤT CÔNG ĐOẠN GẮN LINH KIỆN"),
-  approver: b("承認", "Phê duyệt"),
-  checker: b("確認", "Kiểm tra"),
-  author: b("作成", "Lập phiếu"),
-  revisionDate: b("改正日", "Ngày sửa đổi"),
-  version: b("Ver.", "Ver."),
-  processCheck: b("工程抜け確認印", "Dấu xác nhận không sót công đoạn"),
-  fileNo: b("File №", "File №"),
-  productName: b("製品名", "Tên sản phẩm"),
-  lotNo: b("LOT No.", "LOT No."),
-  quantity: b("数量", "Số lượng"),
-  quantityNote: b("A:この計画の生産数 / B:これまでの累計 / C:ロットの発注数", "A: SL của kế hoạch này / B: Lũy kế / C: SL đặt hàng của lô"),
-  solderLot: b("使用半田ロットNo", "Số lô hàn sử dụng"),
-  bondLot: b("使用ボンドロットNo", "Số lô keo sử dụng"),
-  boardNo: b("基板番号", "Số bo mạch"),
-  side1: b("1回目", "LẦN 1"),
-  side2: b("2回目", "LẦN 2"),
-  line: b("ライン", "Line"),
-  kittingNo: b("キッティングNo.", "Kitting No."),
-  stepName: b("作業名", "Tên công việc"),
+  title: b("実装工程 生産記録票", "BIỂU GHI CHÉP SẢN XUẤT"),
+  approver: b("承認"),
+  checker: b("確認"),
+  author: b("作成"),
+  processCheck: b("工程抜け確認印"),
+  revision: b("改正"),
+  version: b("Ver."),
+  fileNo: b("File №"),
+  productName: b("製品名"),
+  lotNo: b("LOT No."),
+  quantity: b("数量"),
+  side1: b("1回目"),
+  side2: b("2回目"),
+  line: b("ライン", "ĐÓNG DẤU CHUYỀN"),
+  solderLot: b("使用半田ロットNo", "SỐ LÔ HÀN"),
+  bondLot: b("使用ボンドロットNo", "SỐ LÔ KEO"),
+  boardNo: b("基板番号 / N° DA PLACA", "MÃ SỐ BO MẠCH"),
+  work: b("作業", "CÔNG VIỆC"),
   worker: b("作業者名", "TÊN NGƯỜI THAO TÁC"),
-  startTime: b("開始時間", "Giờ bắt đầu"),
-  endTime: b("終了時間", "Giờ kết thúc"),
-  setup: b("段取り", "Chuẩn bị"),
-  n1Check: b("マスターチェック", "Kiểm tra master"),
-  production: b("生産", "Sản xuất"),
-  xray: b("X線検査", "Kiểm tra X-quang"),
-  cleanup: b("片付け", "Dọn dẹp"),
-  goodTotal: b("生産台数", "Số lượng sản xuất"),
-  firstArticle: b("初品確認", "Kiểm tra sản phẩm đầu"),
-  firstArticleMore: b("ほか {count} 件", "và {count} mục khác"),
-  trouble: b("トラブル", "Sự cố"),
-  troubleTime: b("時間", "Thời gian"),
-  notPrintedYet: b("未完了", "Chưa hoàn thành"),
+  startTime: b("開始時間", "BẮT ĐẦU"),
+  endTime: b("終了時間", "KẾT THÚC"),
+  setup: b("段取り", "CHUẨN BỊ"),
+  n1Check: b("マスターチェック", "KIỂM TRA MASTER"),
+  production: b("生産", "SẢN XUẤT"),
+  xray: b("X線検査", "KIỂM TRA X-RAY"),
+  cleanup: b("片付け", "DỌN DẸP"),
+  goodTotal: b("生産台数", "SẢN LƯỢNG"),
+  firstArticle: b("初品確認", "XÁC NHẬN ĐẦU HÀNG"),
+  firstArticleMore: b("ほか {count} 件"),
+  trouble: b("トラブル", "SỰ CỐ / VẤN ĐỀ"),
+  notCompleted: b("未完了"),
 } as const;
 
-/** 時間の範囲の区切り(トラブルの時間)。 */
-export const TIME_RANGE_SEPARATOR = "〜";
-
 export type RecordTextKey = keyof typeof RECORD_TEXT;
+
+/** 時間の範囲の区切り(様式の「～」)。 */
+export const TIME_RANGE_SEPARATOR = "～";
 
 /** 差し込み({count})だけを置き換える。 */
 export function fill(text: string, values: Record<string, string | number>): string {
