@@ -103,6 +103,14 @@ def _completed_kittings(session: Session, start: dt.datetime, end: dt.datetime) 
         RunCompletion.completed_at >= start, RunCompletion.completed_at < end, valid_completion()))))
 
 
+def lot_actuals(session: Session, group: KittingGroup, day_start: dt.time) -> dict[str, int]:
+    """その計画の、ロットNo.ごとの書き出しの生産数(割り振った値)。完了していなければ空。生産記録票が同じ値を出すために使う。"""
+    completion = latest_completion(session, group.kitting_no)
+    if completion is None:
+        return {}
+    return {r.lot_no: r.produced_qty for r in _group_rows(session, group, completion, day_start)}
+
+
 def _group_rows(session: Session, group: KittingGroup, completion: RunCompletion, day_start: dt.time) -> list[ActualsRowOut]:
     total = produced_total(session, group.kitting_no)
     qtys = allocate(total, [lot.planned_qty for lot in group.lots])

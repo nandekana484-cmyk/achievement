@@ -11,7 +11,8 @@ const ONE = "1301-1-R-261014-43"; // 片面だけ
 const LONELY = "1302-2-R-261014-45"; // 面1とつながっていない面2
 const S1 = "1200-1-S-261014-31"; // 1回目 Sライン
 const S2 = "1200-2-U-261014-32"; // 2回目 Uライン(z-side-link.spec.ts で記録を入れてある)
-const A4_PRINT_HEIGHT_PX = ((297 - 16) / 25.4) * 96; // 余白 8mm を除いた高さ
+const MM = 96 / 25.4;
+const A4_PRINT_HEIGHT_PX = (287) * MM; // 上下の余白 5mm を除いた高さ
 
 test.use({ viewport: { width: 1280, height: 1000 } });
 
@@ -96,13 +97,17 @@ test("㉟〜㊴ 生産記録票: A4縦1ページに収まる。両面1組・片�
   await page.goto(`/field/print/production-record/${R2}`);
   const sheet = page.locator(".record-sheet");
   await expect(sheet).toContainText("DEMO-R10");
-  await expect(sheet.locator(".rec-face").first().locator("tr.rec-r-grid, tr.rec-r-tail")).toHaveCount(6 + 1 + 1); // 生産6行 + X線検査1行 + 片付け1行
+  await expect(sheet.locator(".rec-face").first().locator("tr.rec-row")).toHaveCount(1 + 1 + 6 + 1 + 1); // 段取り・マスターチェック・生産6行・X線検査・片付け
+  await expect(sheet.locator("s.rec-a-old").first()).toBeVisible(); // 数量 A と実績が違うロット: A に取消線、すぐ右に実績(太字)
+  expect(await sheet.locator("s.rec-a-old").first().evaluate((el) => getComputedStyle(el).textDecorationLine)).toBe("line-through");
+  expect(await sheet.locator("b.rec-a-actual").first().evaluate((el) => getComputedStyle(el).fontWeight)).toBe("700");
+  await sheet.locator(".rec-lots").screenshot({ path: `${SCREENS}/41-record-actual-differs.png` });
   await page.screenshot({ path: `${SCREENS}/36-record-ten-lots-screen.png`, fullPage: true });
   const fit = await fitsOnePage(page);
   expect(fit.height).toBeLessThanOrEqual(A4_PRINT_HEIGHT_PX);
   expect(fit.pages).toBe(1);
   await expect(page.locator(".record-toolbar")).toBeHidden(); // 操作バーは印刷に出ない
-  const font = await sheet.locator(".rec-r-grid td").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  const font = await sheet.locator(".rec-row td").first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   expect(font).toBeGreaterThanOrEqual(8);
   await page.setViewportSize({ width: 794, height: 1123 });
   await page.screenshot({ path: `${SCREENS}/36-record-ten-lots.png`, fullPage: true });
@@ -116,7 +121,22 @@ test("㉟〜㊴ 生産記録票: A4縦1ページに収まる。両面1組・片�
   await expect(page.locator(".rec-face").nth(0)).toContainText("S");
   await expect(page.locator(".rec-face").nth(1)).toContainText("U");
   await expect(page.getByText("1回目と紐づける")).toHaveCount(0);
-  expect((await fitsOnePage(page)).pages).toBe(1);
+  const base = await fitsOnePage(page); // 基本の場合(ロット6行まで、生産3行 + X線検査1行): 行を縮めず、ページの下の空きは 15mm 以下
+  expect(base.pages).toBe(1);
+  await expect(page.locator(".record-sheet")).toHaveClass(/record-normal/);
+  const gapMm = (A4_PRINT_HEIGHT_PX - base.height) / MM;
+  const rowMm = ((await page.locator(".rec-face").first().locator("tr.rec-row").first().boundingBox())?.height ?? 0) / MM;
+  console.log(`基本の場合: ページの下の空き ${gapMm.toFixed(1)}mm、作業の行の高さ ${rowMm.toFixed(1)}mm`);
+  expect(gapMm).toBeGreaterThanOrEqual(0);
+  expect(gapMm).toBeLessThanOrEqual(15);
+  expect(rowMm).toBeGreaterThanOrEqual(9.4);
+  const face1 = page.locator(".rec-face").nth(0);
+  await expect(face1.locator(".rec-linesym")).toHaveText("S"); // ラインの記号の枠(24px、太字)
+  expect(await face1.locator(".rec-linesym").evaluate((el) => [getComputedStyle(el).fontSize, getComputedStyle(el).fontWeight])).toEqual(["24px", "700"]);
+  await expect(page.locator(".rec-face").nth(1).locator(".rec-linesym")).toHaveText("U");
+  await expect(face1.locator("tr.rec-row").filter({ hasText: "生産" }).locator("td.rec-good")).toHaveCount(3); // 生産の行ごとに生産台数の欄
+  await expect(face1.locator(".rec-box")).toHaveCount(1); // 初品確認の記入欄は4行をまたぐ1つの枠
+  expect(await face1.locator(".rec-box").getAttribute("rowspan")).toBe("4");
   await page.screenshot({ path: `${SCREENS}/37-record-s-u.png`, fullPage: true });
   await page.emulateMedia({ media: "screen" });
 

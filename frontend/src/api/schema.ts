@@ -2172,6 +2172,8 @@ export interface components {
             cumulative: number | null;
             /** Ordered */
             ordered: number | null;
+            /** Actual */
+            actual?: number | null;
         };
         /** MastersOut */
         MastersOut: {
@@ -2828,6 +2830,8 @@ export interface components {
             start: string;
             /** End */
             end: string | null;
+            /** Good Qty */
+            good_qty?: number | null;
         };
         /** StepStartIn */
         StepStartIn: {

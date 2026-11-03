@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { denserIfOverflow, type Face, faceRows, firstArticleCells, lotRowCount, type Sheet, timeRange } from "./recordLayout";
+import { actualDiffers, boxCapacity, DENSITIES, denserIfOverflow, type Face, faceRows, firstArticleLines, type Lot, lotRowCount, type Sheet, timeRange } from "./recordLayout";
 import { completedText, filterQuery, linesText, linkScreenUrl, recordUrl } from "./recordList";
 import { fill, RECORD_TEXT } from "./recordTexts";
 
-const row = (start = "09:00") => ({ date: "10/21", worker: "鈴木", start, end: "09:10" });
+const row = (start = "09:00", good_qty: number | null = null) => ({ date: "10/21", worker: "鈴木", start, end: "09:10", good_qty });
 const face = (over: Partial<Face> = {}): Face => ({
   kitting_no: "K", line_code: "S", completed: true, setup: [], n1_check: [], production: [], xray: [], cleanup: [], first_article: [],
   good_total: 0, troubles: [], ...over,
@@ -19,7 +19,7 @@ describe("明細の行(様式: 生産3行 + X線検査1行が、生産台数と�
   it("記録が無くても、様式の基本の行(段取り1、マスターチェック1、生産3、X線検査1、片付け1)を空欄で出す", () => {
     expect(keys(null)).toEqual(["setup", "n1_check", "production", "production", "production", "xray", "cleanup"]);
     const rows = faceRows(null);
-    expect(rows.map((r) => r.right)).toEqual(["blank", "labels", "grid", "grid", "grid", "grid", "gray"]);
+    expect(rows.map((r) => r.right)).toEqual(["blank", "labels", "grid", "grid", "grid", "grid", "tail"]);
     expect(rows.filter((r) => r.right === "grid").map((r) => r.gridIndex)).toEqual([0, 1, 2, 3]);
   });
 
@@ -27,7 +27,7 @@ describe("明細の行(様式: 生産3行 + X線検査1行が、生産台数と�
     const rows = faceRows(face({ production: Array.from({ length: 6 }, () => row()) }));
     expect(rows.filter((r) => r.key === "production")).toHaveLength(6);
     expect(rows.filter((r) => r.right === "grid")).toHaveLength(4);
-    expect(rows.filter((r) => r.height === "tail").map((r) => r.key)).toEqual(["production", "production", "xray", "cleanup"]);
+    expect(rows.filter((r) => r.right === "tail").map((r) => r.key)).toEqual(["production", "production", "xray", "cleanup"]);
   });
 
   it("同じ工程の記録が複数あれば、記録ごとに行を足す。X線検査と段取りも同じ", () => {
@@ -45,15 +45,55 @@ describe("明細の行(様式: 生産3行 + X線検査1行が、生産台数と�
   });
 });
 
-describe("初品確認", () => {
-  it("1〜4に日付と作業者名を入れる", () => {
-    expect(firstArticleCells(face({ first_article: [row()] }))).toEqual({ cells: ["10/21 鈴木", "", "", ""], more: 0 });
+describe("生産台数の欄(生産の行ごと)", () => {
+  it("生産台数は、生産の行ごとの良品の台数。記録の無い行は空欄(手書き用)", () => {
+    const rows = faceRows(face({ production: [row("09:00", 30), row("09:20", 40)] })).filter((r) => r.key === "production");
+    expect(rows.map((r) => r.rec?.good_qty ?? null)).toEqual([30, 40, null]);
   });
 
-  it("4つより多いときは、4つ目までと残りの件数", () => {
-    const r = firstArticleCells(face({ first_article: Array.from({ length: 6 }, () => row()) }));
-    expect(r.cells.every(Boolean)).toBe(true);
-    expect(r.more).toBe(2);
+  it("生産の行が増えたら、行ごとに欄が付く(4行目より後も)。X線検査・段取り・片付けの行は生産の行ではない", () => {
+    const rows = faceRows(face({ production: Array.from({ length: 6 }, () => row("09:00", 5)) }));
+    expect(rows.filter((r) => r.key === "production")).toHaveLength(6);
+    expect(rows.filter((r) => r.key !== "production").map((r) => r.key)).toEqual(["setup", "n1_check", "xray", "cleanup"]);
+  });
+});
+
+describe("初品確認の記入欄", () => {
+  it("日付と作業者名を、記録の順に1件1行。記録が無ければ空欄", () => {
+    expect(firstArticleLines(face({ first_article: [row()] }), 12)).toEqual({ lines: ["10/21 鈴木"], more: 0 });
+    expect(firstArticleLines(face(), 12)).toEqual({ lines: [], more: 0 });
+    expect(firstArticleLines(null, 12)).toEqual({ lines: [], more: 0 });
+  });
+
+  it("枠に収まらないときは、収まる所まで出して最後の行を「ほか N 件」にする", () => {
+    const r = firstArticleLines(face({ first_article: Array.from({ length: 9 }, () => row()) }), 6);
+    expect(r.lines).toHaveLength(5);
+    expect(r.more).toBe(4);
+    expect(firstArticleLines(face({ first_article: Array.from({ length: 6 }, () => row()) }), 6).more).toBe(0); // ちょうど入る
+  });
+
+  it("枠に入る行数は、行の高さを縮めるほど減る(1以上)", () => {
+    expect(boxCapacity("normal")).toBe(11);
+    const caps = DENSITIES.map(boxCapacity);
+    expect([...caps].sort((a, b) => b - a)).toEqual(caps);
+    expect(Math.min(...caps)).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("数量 A の実績", () => {
+  const lot = (over: Partial<Lot>): Lot => ({ lot_no: "L", produced: 300, cumulative: 600, ordered: 1000, actual: null, ...over });
+
+  it("完了していて実績が A と違うとき、実績を添える(取消線)", () => {
+    expect(actualDiffers(lot({ actual: 298 }))).toBe(true);
+  });
+
+  it("実績が A と同じなら添えない", () => {
+    expect(actualDiffers(lot({ actual: 300 }))).toBe(false);
+  });
+
+  it("完了していない(実績が無い)ときは添えない", () => {
+    expect(actualDiffers(lot({ actual: null }))).toBe(false);
+    expect(actualDiffers(lot({ actual: undefined }))).toBe(false);
   });
 });
 
@@ -72,7 +112,8 @@ describe("ロットの行と、行の詰め具合", () => {
     expect(denserIfOverflow("normal", 900)).toBeNull();
     expect(denserIfOverflow("normal", 1200)).toBe("dense");
     expect(denserIfOverflow("dense", 1200)).toBe("tight");
-    expect(denserIfOverflow("tight", 1200)).toBeNull();
+    expect(denserIfOverflow("tight", 1200)).toBe("tiny");
+    expect(denserIfOverflow("tiny", 1200)).toBeNull();
   });
 });
 

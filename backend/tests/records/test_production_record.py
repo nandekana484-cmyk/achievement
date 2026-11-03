@@ -63,7 +63,7 @@ def test_quantities_a_b_c_come_from_the_plan(client, admin, fake_clock):
     done(client, fake_clock, K1, 100)
     ok(link(client, K2, K1))
     s = sheet(client, K1)
-    assert s["lots"] == [{"lot_no": "L001", "produced": 300, "cumulative": 0, "ordered": 1000}]  # 既存アプリの数量・累計・発注数
+    assert s["lots"] == [{"lot_no": "L001", "produced": 300, "cumulative": 0, "ordered": 1000, "actual": None}]  # 既存アプリの数量・累計・発注数
     assert (s["file_no"], s["product_name"], s["qty_differs"]) == ("0722", "基板A", [])
 
 
@@ -105,7 +105,7 @@ def test_rows_per_record_and_corrections_are_reflected(client, admin, fake_clock
     finish(client, fake_clock, K1)
     f = sheet(client, K1)["side1"]
     assert len(f["production"]) == 3 and f["good_total"] == 120
-    assert f["setup"] == [{"date": "10/21", "worker": "鈴木", "start": "09:00", "end": "09:10"}]
+    assert f["setup"] == [{"date": "10/21", "worker": "鈴木", "start": "09:00", "end": "09:10", "good_qty": None}]
     assert [len(f[k]) for k in ("n1_check", "first_article", "xray", "cleanup")] == [1, 1, 1, 1]
     # 取り消した区切りは出ない。時刻の訂正は今の値で出る
     prod = [e for e in ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))["plans"][0]["events"] if e["step_type"] == "production"]
