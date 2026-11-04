@@ -21,3 +21,10 @@ export function pdfContent(pdf: Buffer): string {
 export function pdfPageCount(pdf: Buffer): number {
   return (pdf.toString("latin1").match(/\/Type\s*\/Page\b(?!s)/g) ?? []).length;
 }
+
+/** PDF の各ページの大きさ(mm。MediaBox)。用紙の大きさと向きの確認用。 */
+export function pdfPageSizesMm(pdf: Buffer): { width: number; height: number }[] {
+  const pt = 25.4 / 72;
+  return [...pdf.toString("latin1").matchAll(/\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/g)]
+    .map((m) => ({ width: (Number(m[3]) - Number(m[1])) * pt, height: (Number(m[4]) - Number(m[2])) * pt }));
+}

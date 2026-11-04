@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バーコード印字 完了 (A6横)</title>
+<!-- 実バーコード描画ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<style>
+  /* A6横サイズ印刷設定 (148mm × 105mm) */
+  @page {
+    size: 148mm 105mm landscape;
+    margin: 0;
+  }
+  * {
+    box-sizing: border-box;
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Arial", sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 10px;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* A6横カード本体（青色外枠） */
+  .card-landscape {
+    width: 148mm;
+    height: 105mm;
+    background: #fff;
+    border: 2.5px solid #0000cd; /* 実物の青枠 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* テーブル共通設定 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  td {
+    border: 1.5px solid #000;
+    padding: 4px 6px;
+    vertical-align: top;
+    word-break: break-all;
+  }
+
+  /* 上段：File No. & 製品名エリア */
+  .row-top {
+    height: 38mm;
+  }
+  .cell-fileno {
+    width: 20%;
+    font-size: 16px;
+    font-weight: bold;
+    border-top: none;
+    border-left: none;
+  }
+  .cell-product {
+    width: 80%;
+    font-size: 16px;
+    font-weight: bold;
+    border-top: none;
+    border-right: none;
+  }
+
+  /* 中段：ロットNoエリア */
+  .row-lot {
+    height: 25mm;
+  }
+  .cell-lot {
+    font-size: 16px;
+    font-weight: bold;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* 下段：完了・バーコードエリア */
+  .bottom-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-top: 4px;
+  }
+  .title-complete-ja {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    line-height: 1.1;
+    margin-bottom: 2px;
+  }
+  .title-complete-vi {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+
+  /* バーコードSVG */
+  .barcode-svg {
+    display: block;
+  }
+
+  /* 最下部右端のFormat日付 */
+  .format-date {
+    position: absolute;
+    bottom: 2px;
+    right: 5px;
+    font-size: 8.5px;
+    color: #000;
+  }
+
+  @media print {
+    body {
+      background: none;
+      padding: 0;
+    }
+    .card-landscape {
+      border: 2.5px solid #0000cd;
+      margin: 0;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="card-landscape">
+
+  <!-- 上段：File No. ＆ 製品名 -->
+  <table>
+    <tr class="row-top">
+      <td class="cell-fileno">File №</td>
+      <td class="cell-product">Tên sản phẩm (製品名) PRODUTO</td>
+    </tr>
+  </table>
+
+  <!-- 中段：ロットNo. -->
+  <table>
+    <tr class="row-lot">
+      <td class="cell-lot">Số lô, (ロットNo,) LOTE</td>
+    </tr>
+  </table>
+
+  <!-- 下段：完了表示 ＆ バーコード -->
+  <div class="bottom-area">
+    <div class="title-complete-ja">バーコード印字　完了</div>
+    <div class="title-complete-vi">Hoàn tất in mã vạch</div>
+    
+    <!-- 画像内の下部バーコード（*SUF-0501*） -->
+    <svg id="barcode-bottom" class="barcode-svg"></svg>
+    
+    <!-- 右下フォーマット日付 -->
+    <div class="format-date">Format 2018/1/18</div>
+  </div>
+
+</div>
+
+<!-- Code 39 実バーコード描画スクリプト -->
+<script>
+  // 画像から読み取れる値: SUF-0501
+  JsBarcode("#barcode-bottom", "SUF-0501", {
+    format: "CODE39",
+    width: 1.3,
+    height: 32,
+    displayValue: true,    // "* SUF-0501 *" 表示
+    font: "monospace",
+    fontSize: 10,
+    textMargin: 2,
+    margin: 0
+  });
+</script>
+
+</body>
+</html>

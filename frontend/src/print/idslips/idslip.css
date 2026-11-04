@@ -1,0 +1,120 @@
+/* 識別票(4種類)。A6 に余白 3mm を取り、様式(docs/design/forms/id-*.html)の大きさのまま描いたものを 0.94 倍に縮める(SLIP_SCALE)。
+   用紙は種類ごとの名前付きのページ(1 と 4: A6縦、2 と 3: A6横)にして、生産記録票(A4縦)と日報(A4横)の @page とぶつからないようにする。詳細: docs/design/id-slips.md */
+@page slip-p { size: 105mm 148mm; margin: 3mm; }
+@page slip-l { size: 148mm 105mm; margin: 3mm; }
+
+.idslip-page { background: #e8e8e8; min-height: 100vh; padding-bottom: 24px; }
+.idslip-toolbar { background: #fff; border-bottom: 1px solid #ccc; padding: 10px 16px; }
+.idslip-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.idslip-hint { margin: 8px 0; color: #444; }
+.idslip-kinds { border-collapse: collapse; width: 100%; max-width: 1000px; }
+.idslip-kinds th, .idslip-kinds td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ddd; font-size: 15px; }
+.idslip-off { color: #777; }
+.idslip-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; min-height: 40px; }
+.idslip-check input { width: 22px; height: 22px; }
+.idslip-copies { width: 72px; min-height: 40px; font-size: 16px; padding: 0 6px; }
+.idslip-note { color: #555; font-size: 13px; }
+.idslip-lots { margin: 8px 0 0; padding: 6px 10px; border: 1px solid #ccc; max-width: 1000px; }
+.idslip-warn { margin: 8px 0 0; padding: 6px 10px; background: #fff4d6; border: 1px solid #e0b84a; border-radius: 6px; }
+.idslip-group { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
+
+/* --- 1 ページ分の枠(余白を除いた大きさ)。中の識別票は左上を基点に縮める --- */
+.slip-frame { box-sizing: border-box; background: #fff; color: #000; margin: 0 0 14px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); overflow: hidden; position: relative; }
+.slip-frame-p { page: slip-p; width: 99mm; height: 141.5mm; }
+.slip-frame-l { page: slip-l; width: 141.5mm; height: 98.8mm; }
+.slip-frame, .slip-frame * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: "Arial", "Meiryo", "Hiragino Kaku Gothic ProN", "MS Gothic", sans-serif; }
+.slip-scale { width: 105mm; height: 148mm; transform: scale(0.94); transform-origin: 0 0; }
+.slip-scale-l { width: 148mm; height: 105mm; }
+
+/* --- 部品 --- */
+.slip-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.slip-table td { border: 1px solid #000; padding: 1px 2px; text-align: center; vertical-align: middle; word-break: break-all; }
+.slip-vi { display: block; font-size: 7px; font-weight: 400; line-height: 1.1; letter-spacing: 0; }
+.slip-vi-inline { font-size: 0.68em; font-weight: 400; }
+.slip-fit { display: block; font-weight: 700; line-height: 1.2; word-break: break-all; text-align: center; }
+.slip-bc { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; }
+.slip-bc-svg { display: block; }
+.slip-bc-label { margin-top: 1px; font-family: monospace; font-size: 9px; line-height: 1.1; }
+.slip-item { white-space: nowrap; }
+.slip-bc-fallback { font-size: 9px; word-break: break-all; }
+
+/* --- 1 基板製品ロット現品票 --- */
+.slip1 { width: 105mm; height: 148mm; background: #fff; border: 2px solid #000; padding: 3mm 4mm; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+.slip1-titles { text-align: center; margin-bottom: 2px; }
+.slip1-main { font-size: 19px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; }
+.slip1-main .slip-vi { font-size: 9px; font-weight: 700; }
+.slip1-rohs { font-size: 20px; font-weight: 900; color: #fff; -webkit-text-stroke: 1px #000; letter-spacing: 2px; line-height: 1.1; }
+.slip1-h16 { height: 16px; } .slip1-h18 { height: 18px; } .slip1-h24 { height: 28px; } .slip1-h30 { height: 32px; } .slip1-h38 { height: 38px; } .slip1-h44 { height: 44px; }
+.slip1-lbl { font-size: 12px; font-weight: 900; line-height: 1.15; word-break: keep-all; overflow-wrap: normal; }
+.slip1-lbl .slip-vi-inline { font-size: 8px; }
+.slip1-val { font-size: 14px; font-weight: 700; }
+.slip1-split { text-align: left; position: relative; }
+.slip1-note { position: absolute; font-size: 8px; font-weight: 400; line-height: 1.1; }
+.slip1-note .slip-vi { font-size: 6.5px; }
+.slip1-tl { top: 1px; left: 3px; text-align: left; }
+.slip1-br { bottom: 1px; right: 3px; text-align: right; }
+.slip1-slash { display: block; text-align: center; font-size: 14px; line-height: 1; }
+.slip1-qty { font-size: 15px; font-weight: 900; }
+.slip1-small td { font-size: 9px; font-weight: 700; line-height: 1.1; }
+.slip1-small .slip-vi { font-size: 6.5px; }
+.slip1-double { height: 2px; border-top: 1px solid #000; border-bottom: 1px solid #000; margin: 2px 0; }
+.slip1-memo-table { margin-top: 2px; }
+.slip1-memo-table td { vertical-align: top; }
+.slip1-memo-table .slip1-memo { height: 18px; border: none; text-align: left; font-size: 9px; font-weight: 700; padding: 0; }
+.slip1-memo .slip-vi { display: inline; margin-left: 4px; font-size: 7px; }
+.slip1-stamp-title { display: block; border-bottom: 1px solid #000; padding-bottom: 1px; font-size: 8px; font-weight: 700; line-height: 1.05; }
+.slip1-stamp-title .slip-vi { font-size: 6px; }
+.slip1-thick { border: 1.8px solid #000 !important; }
+.slip1-bottom { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 1px; }
+.slip1-bottom td { border: none; padding: 0; vertical-align: bottom; }
+.slip1-paper { text-align: left; font-size: 8px; line-height: 1.1; }
+.slip1-paper .slip-vi { font-size: 6.5px; }
+.slip1-fileno-label { text-align: right; font-size: 10px; }
+.slip1-fileno { text-align: left; font-size: 18px; font-weight: 900; padding-left: 3px !important; }
+.slip1-sufcell { text-align: right; }
+.slip1-sufcell .slip-bc { float: right; }
+
+/* --- 2 バーコード印字 完了 / 3 1回目完了済み --- */
+.slip23 { width: 148mm; height: 105mm; background: #fff; border: 2.5px solid #000; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.slip23 .slip-table td { border: 1.5px solid #000; padding: 4px 6px; vertical-align: top; text-align: left; }
+.slip23-top { height: 38mm; }
+.slip23-top .slip23-fileno, .slip23-top .slip23-product { border-top: none !important; }
+.slip23-top .slip23-fileno { border-left: none !important; }
+.slip23-top .slip23-product { border-right: none !important; }
+.slip23-lot { height: 25mm; }
+.slip23-lot td { border-left: none !important; border-right: none !important; }
+.slip23-label { display: block; font-size: 15px; font-weight: 700; }
+.slip23-value { margin-top: 2px; }
+.slip23-bottom { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding-top: 3px; gap: 2px; }
+.slip23-title-ja { font-size: 26px; font-weight: 900; letter-spacing: 4px; line-height: 1.1; text-align: center; }
+.slip23-3 .slip23-title-ja { font-size: 28px; letter-spacing: 2px; }
+.slip23-title-ja .slip-vi { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; margin-top: 2px; }
+.slip23 .slip-bc-label { font-size: 10px; }
+.slip23-format { position: absolute; bottom: 2px; right: 5px; font-size: 8.5px; }
+
+/* --- 4 バーコード照合用(A6縦いっぱい。行の高さの比率は様式のまま) --- */
+.slip-frame-p > .slip4 { width: 100%; height: 100%; }
+.slip4 { display: grid; grid-template-columns: minmax(0, 1fr); background: #fff; border: 2px solid #000; overflow: hidden; }
+.slip4-row { display: flex; min-height: 0; }
+.slip4-cell { display: flex; align-items: center; justify-content: center; padding: 4px; text-align: center; overflow: hidden; border-bottom: 1.5px solid #000; min-width: 0; }
+.slip4-row .slip4-cell + .slip4-cell { border-left: 1.5px solid #000; }
+.slip4-title { flex-direction: column; font-size: 27px; font-weight: 900; letter-spacing: 2px; line-height: 1.1; }
+.slip4-title .slip-vi { font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+.slip4-lbl { font-size: 13px; font-weight: 400; line-height: 1.2; word-break: keep-all; }
+.slip4-lbl-long { font-size: 10px; }
+.slip4-cell .slip-fit { width: 100%; }
+.slip4-lbl .slip-vi-inline { font-size: 9px; }
+.slip4-val .slip-fit { font-weight: 900; }
+.slip4-bar { display: flex; align-items: center; justify-content: center; padding: 10px 4px 6px; min-height: 0; }
+
+@media print {
+  html, body { background: #fff !important; }
+  .idslip-page { background: #fff; padding: 0; min-height: 0; }
+  .idslip-toolbar { display: none !important; }
+  /* 「この種類を印刷」で押した種類だけを印刷に出す */
+  .idslip-page[data-printing] .idslip-group:not(.is-printing) { display: none; }
+  .idslip-group { display: block; padding: 0; }
+  .idslip-group + .idslip-group { break-before: page; }
+  .slip-frame { margin: 0; box-shadow: none; break-after: page; }
+  .slip-frame:last-child { break-after: auto; }
+}

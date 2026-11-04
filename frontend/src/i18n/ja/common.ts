@@ -1,0 +1,40 @@
+// 画面の文言(日本語。基準): 共通の文言(アプリ名、言語、共通のボタン、エラー、単位、時刻、計画)。キーは変えない(ja.ts が集める)。詳細: docs/design/i18n.md
+export const common = {
+  "app.title": "現場実績入力",
+  "lang.switch": "表示言語",
+
+  "common.loading": "読み込み中…",
+  "common.sending": "送信中…",
+  "common.cancel": "やめる",
+  "common.close": "閉じる",
+  "common.start": "開始",
+  "common.end": "終了",
+  "common.selected": "選択中",
+  "common.doing": "作業中",
+  "common.done": "完了",
+  "common.listSeparator": "、",
+  "common.noSchedule": "日程なし",
+  "common.from": "{time}〜",
+  "notice.error": "エラー",
+  "notice.info": "お知らせ",
+
+  "error.network": "通信できませんでした。電波の状態を確かめて、もう一度押してください",
+  "error.connection": "通信できませんでした。電波の状態を確かめてください",
+  "error.busy": "他の処理と重なったため、記録できませんでした。もう一度押してください",
+  "error.invalid": "入力の内容が正しくありません。入力し直してください",
+  "error.server": "サーバーでエラーが起きました({status})。もう一度押してください",
+  "error.stillSending": "送信中です。しばらく待ってください",
+  "error.mastersLoad": "マスタを読めませんでした",
+  "error.boardLoad": "ラインの情報を読めませんでした",
+
+  "unit.lots": "{count}ロット",
+  "unit.sheets": "{count}枚",
+  "unit.seconds": "{count} 秒",
+  "unit.runNo": "{run}回目",
+  "time.elapsedHours": "{h}時間{m}分",
+  "time.elapsedMinutes": "{m}分",
+
+  "plan.summary": "{what}・計画数 {qty}・{run}",
+  "plan.summaryWithState": "{summary}・{state}",
+  "plan.outsideDisplay": "表示範囲外の計画です(計画: {when})",
+} as const;

@@ -15,6 +15,7 @@ type Props = {
   onAdd: () => void;
   onHistory: () => void;
   sideLink?: ReactNode; // 面1と面2の紐づけ(SideLinkPanel)
+  idSlip?: ReactNode; // 識別票の印刷への入口(表示範囲の中の、取り消されていない計画だけ)
 };
 
 export const stepKey = (p: BoardPlan, step: string) => `step:${p.plan.kitting_no}:${step}`;
@@ -25,7 +26,7 @@ const CANCEL_KEYS: Record<string, "stepPanel.cancelled.vanished" | "stepPanel.ca
   carried_over: "stepPanel.cancelled.carried_over",
 };
 
-export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink }: Props) {
+export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, idSlip }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
   return (
@@ -45,6 +46,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
         </dl>
         <LotTable plan={plan} />
         {sideLink}
+        {idSlip}
         {p.is_stale && <p className="plan-warning">{t("stepPanel.stale")}</p>}
         {p.status === "cancelled" && <p className="plan-warning">{t(CANCEL_KEYS[p.cancel_reason ?? "vanished"] ?? "stepPanel.cancelled.vanished")}</p>}
         {p.warnings.length > 0 && <p className="plan-warning">{t("stepPanel.warnings", { items: p.warnings.join(" / ") })}</p>}
