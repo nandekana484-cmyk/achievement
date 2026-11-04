@@ -58,3 +58,13 @@ PyPI の公開ページ(JSON API)、GitHub、pypistats.org で確かめた。
   - PowerShell: `$env:PYTHONUTF8 = "1"; python -m pip_audit -r requirements.txt --progress-spinner off`(venv の中で。venv の全パッケージを調べるときは `-r` を外す)
   - pip-audit は、パッケージ名と版を公開の脆弱性のデータベースに問い合わせる(通信が出る。ソースやデータは送らない)
 - 2026-10-25(AD-9)は、`npm audit` 0件、pip-audit は既知の脆弱性なし
+
+## 2026-11-04 JsBarcode の追加(AD-20)
+
+| ライブラリ | 前 | 後 | 理由 |
+| --- | --- | --- | --- |
+| jsbarcode | なし | 3.12.3 | 識別票の Code 39 のバーコード。ライセンスは **MIT**(`node_modules/jsbarcode/MIT-LICENSE.txt`)。アプリに含める(ビルドで `dist` に入る)。CDN からは読み込まない |
+
+- 使うのは符号にする処理だけ(`JsBarcode(object, 値, { format: "CODE39" })` で 0/1 の列を得る)。SVG はアプリ側で mm の大きさで描く(`frontend/src/print/idslips/code39.ts`)
+- 依存の変更は npm 11(`npx -y npm@11.21.0 install jsbarcode`)で行った。追加した依存は jsbarcode 1つ(依存なし)
+- `npm audit` は moderate 3件(minimatch → @redocly/openapi-core → openapi-typescript。開発のときだけ使う型の生成)。jsbarcode ではなく、今回の変更で増えたものではない

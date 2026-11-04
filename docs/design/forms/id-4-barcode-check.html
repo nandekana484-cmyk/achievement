@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バーコード照合用</title>
+<!-- 実際のバーコードを描画するライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<style>
+  * {
+    box-sizing: border-box;
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "MS Gothic", sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* ラベル外枠（青色枠線） */
+  .label-card {
+    width: 105mm; /* ラベルプリンタやA6等に対応しやすい幅 */
+    background: #fff;
+    border: 2px solid #0000cd;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 5px rgba(0,0,0,0.15);
+  }
+
+  /* テーブル共通設定 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  td {
+    border: 1.5px solid #000;
+    padding: 4px;
+    vertical-align: middle;
+    word-break: break-all;
+  }
+
+  /* 表題：バーコード照合用 */
+  .header-title {
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 1.5px;
+    padding: 3px 0;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* 見出しラベル項目 */
+  .lbl-title {
+    font-size: 14px;
+    text-align: center;
+    line-height: 1.15;
+  }
+
+  /* データ表示部（太字強調） */
+  .val-bold {
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* 下部バーコードエリア */
+  .barcode-container {
+    padding: 10px 4px 6px 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #fff;
+  }
+  .barcode-svg {
+    max-width: 98%;
+    height: auto;
+  }
+
+  @media print {
+    body {
+      background: none;
+      padding: 0;
+    }
+    .label-card {
+      border: 2px solid #0000cd;
+      box-shadow: none;
+      margin: 0;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="label-card">
+
+  <table>
+    <colgroup>
+      <col style="width: 17%;">
+      <col style="width: 33%;">
+      <col style="width: 17%;">
+      <col style="width: 33%;">
+    </colgroup>
+
+    <!-- 最上段：バーコード照合用 -->
+    <tr>
+      <td colspan="4" class="header-title">
+        バーコード照合用
+      </td>
+    </tr>
+
+    <!-- File No. ＆ Lot -->
+    <tr style="height: 48px;">
+      <td class="lbl-title" style="border-left: none;">
+        File<br>No,
+      </td>
+      <td class="val-bold">
+        722
+      </td>
+      <td class="lbl-title" style="font-size: 15px;">
+        Lot
+      </td>
+      <td class="val-bold" style="border-right: none;">
+        123456
+      </td>
+    </tr>
+
+    <!-- name -->
+    <tr style="height: 44px;">
+      <td class="lbl-title" style="border-left: none;">
+        name
+      </td>
+      <td colspan="3" class="val-bold" style="border-right: none; font-size: 19px;">
+        ABC123
+      </td>
+    </tr>
+
+    <!-- ListNo, -->
+    <tr style="height: 32px;">
+      <td class="lbl-title" style="border-left: none; font-size: 12px;">
+        ListNo,
+      </td>
+      <td colspan="3" class="val-bold" style="border-right: none; font-size: 16px; letter-spacing: 0.5px;">
+        0722-2-L-250512-01
+      </td>
+    </tr>
+  </table>
+
+  <!-- 下段：バーコード表示部（中身：0722-2-L-250512-01） -->
+  <div class="barcode-container">
+    <svg id="barcode-listno" class="barcode-svg"></svg>
+  </div>
+
+</div>
+
+<!-- 実バーコード描画スクリプト（Code 39） -->
+<script>
+  JsBarcode("#barcode-listno", "0722-2-L-250512-01", {
+    format: "CODE39",
+    width: 1.25,          // バーの細さ（横幅に収まるよう最適化）
+    height: 38,           // バーの高さ
+    displayValue: false,  // 画像通りバーコード下の数字は非表示
+    margin: 0
+  });
+</script>
+
+</body>
+</html>

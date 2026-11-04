@@ -587,6 +587,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id-slips/{kitting_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Id Slips
+         * @description キッティングNo.の識別票に印刷する値(ファイルNo.、製品名、全ロット、C)。
+         */
+        get: operations["get_id_slips_api_id_slips__kitting_no__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/login": {
         parameters: {
             query?: never;
@@ -1902,6 +1922,32 @@ export interface components {
             revision_date: string;
             /** Version */
             version: string;
+        };
+        /** IdSlipLotOut */
+        IdSlipLotOut: {
+            /** Lot No */
+            lot_no: string;
+            /** Order Qty */
+            order_qty: number | null;
+        };
+        /** IdSlipOut */
+        IdSlipOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Run No */
+            run_no: number;
+            /** File No */
+            file_no: string;
+            /** Suf */
+            suf: string;
+            /** Product Name */
+            product_name: string;
+            /** Lots */
+            lots: components["schemas"]["IdSlipLotOut"][];
+            /** Lot List */
+            lot_list: string;
         };
         /** IntervalOut */
         IntervalOut: {
@@ -4154,6 +4200,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordSheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_id_slips_api_id_slips__kitting_no__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdSlipOut"];
                 };
             };
             /** @description Validation Error */

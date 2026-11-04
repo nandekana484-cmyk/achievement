@@ -1,12 +1,13 @@
 // ライン画面(開発指針 7.1): 上部、左のメニュー(検索)、中央のタイムテーブル、右のパネル。
 import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { BoardPlan, LineEvent, Plan, Reason, StepType } from "../../shared/api";
 import { lineName as displayLineName } from "../../shared/lineName";
 import { Notice } from "../../shared/Notice";
 import { useMasters } from "../../shared/useMasters";
 import { useOperation } from "../../shared/useOperation";
+import { idSlipsUrl } from "../../print/idslips/idSlipLogic";
 import { LineDialogs, type DialogState } from "./LineDialogs";
 import { LineEventPanel } from "./LineEventPanel";
 import { isOutsideDisplay, outsideMessage } from "./planMatch";
@@ -106,6 +107,8 @@ export function LineScreen() {
             onAdd={open({ kind: "add", plan: selected })}
             onHistory={() => setDialog({ kind: "history", plan: selected })}
             sideLink={<SideLinkPanel plan={selected} op={op} requireOperator={withOperator} />}
+            idSlip={board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board)
+              ? <Link className="btn btn-small id-slip-link" to={idSlipsUrl(selected.plan.kitting_no)}>{t("idslip.button")}</Link> : undefined}
           />
         ) : (
           <p className="placeholder select-hint">{t("lineScreen.selectHint")}</p>

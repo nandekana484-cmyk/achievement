@@ -1,0 +1,40 @@
+// 画面の文言(ベトナム語): 共通の文言。ja/common.ts と同じキー。vi.ts が集める。詳細: docs/design/i18n.md
+export const common = {
+  "app.title": "Nhập kết quả sản xuất",
+  "lang.switch": "Ngôn ngữ",
+
+  "common.loading": "Đang tải…",
+  "common.sending": "Đang gửi…",
+  "common.cancel": "Thôi",
+  "common.close": "Đóng",
+  "common.start": "Bắt đầu",
+  "common.end": "Kết thúc",
+  "common.selected": "Đang chọn",
+  "common.doing": "Đang làm",
+  "common.done": "Hoàn thành",
+  "common.listSeparator": ", ",
+  "common.noSchedule": "Chưa có lịch",
+  "common.from": "Từ {time}",
+  "notice.error": "Lỗi",
+  "notice.info": "Thông báo",
+
+  "error.network": "Không kết nối được. Hãy kiểm tra sóng mạng rồi bấm lại",
+  "error.connection": "Không kết nối được. Hãy kiểm tra sóng mạng",
+  "error.busy": "Trùng với thao tác khác nên chưa ghi được. Hãy bấm lại",
+  "error.invalid": "Nội dung nhập không đúng. Hãy nhập lại",
+  "error.server": "Máy chủ bị lỗi ({status}). Hãy bấm lại",
+  "error.stillSending": "Đang gửi. Vui lòng chờ một chút",
+  "error.mastersLoad": "Không đọc được dữ liệu danh mục",
+  "error.boardLoad": "Không đọc được thông tin chuyền",
+
+  "unit.lots": "{count} lô",
+  "unit.sheets": "{count} tấm",
+  "unit.seconds": "{count} giây",
+  "unit.runNo": "Lần {run}",
+  "time.elapsedHours": "{h} giờ {m} phút",
+  "time.elapsedMinutes": "{m} phút",
+
+  "plan.summary": "{what} · Kế hoạch {qty} · {run}",
+  "plan.summaryWithState": "{summary} · {state}",
+  "plan.outsideDisplay": "Kế hoạch nằm ngoài phạm vi hiển thị (kế hoạch: {when})",
+} as const;

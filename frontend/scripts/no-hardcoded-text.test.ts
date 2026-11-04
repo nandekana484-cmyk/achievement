@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts", "print/recordTexts.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts。生産記録票の様式の文言(日本語とベトナム語の併記で固定)は print/recordTexts.ts
+const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts", "print/recordTexts.ts", "print/idslips/idSlipTexts.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts。生産記録票の様式の文言(日本語とベトナム語の併記で固定)は print/recordTexts.ts、識別票の様式の文言は print/idslips/idSlipTexts.ts。辞書は画面ごとに分けた(i18n/ja/*.ts、i18n/vi/*.ts)
 
 // ひらがな・カタカナ・漢字と、全角の記号(「、」「〜」「(」など)
 const JAPANESE = /[　-〿぀-ヿ㐀-鿿＀-￯]/;
@@ -26,7 +26,7 @@ function stripComments(code: string): string {
 }
 
 describe("画面の文言の漏れ", () => {
-  const files = sourceFiles(SRC).map((p) => relative(SRC, p).replaceAll("\\", "/")).filter((p) => !SKIP.has(p));
+  const files = sourceFiles(SRC).map((p) => relative(SRC, p).replaceAll("\\", "/")).filter((p) => !SKIP.has(p) && !/^i18n\/(ja|vi)\//.test(p));
 
   it("確かめる対象がある(.tsx と、画面から切り離した .ts)", () => {
     expect(files.some((f) => f.endsWith(".tsx"))).toBe(true);
