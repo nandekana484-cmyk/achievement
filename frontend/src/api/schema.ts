@@ -1299,6 +1299,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/control-sheets/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Import
+         * @description ブックを読んで、シートごとの結果を返す(確かめるだけ。DBには書かない)。本文はブックそのもの。
+         */
+        post: operations["preview_import_api_admin_control_sheets_import_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/control-sheets/import/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Import
+         * @description 選んだファイルNo.を登録する(新規・変更ありのもの)。本文は、選んだ一覧とブック。
+         */
+        post: operations["apply_import_api_admin_control_sheets_import_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/control-sheets/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Import History
+         * @description 取り込みの履歴(誰が、いつ、どのブック名で、何件)。新しい順。
+         */
+        get: operations["import_history_api_admin_control_sheets_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/control-sheets": {
         parameters: {
             query?: never;
@@ -1737,6 +1797,23 @@ export interface components {
              */
             worker_id?: string | null;
         };
+        /**
+         * ChangeOut
+         * @description 今の内容との違い1つ。row は工程の行の番号(1から。管理No・行数のときは None)。
+         */
+        ChangeOut: {
+            /**
+             * Field
+             * @enum {string}
+             */
+            field: "manager_no" | "row_count" | "name" | "procedure" | "kind" | "use_line";
+            /** Row */
+            row: number | null;
+            /** Before */
+            before: string;
+            /** After */
+            after: string;
+        };
         /** ClosureOut */
         ClosureOut: {
             /** Reason */
@@ -1827,6 +1904,10 @@ export interface components {
             action: string;
             /** Copied From */
             copied_from: string | null;
+            /** Import Id */
+            import_id: number | null;
+            /** Import Filename */
+            import_filename: string | null;
             /** Saved By Name */
             saved_by_name: string | null;
             /**
@@ -2294,6 +2375,70 @@ export interface components {
             /** Lot List */
             lot_list: string;
             control_sheet: components["schemas"]["ControlSheetPrintOut"];
+        };
+        /** ImportHistoryOut */
+        ImportHistoryOut: {
+            /** Id */
+            id: number;
+            /** Filename */
+            filename: string;
+            /** Imported By Name */
+            imported_by_name: string | null;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Sheet Count */
+            sheet_count: number;
+            /** Registered Count */
+            registered_count: number;
+        };
+        /** ImportPreviewOut */
+        ImportPreviewOut: {
+            /** Filename */
+            filename: string;
+            /** Sheets */
+            sheets: components["schemas"]["ImportSheetOut"][];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /** ImportResultOut */
+        ImportResultOut: {
+            /** Import Id */
+            import_id: number;
+            /** Filename */
+            filename: string;
+            /** Registered */
+            registered: number;
+            /** Ignored */
+            ignored: number;
+        };
+        /** ImportSheetOut */
+        ImportSheetOut: {
+            /** Sheet Name */
+            sheet_name: string;
+            /** File No */
+            file_no: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "new" | "changed" | "unchanged" | "skipped" | "error";
+            /** Reason */
+            reason: string | null;
+            /** Row Count */
+            row_count: number | null;
+            /** Manager No */
+            manager_no: string | null;
+            /** Overwrites Manual */
+            overwrites_manual: boolean;
+            /** Changes */
+            changes: components["schemas"]["ChangeOut"][];
+            /** Changes More */
+            changes_more: number;
         };
         /** IntervalOut */
         IntervalOut: {
@@ -5776,6 +5921,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_import_api_admin_control_sheets_import_preview_post: {
+        parameters: {
+            query: {
+                filename: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_import_api_admin_control_sheets_import_apply_post: {
+        parameters: {
+            query: {
+                filename: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_history_api_admin_control_sheets_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportHistoryOut"][];
                 };
             };
         };

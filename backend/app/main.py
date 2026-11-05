@@ -16,7 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.api import admin, admin_access, admin_actuals, admin_handover, admin_open_runs, admin_control_sheets, admin_masters, admin_reports, admin_teitori, allocations, corrections, side_links as side_links_api, health, lines, plans, production_records, runs, id_slips
+from app.api import admin, admin_access, admin_actuals, admin_handover, admin_open_runs, admin_control_sheets, admin_control_sheet_import, admin_masters, admin_reports, admin_teitori, allocations, corrections, side_links as side_links_api, health, lines, plans, production_records, runs, id_slips
 from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
@@ -74,7 +74,9 @@ def docs_urls(expose: bool) -> dict[str, str | None]:
 
 app = FastAPI(title="現場実績入力", version=__version__, lifespan=lifespan, **docs_urls(get_config().server.expose_docs))
 # 後に足したものが外側。ヘッダーは 403・413 にも付けるため一番外側に置き、許可していない接続元は本文を読む前に断る
-app.add_middleware(BodyLimitMiddleware, max_bytes=get_config().server.max_body_mb * 1024 * 1024)
+_IMPORT_LIMIT = get_config().server.control_sheet_import_max_mb * 1024 * 1024
+app.add_middleware(BodyLimitMiddleware, max_bytes=get_config().server.max_body_mb * 1024 * 1024,
+                   path_limits={"/api/admin/control-sheets/import/preview": _IMPORT_LIMIT, "/api/admin/control-sheets/import/apply": _IMPORT_LIMIT})
 app.add_middleware(IpAccessMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(health.router)
@@ -94,6 +96,7 @@ app.include_router(admin_access.router)
 app.include_router(admin_teitori.router)
 app.include_router(admin_handover.router)
 app.include_router(admin_open_runs.router)
+app.include_router(admin_control_sheet_import.router)  # /import/... と /imports は /{file_no} より先に
 app.include_router(admin_control_sheets.router)
 
 

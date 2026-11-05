@@ -53,6 +53,8 @@ execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Z", "--date", E2E
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "K", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 // 表示する日の選択(e2e/zz-day-select.spec.ts)。今日(10/21)ではない稼働日 10/24 の計画を、別のラインDに入れる
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "D", "--date", "2026-10-24"], { cwd: backend, env, stdio: "inherit" });
+// 管理表の内容の Excel 取り込み(e2e/zz-control-sheet-import.spec.ts)。取り込むブックは、テストのコードで作る(ユーザーの Excel ではない)
+execFileSync(python, ["tests/make_e2e_book.py", join(dataDir, "import-test.xlsx")], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

@@ -5,6 +5,7 @@ import { adminApi } from "../adminApi";
 import { ct } from "../messagesControlSheet";
 import { Feedback, useAdminList, useSave } from "../parts";
 import { ControlSheetEditor } from "./ControlSheetEditor";
+import { ImportPanel } from "./ImportPanel";
 
 type Summary = components["schemas"]["ControlSheetSummaryOut"];
 const time = (iso: string) => iso.slice(0, 16).replace("T", " ");
@@ -34,6 +35,7 @@ export function ControlSheetsPage() {
       <h1>{ct("cs.title")}</h1>
       <p className="admin-note">{ct("cs.note")}</p>
       <Feedback message={message} error={error ?? localError} />
+      <ImportPanel onApplied={reload} />
       <form className="admin-add" aria-label={ct("cs.newTitle")} onSubmit={(e) => { e.preventDefault(); void create(); }}>
         <h2>{ct("cs.newTitle")}</h2>
         <input aria-label={ct("cs.fileNo")} placeholder={ct("cs.fileNo")} value={fileNo} maxLength={20} onChange={(e) => setFileNo(e.target.value)} />

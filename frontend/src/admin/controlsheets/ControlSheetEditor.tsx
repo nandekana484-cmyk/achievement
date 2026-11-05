@@ -101,7 +101,7 @@ export function ControlSheetEditor({ fileNo, onBack, onSaved }: { fileNo: string
           <ul className="cs-history">
             {history.map((v) => (
               <li key={v.version}>
-                {ct("cs.historyRow", { version: v.version, when: time(v.saved_at), who: v.saved_by_name ?? "", copied: v.copied_from ? ct("cs.copiedFrom", { file: v.copied_from }) : "" })}{" "}
+                {ct("cs.historyRow", { version: v.version, when: time(v.saved_at), who: v.saved_by_name ?? "", copied: v.copied_from ? ct("cs.copiedFrom", { file: v.copied_from }) : v.action === "import" ? ct("cs.importedFrom", { name: v.import_filename ?? "" }) : "" })}{" "}
                 <button type="button" className="admin-btn" onClick={() => loadVersion(v)}>{ct("cs.loadVersion")}</button>
               </li>
             ))}

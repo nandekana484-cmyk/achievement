@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import clock
-from app.db.models import PLAN_CANCELLED, ControlSheetVersion, Operator, Plan
+from app.db.models import PLAN_CANCELLED, ControlSheetImport, ControlSheetVersion, Operator, Plan
 from app.db.session import write_transaction
 from app.services import audit
 from app.services.errors import NotFound, RuleViolation
@@ -46,6 +46,8 @@ class ControlSheetOut(BaseModel):
     rows: list[ControlRow]
     action: str
     copied_from: str | None
+    import_id: int | None  # Excel から取り込んだ版のとき、取り込みの番号
+    import_filename: str | None  # そのブック名
     saved_by_name: str | None
     saved_at: datetime
 
@@ -85,9 +87,11 @@ def _clean_rows(rows: list[ControlRow]) -> list[ControlRow]:
 
 def _out(session: Session, v: ControlSheetVersion) -> ControlSheetOut:
     by = session.get(Operator, v.saved_by)
+    imp = session.get(ControlSheetImport, v.import_id) if v.import_id else None
     return ControlSheetOut(
         file_no=v.file_no, version=v.version, manager_no=v.manager_no, rows=[ControlRow(**r) for r in json.loads(v.rows_json)],
-        action=v.action, copied_from=v.copied_from, saved_by_name=by.name if by else None, saved_at=v.saved_at,
+        action=v.action, copied_from=v.copied_from, import_id=v.import_id, import_filename=imp.filename if imp else None,
+        saved_by_name=by.name if by else None, saved_at=v.saved_at,
     )
 
 
@@ -124,17 +128,20 @@ def _snapshot(s: ControlSheetOut) -> dict:
     return {"version": s.version, "manager_no": s.manager_no, "rows": [r.model_dump() for r in s.rows]}
 
 
-def _add(session: Session, admin: Operator, key: str, manager_no: str, rows: list[ControlRow], action: str, copied_from: str | None) -> ControlSheetOut:
+def add_version(session: Session, admin: Operator, key: str, manager_no: str, rows: list[ControlRow], action: str, copied_from: str | None = None,
+                import_id: int | None = None, commit: bool = True) -> ControlSheetOut:
+    """版を1つ足す(write_transaction の中で呼ぶ)。commit=False のときは、呼び出し側がまとめてコミットする(取り込み)。"""
     before = get_current(session, key)
     v = ControlSheetVersion(
         file_no=key, version=(before.version if before else 0) + 1, manager_no=manager_no, rows_json=json.dumps([r.model_dump() for r in rows], ensure_ascii=False),
-        action=action, copied_from=copied_from, saved_by=admin.id, saved_at=clock.now(),
+        action=action, copied_from=copied_from, import_id=import_id, saved_by=admin.id, saved_at=clock.now(),
     )
     session.add(v)
     session.flush()
-    after = {"version": v.version, "manager_no": manager_no, "rows": [r.model_dump() for r in rows], **({"copied_from": copied_from} if copied_from else {})}
+    after = {"version": v.version, "manager_no": manager_no, "rows": [r.model_dump() for r in rows], **({"copied_from": copied_from} if copied_from else {}), **({"import_id": import_id} if import_id else {})}
     audit.record_change(session, admin.id, ControlSheetVersion.__tablename__, key, f"control_sheet_{action}", _snapshot(before) if before else None, after)
-    session.commit()
+    if commit:
+        session.commit()
     return _out(session, v)
 
 
@@ -145,7 +152,7 @@ def save(session: Session, admin: Operator, file_no: str, manager_no: str, rows:
         cur = get_current(session, key)
         if cur and cur.manager_no == manager_no and cur.rows == rows:
             return cur
-        return _add(session, admin, key, manager_no, rows, "save", None)
+        return add_version(session, admin, key, manager_no, rows, "save")
 
 
 def copy_from(session: Session, admin: Operator, file_no: str, source_file_no: str) -> ControlSheetOut:
@@ -157,15 +164,21 @@ def copy_from(session: Session, admin: Operator, file_no: str, source_file_no: s
             raise NotFound(f"コピー元のファイルNo.({source})は登録されていません")
         if get_current(session, key) is not None:
             raise RuleViolation(f"ファイルNo.({key})はすでに登録されています。コピーは新しく作るときだけです")
-        return _add(session, admin, key, "", src.rows, "copy", source)
+        return add_version(session, admin, key, "", src.rows, "copy", source)
 
 
-def list_sheets(session: Session) -> list[ControlSheetSummaryOut]:
-    """登録済みのファイルNo.と、今の計画にあって未登録のファイルNo.(未登録を先に)。"""
+def latest_map(session: Session) -> dict[str, ControlSheetOut]:
+    """登録済みのファイルNo.ごとの、今の(最後の)内容。"""
     latest: dict[str, ControlSheetOut] = {}
     for v in _versions(session):  # ファイルNo.ごとに版の新しい順
         if v.file_no not in latest:
             latest[v.file_no] = _out(session, v)
+    return latest
+
+
+def list_sheets(session: Session) -> list[ControlSheetSummaryOut]:
+    """登録済みのファイルNo.と、今の計画にあって未登録のファイルNo.(未登録を先に)。"""
+    latest = latest_map(session)
     products: dict[str, str] = {}
     for file_no, name in session.execute(select(Plan.file_no, Plan.product_name).where(Plan.status != PLAN_CANCELLED).order_by(Plan.planned_start.desc())):
         products.setdefault(file_no, name)

@@ -35,6 +35,7 @@ class ServerConfig:
     # /docs・/redoc・/openapi.json を出すか。本番は出さない(開発で確かめたいときだけ true)。詳細: docs/design/security.md(S-02)
     expose_docs: bool = False
     max_body_mb: int = 5  # リクエスト本文の上限(MB)。超えたら 413(S-11)
+    control_sheet_import_max_mb: int = 50  # 管理表の内容のExcel取り込みだけ、本文の上限を広げる(MB。AD-28)
 
 
 @dataclass(frozen=True)
@@ -191,7 +192,8 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
     r, pr = raw.get("reports", {}), raw.get("production_record", {})
     return _resolve(AppConfig(
         server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
-                            expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
+                            expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5)),
+                            control_sheet_import_max_mb=int(s.get("control_sheet_import_max_mb", ServerConfig.control_sheet_import_max_mb))),
         paths=_paths_from(raw.get("paths", {})),
         sync=_sync_from(raw.get("sync", {})),
         schedule=ScheduleConfig(

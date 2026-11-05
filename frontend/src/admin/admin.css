@@ -90,3 +90,12 @@
 .cs-unregistered td { background: #fff8e1; }
 .cs-history { margin: 0 0 24px; padding-left: 20px; }
 .cs-history li { margin-bottom: 4px; }
+.cs-import { margin: 0 0 24px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.cs-import h2, .cs-import h3 { margin: 8px 0; }
+.cs-file { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px; }
+.cs-preview { margin: 8px 0 16px; }
+.cs-overwrite { color: var(--danger); font-weight: 600; }
+.cs-changes { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+.cs-import-error td { background: #ffeef0; }
+.cs-import-skipped td { color: var(--muted); }
+.cs-import-changed td { background: #fff8e1; }

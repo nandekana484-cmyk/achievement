@@ -44,17 +44,19 @@ class _TooLarge(Exception):
 class BodyLimitMiddleware:
     """本文が max_bytes を超えたら 413(Content-Length で分かれば読む前に、chunked は読みながら数えて)。"""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, max_bytes: int, path_limits: dict[str, int] | None = None) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.path_limits = path_limits or {}  # パスごとに上限を広げる(管理表の内容の Excel 取り込み)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        limit = self.path_limits.get(scope["path"], self.max_bytes)
         declared = dict(scope["headers"]).get(b"content-length", b"0")
-        if declared.isdigit() and int(declared) > self.max_bytes:
-            await self._reject(send)
+        if declared.isdigit() and int(declared) > limit:
+            await self._reject(send, limit)
             return
         total = 0
         started = False
@@ -64,7 +66,7 @@ class BodyLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 total += len(message.get("body", b""))
-                if total > self.max_bytes:
+                if total > limit:
                     raise _TooLarge
             return message
 
@@ -77,10 +79,10 @@ class BodyLimitMiddleware:
             await self.app(scope, counting_receive, tracking_send)
         except _TooLarge:
             if not started:
-                await self._reject(send)
+                await self._reject(send, limit)
 
-    async def _reject(self, send: Send) -> None:
-        body = json.dumps({"detail": f"送られたデータが大きすぎます(上限 {self.max_bytes // 1024 // 1024} MB)"}, ensure_ascii=False).encode()
+    async def _reject(self, send: Send, limit: int) -> None:
+        body = json.dumps({"detail": f"送られたデータが大きすぎます(上限 {limit // 1024 // 1024} MB)"}, ensure_ascii=False).encode()
         await send({"type": "http.response.start", "status": 413,
                     "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
         await send({"type": "http.response.body", "body": body})

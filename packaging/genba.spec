@@ -22,6 +22,8 @@ hiddenimports = [
     *collect_submodules("uvicorn"),
     *collect_submodules("alembic", filter=lambda name: not name.startswith("alembic.testing")),
     "sqlalchemy.dialects.sqlite",
+    *collect_submodules("openpyxl"),  # 管理画面の Excel 取り込み(AD-28)。関数の中で読み込むので、念のため明示する
+    *collect_submodules("xlrd"),
 ]
 
 a = Analysis(  # noqa: F821

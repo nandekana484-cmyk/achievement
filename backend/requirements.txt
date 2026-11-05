@@ -4,4 +4,6 @@ fastapi==0.150.0          # MIT  API
 uvicorn[standard]==0.54.0 # BSD  サーバー
 sqlalchemy==2.1.5         # MIT  ORM
 alembic==1.20.0           # MIT  DB構造の更新
+openpyxl==3.1.5        # MIT  管理画面の Excel 取り込み(.xlsx / .xlsm を読む。AD-28)
+xlrd==2.0.2             # BSD  管理画面の Excel 取り込み(.xls を読む。罫線の斜線を読むため formatting_info=True で開く。AD-28)
 tzdata==2026.5            # Apache-2.0  Windows には時刻帯データがないため(ZoneInfo("Asia/Tokyo") に必要)

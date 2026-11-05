@@ -10,6 +10,8 @@ port = 8000
 # expose_docs = true
 # リクエスト本文の上限(MB)。超えたら 413
 max_body_mb = 5
+# 管理画面「管理表の内容」の Excel 取り込みだけ、本文の上限を広げる(MB。既定 50)
+# control_sheet_import_max_mb = 50
 
 [paths]
 database = "data/genba.db"

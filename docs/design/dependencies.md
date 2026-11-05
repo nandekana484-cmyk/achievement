@@ -50,6 +50,20 @@ PyPI の公開ページ(JSON API)、GitHub、pypistats.org で確かめた。
   - 公開元の証明(attestation)は付いていないので、上の状況から判断している
 - httpx2 と truststore はテストのときだけ使う(`requirements-dev.txt`)。exe には入れない
 
+## Excel を読むライブラリ(AD-28、2026-11-06)
+
+管理画面「管理表の内容」の Excel 取り込み([control-sheet.md](control-sheet.md))のため。
+
+| ライブラリ | 版 | ライセンス | 使い道 | 公開日 |
+| --- | --- | --- | --- | --- |
+| openpyxl | 3.1.5 | MIT | .xlsx と .xlsm を読む(`data_only=True`、`keep_vba=False` = マクロは動かさない)。依存に et-xmlfile 2.0.0(MIT) | 2024-06 |
+| xlrd | 2.0.2 | BSD | .xls を読む。`formatting_info=True` で開く(罫線の斜線を読むため)。xlrd 2 は .xls だけ(.xlsx は読まない) | 2025 |
+| xlwt | 1.3.0 | BSD | **開発用だけ**(`requirements-dev.txt`)。テストで .xls のブックを作る。製品には入れない | 2017 |
+
+- どれも公開から2週間以上。製品に組み込むのは openpyxl と xlrd(MIT / BSD。GPL・AGPL ではない)
+- 関数の中で読み込む(使うときだけ)。`packaging/genba.spec` の hiddenimports に openpyxl と xlrd を足した(**exe のビルドは確かめていない**。次に `packaginguild.ps1` を動かすときに、取り込みが exe でも動くか確かめる)
+- ユーザーの Excel は、テストにもリポジトリにも入れない(最後に保存した人の名前などが入っているため)
+
 ## 脆弱性の確認(npm audit と pip-audit)
 
 - フロントエンド: `cd frontend` → `npm audit`(開発用を含む)。2026-10-25 は 0件

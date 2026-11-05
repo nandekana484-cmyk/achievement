@@ -79,6 +79,7 @@ C:\GenbaApp\app\v1.0.0\GenbaCli.exe admin set-password --worker-id K0042
 - 開いたときに `/api/admin/me` で確かめ、401 ならログイン画面に戻す。どの操作でも 401 が返ったら、ログイン画面に戻す(「ログインが切れました」を出す)
 - 管理画面は日本語だけ(言語を切り替えない)。文言は `src/admin/messages.ts`(画面ごとに分けたものは `messagesOpenRuns.ts` のように取り込む)にまとめ、vi.ts には足さない。画面のファイルに日本語を直接書かないテスト(`scripts/no-hardcoded-text.test.ts`)は管理画面にも当てる(辞書のファイルは除く)
 - PC で使う前提(幅 1280px 以上)。タブレット向けの大きさにはしない
+- 「管理表の内容」(AD-27・AD-28。[control-sheet.md](control-sheet.md))に「Excelから取り込む」(管理者だけ。確かめる → 登録。取り込みの履歴。文言は `messagesCsImport.ts`)
 - ライン選択の画面の右下に、管理画面への小さなリンクを置く
 
 ## 画面の確認(Playwright)

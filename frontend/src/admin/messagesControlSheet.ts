@@ -53,6 +53,7 @@ const text = {
   "cs.history": "版の履歴(新しい版から)",
   "cs.historyRow": "版 {version}({when}、{who}){copied}",
   "cs.copiedFrom": "。{file} からコピー",
+  "cs.importedFrom": "。Excel から取り込み(ブック「{name}」)",
   "cs.loadVersion": "この版を読み込む",
   "cs.loaded": "版 {version} の内容を読み込みました。保存すると、新しい版になります",
   "cs.empty": "登録済みのファイルNo.も、今の計画のファイルNo.もありません",

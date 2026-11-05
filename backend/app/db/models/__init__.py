@@ -3,7 +3,7 @@
 from app.db.models.access import AllowedNetwork
 from app.db.models.allocations import LotAllocationChange
 from app.db.models.closures import PlanClosure
-from app.db.models.control_sheets import ControlSheetVersion
+from app.db.models.control_sheets import ControlSheetImport, ControlSheetVersion
 from app.db.models.admin import AdminCredential, AdminLoginAttempt, AdminSession, AuditLog
 from app.db.models.exports import ActualsExport, ExportedRow, SideLink
 from app.db.models.handover import KittingHandover
@@ -35,6 +35,7 @@ from app.db.models.records import (
 )
 
 __all__ = [
+    "ControlSheetImport",
     "ControlSheetVersion",
     "PlanClosure",
     "LotAllocationChange",

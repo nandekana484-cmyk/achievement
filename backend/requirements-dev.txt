@@ -2,4 +2,5 @@
 pytest==9.1.1   # MIT
 httpx2==2.13.1  # BSD-3-Clause  TestClient が使う(starlette 1.x は httpx を非推奨にし、httpx2 を使う)
 truststore==0.10.4  # MIT  httpx2 が使う。公開から2週間以上の版に固定
+xlwt==1.3.0  # BSD  テストで .xls のブックを作る(AD-28)。開発用だけ。製品には入れない
 pyinstaller==6.22.3  # GPL-2.0-or-later(ブートローダーの例外付き。作った exe にはGPLが及ばない)。ビルドのときだけ使う道具(開発指針 4)
