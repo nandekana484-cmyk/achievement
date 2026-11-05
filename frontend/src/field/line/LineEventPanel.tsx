@@ -15,10 +15,11 @@ type Props = {
   onEnd: (event: LineEvent) => void;
   onFix: () => void;
   onHistory: () => void;
+  readOnly?: boolean; // 今日以外の稼働日を見ている(表示のみ)
 };
 
 export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventPanel(
-  { reasons, openEvents, nowMs, isBusy, onStart, onEnd, onFix, onHistory }, ref,
+  { reasons, openEvents, nowMs, isBusy, onStart, onEnd, onFix, onHistory, readOnly = false }, ref,
 ) {
   const { t, lang } = useI18n();
   const openReasonIds = new Set(openEvents.map((e) => e.reason_id));
@@ -38,7 +39,7 @@ export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventP
               <span className="open-event-time">
                 {t("lineEvent.since", { time: formatHM(e.start_at), elapsed: formatElapsed(Date.parse(e.start_at), nowMs, t) })}
               </span>
-              <button type="button" className="btn btn-end" disabled={isBusy(`lineEventEnd:${e.id}`)} onClick={() => onEnd(e)}>
+              <button type="button" className="btn btn-end" disabled={readOnly || isBusy(`lineEventEnd:${e.id}`)} onClick={() => onEnd(e)}>
                 {isBusy(`lineEventEnd:${e.id}`) ? t("common.sending") : t("common.end")}
               </button>
             </li>
@@ -51,7 +52,7 @@ export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventP
             key={r.id}
             type="button"
             className="btn reason-button"
-            disabled={openReasonIds.has(r.id) || isBusy(`lineEventStart:${r.id}`)}
+            disabled={readOnly || openReasonIds.has(r.id) || isBusy(`lineEventStart:${r.id}`)}
             onClick={() => onStart(r)}
           >
             {localName(lang, r.name, r.name_vi)}
@@ -60,7 +61,7 @@ export const LineEventPanel = forwardRef<HTMLElement, Props>(function LineEventP
         ))}
       </div>
       <div className="input-row">
-        <button type="button" className="btn" onClick={onFix}>{t("lineEvent.fix")}</button>
+        <button type="button" className="btn" onClick={onFix} disabled={readOnly}>{t("lineEvent.fix")}</button>
         <button type="button" className="btn" onClick={onHistory}>{t("lineEvent.history")}</button>
       </div>
     </section>

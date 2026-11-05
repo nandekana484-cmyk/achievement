@@ -9,6 +9,11 @@ from app.services.board import get_board
 from legacy_fixture import insert_plan
 from records_helpers import K1, K2, new_session, ok, reason_id, start, end, sync_plans
 
+
+@pytest.fixture(autouse=True)
+def _workday_started(fake_clock):
+    fake_clock.advance(minutes=30)  # 10/21 8:30 = 稼働日 10/21 の中(8:00 は前の稼働日。board の日付を渡さなければ今日の稼働日を出す)
+
 # 稼働日 10/21 = 10/21 8:15〜10/22 8:15、表示範囲 = 10/20 20:15〜10/22 20:15。今(テストの時計)は 10/21 8:00
 IN_RANGE = "0100-1-S-251014-01"  # 10/21 9:00〜12:00(これから)
 PAST_UNTOUCHED = "0200-1-S-251014-02"  # 10/20 21:00〜23:00(過ぎて未着手。表示範囲の中なので出る)

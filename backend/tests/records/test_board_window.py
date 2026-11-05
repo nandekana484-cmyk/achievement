@@ -8,6 +8,11 @@ from app.core.clock import JST
 from legacy_fixture import insert_plan
 from records_helpers import end, ok, start, sync_plans
 
+
+@pytest.fixture(autouse=True)
+def _workday_started(fake_clock):
+    fake_clock.advance(minutes=30)  # 10/21 8:30 = 稼働日 10/21 の中(8:00 は前の稼働日。board の日付を渡さなければ今日の稼働日を出す)
+
 # 今(テストの時計)は 10/21 8:00。稼働日 10/21 8:15〜、通常の表示範囲 = 10/20 20:15〜10/22 20:15
 UNTOUCHED_IN = "0200-1-S-251014-02"  # 10/20 21:00〜23:00(範囲の中。計画終了が過ぎて未着手)
 UNTOUCHED_OUT = "0210-1-S-251014-03"  # 10/20 09:00〜12:00(範囲の外。未着手)

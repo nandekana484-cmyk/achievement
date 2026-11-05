@@ -132,5 +132,5 @@ def test_demo_seed_stale_open(client, fake_clock):
     with new_session() as s:
         ids = seed_stale_open(s, "S", date(2026, 10, 21))
     assert len(ids) == 2
-    board = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
+    board = ok(client.get("/api/lines/S/board", params={"date": "2026-10-20"}))
     assert len(board["stale_kitting_nos"]) == 2  # 10日前に始めて終了していない記録(表示範囲を広げても入らない)

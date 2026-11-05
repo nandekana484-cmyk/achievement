@@ -49,6 +49,8 @@ execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "W", "--date", E2E
 // 計画終了(e2e/zz-plan-close.spec.ts)。遅れた未着手の計画は、そのラインの一番古い記録より後に始まる計画だけ数えるので、どちらも11日前の記録を入れる。別のラインYに確認用の計画を、ラインZに加えて10日前に終わった未着手の計画を入れる
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Y", "--date", E2E_DATE, "--old-record"], { cwd: backend, env, stdio: "inherit" });
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Z", "--date", E2E_DATE, "--old-unstarted"], { cwd: backend, env, stdio: "inherit" });
+// 表示する日の選択(e2e/zz-day-select.spec.ts)。今日(10/21)ではない稼働日 10/24 の計画を、別のラインDに入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "D", "--date", "2026-10-24"], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

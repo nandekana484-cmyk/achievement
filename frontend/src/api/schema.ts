@@ -1555,6 +1555,11 @@ export interface components {
              */
             date: string;
             /**
+             * Today
+             * Format: date
+             */
+            today: string;
+            /**
              * Workday Start
              * Format: date-time
              */

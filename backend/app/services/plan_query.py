@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import and_, exists, func, not_, or_, select
+from sqlalchemy import and_, exists, false, func, not_, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.core.clock import JST
@@ -116,6 +116,8 @@ def display_window(
     詳細: docs/design/line-screen.md
     """
     start, end = display_range(day, day_start)
+    if day != workday_of(now, day_start):  # ほかの日の表示は、前後12時間だけ(広げない。警告も出さない)
+        return DisplayWindow(start, end, (), ())
     rows = session.execute(
         select(RunEvent.kitting_no, func.min(RunEvent.start_at)).join(Plan, Plan.kitting_no == RunEvent.kitting_no)
         .where(Plan.line_code == line_code, Plan.status == PLAN_ACTIVE, RunEvent.voided_at.is_(None), _unfinished())
@@ -137,20 +139,20 @@ def line_of_kitting(session: Session, kitting_no: str) -> str | None:
     return session.scalars(select(Plan.line_code).where(Plan.kitting_no == kitting_no).limit(1)).first()
 
 
-def board_kitting_nos(session: Session, line_code: str, display_start: datetime, display_end: datetime) -> list[str]:
+def board_kitting_nos(session: Session, line_code: str, display_start: datetime, display_end: datetime, now: datetime, include_unfinished: bool = True) -> list[str]:
     """ライン画面に出すキッティングNo.(取り消した計画は除く)。次のどれかに当てはまるもの。
 
     1. 計画開始〜終了が表示範囲と重なる(計画終了が過ぎて未着手のものも含む)
     2. 表示範囲の中に実績の記録がある(先行して始めた計画)
-    3. 作業を始めたが、片付けが終わっていない(日付は問わない。遅れている計画)
+    3. 作業を始めたが、片付けが終わっていない(日付は問わない。遅れている計画)。今日の表示だけ(include_unfinished)
     """
     events_in_range = exists().where(
         RunEvent.kitting_no == Plan.kitting_no, RunEvent.voided_at.is_(None), RunEvent.start_at < display_end,
-        or_(RunEvent.end_at.is_(None), RunEvent.end_at > display_start),
+        or_(RunEvent.end_at > display_start, and_(RunEvent.end_at.is_(None), now > display_start)),  # 終了のない記録は今まで続いている(先の日には届かない)
     )
     stmt = select(Plan.kitting_no).distinct().where(
         Plan.line_code == line_code, Plan.status == PLAN_ACTIVE,
-        or_(_overlaps(display_start, display_end), events_in_range, _unfinished()),
+        or_(_overlaps(display_start, display_end), events_in_range, _unfinished() if include_unfinished else false()),
     )
     return list(session.scalars(stmt))
 
