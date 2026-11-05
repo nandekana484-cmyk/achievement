@@ -155,6 +155,9 @@ test("㉟〜㊴ 生産記録票: A4縦1ページに収まる。両面1組・片�
   expect((await fitsOnePage(page)).pages).toBe(1);
   await page.emulateMedia({ media: "screen" });
   await page.getByRole("link", { name: "1回目と紐づける" }).click();
-  await expect(page).toHaveURL(new RegExp(`/field/lines/R\\?kitting_no=${LONELY}`));
+  await expect(page).toHaveURL(new RegExp(`/field/link/${LONELY}`)); // 紐づけのページ(AD-21)
   await expect(page.getByLabel("1回目のキッティングNo.", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("作業者ID")).toHaveValue(""); // 生産記録票から来たときは、今の担当者が分からないので空欄
+  await page.getByRole("link", { name: "戻る" }).click(); // 開いた元の生産記録票へ戻る
+  await expect(page).toHaveURL(new RegExp(`/field/print/production-record/${LONELY}`));
 });

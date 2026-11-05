@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTranslate } from "../../i18n/translate";
 import type { RunEvent } from "../../shared/api";
-import { formatPercent, recordLabel, recordNumbers, stepStatus } from "./steps";
+import { recordLabel, recordNumbers, stepStatus } from "./steps";
 
 const t = makeTranslate("ja");
 let nextId = 1;
@@ -59,14 +59,5 @@ describe("stepStatus", () => {
   it("片付けの終了では確認する", () => {
     expect(stepStatus([ev("cleanup", 1, "16:00", null)], "cleanup", t)).toMatchObject({ action: "end", needsConfirm: true });
     expect(stepStatus([], "cleanup", t).needsConfirm).toBe(false);
-  });
-});
-
-describe("formatPercent", () => {
-  it("割合を%にする。空は「—」", () => {
-    expect(formatPercent(0.5)).toBe("50%");
-    expect(formatPercent(0.3333)).toBe("33%");
-    expect(formatPercent(null)).toBe("—");
-    expect(formatPercent(undefined)).toBe("—");
   });
 });

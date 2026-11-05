@@ -2,8 +2,9 @@
 // 工程の行の「直す」、NG数と備考、押し忘れの追加と訂正の履歴。
 import type { ReactNode } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
+import { formatPercent } from "../../shared/percent";
 import type { BoardPlan, StepType } from "../../shared/api";
-import { STATE_KEYS, STEP_COLORS, STEP_LABEL_KEYS, STEP_ORDER, type StepStatus, formatPercent, stepStatus } from "./steps";
+import { STATE_KEYS, STEP_COLORS, STEP_LABEL_KEYS, STEP_ORDER, type StepStatus, stepStatus } from "./steps";
 
 type Props = {
   plan: BoardPlan;
@@ -14,8 +15,8 @@ type Props = {
   onFix: (step: StepType) => void;
   onAdd: () => void;
   onHistory: () => void;
-  sideLink?: ReactNode; // 面1と面2の紐づけ(SideLinkPanel)
-  idSlip?: ReactNode; // 識別票の印刷への入口(表示範囲の中の、取り消されていない計画だけ)
+  sideLink?: ReactNode; // 面1の計画に、紐づいた2回目の表示(SideLinkNote)
+  actions?: ReactNode; // 別のページへのボタン(紐づけ、識別票)
 };
 
 export const stepKey = (p: BoardPlan, step: string) => `step:${p.plan.kitting_no}:${step}`;
@@ -26,7 +27,7 @@ const CANCEL_KEYS: Record<string, "stepPanel.cancelled.vanished" | "stepPanel.ca
   carried_over: "stepPanel.cancelled.carried_over",
 };
 
-export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, idSlip }: Props) {
+export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, actions }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
   return (
@@ -46,7 +47,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
         </dl>
         <LotTable plan={plan} />
         {sideLink}
-        {idSlip}
+        {actions && <div className="plan-actions">{actions}</div>}
         {p.is_stale && <p className="plan-warning">{t("stepPanel.stale")}</p>}
         {p.status === "cancelled" && <p className="plan-warning">{t(CANCEL_KEYS[p.cancel_reason ?? "vanished"] ?? "stepPanel.cancelled.vanished")}</p>}
         {p.warnings.length > 0 && <p className="plan-warning">{t("stepPanel.warnings", { items: p.warnings.join(" / ") })}</p>}

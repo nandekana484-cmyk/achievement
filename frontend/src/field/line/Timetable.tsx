@@ -3,8 +3,9 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import { localName } from "../../i18n/translate";
 import type { Board, BoardPlan } from "../../shared/api";
+import { formatPercent } from "../../shared/percent";
 import { planSummary } from "./planMatch";
-import { activeEvents, formatPercent, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
+import { activeEvents, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
 import { assignLanes, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
 
 export const PX_PER_HOUR = 90;

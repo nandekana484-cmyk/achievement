@@ -20,9 +20,6 @@
 .kpi-value { font-size: 24px; font-weight: 700; }
 .kpi-warn { color: var(--danger); }
 .kpi-note { font-size: 14px; color: var(--muted); }
-.kpi-progress { align-items: flex-start; max-width: 46vw; }
-.progress-list { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 18px; }
-.progress-over strong { color: var(--danger); }
 .kpi-button {
   min-height: var(--touch); padding: 4px 14px; font: inherit; cursor: pointer;
   background: #f6f8fa; border: 2px solid var(--border); border-radius: 8px;
@@ -176,3 +173,13 @@
 .side-link-row select { min-height: var(--touch); font-size: 18px; }
 .side-link-partner { margin: 4px 0 0; font-size: 20px; font-weight: 700; }
 .side-link-by, .side-link-note { font-size: 15px; font-weight: 400; color: var(--muted); }
+.plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+.side-link-button { display: inline-flex; align-items: center; gap: 8px; }
+.side-link-state { font-size: 14px; font-weight: 400; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.side-link-state-unlinked { background: #fff4d6; border-color: #e0b84a; }
+.side-link-state-linked { background: var(--surface); color: var(--muted); }
+.link-page { max-width: 900px; margin: 0 auto; padding: 16px; }
+.link-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.link-form { margin-top: 12px; }
+.link-worker { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 16px; max-width: 260px; }
+.link-worker input { min-height: var(--touch); font-size: 20px; padding: 4px 10px; }

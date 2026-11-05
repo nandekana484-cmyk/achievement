@@ -1,5 +1,6 @@
 // 印刷用の一覧の補助(React に依存しない)。完了日の表示と、開く先の URL。
 import type { components } from "../api/schema";
+import { linkPageUrl } from "../field/line/sideLink";
 
 export type RecordRow = components["schemas"]["RecordRowOut"];
 
@@ -13,9 +14,9 @@ export function recordUrl(kittingNo: string, line?: string | null): string {
   return `/field/print/production-record/${encodeURIComponent(kittingNo)}${line ? `?line=${encodeURIComponent(line)}` : ""}`;
 }
 
-/** 面2が面1とつながっていないとき、紐づけの画面(その面2を選んだライン画面)へ行く URL。 */
-export function linkScreenUrl(side2Line: string, side2KittingNo: string): string {
-  return `/field/lines/${encodeURIComponent(side2Line)}?kitting_no=${encodeURIComponent(side2KittingNo)}`;
+/** 面2が面1とつながっていないとき、紐づけのページ(/field/link/...)へ行く URL。戻る先はこの生産記録票。 */
+export function linkScreenUrl(side2KittingNo: string, recordKittingNo: string): string {
+  return linkPageUrl(side2KittingNo, recordUrl(recordKittingNo));
 }
 
 /** 一覧の絞り込みの条件を、API の query にする(空欄は送らない)。 */
