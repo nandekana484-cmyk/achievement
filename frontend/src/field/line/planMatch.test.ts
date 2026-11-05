@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTranslate } from "../../i18n/translate";
-import type { Plan } from "../../shared/api";
-import { exactKittingMatch, foldForMatch, isOutsideDisplay, outsideMessage, planSummary } from "./planMatch";
+import type { BoardPlan, Plan, RunEvent } from "../../shared/api";
+import { exactKittingMatch, foldForMatch, isOutsideDisplay, isOverdueUnstarted, outsideMessage, planSummary } from "./planMatch";
 
 const t = makeTranslate("ja");
 
@@ -51,5 +51,24 @@ describe("計画の短い説明", () => {
     expect(planSummary(plan("A"), t)).toBe("基板・計画数 100・1回目");
     const multi = { ...plan("A"), planned_qty: 300, lots: [1, 2, 3].map((i) => ({ lot_no: `L${i}`, product_name: "基板", planned_qty: 100 })) };
     expect(planSummary(multi, t)).toBe("3ロット・計画数 300・1回目");
+  });
+});
+
+describe("計画終了を過ぎた未着手", () => {
+  const nowMs = Date.parse("2026-10-21T13:00:00+09:00");
+  const ev = (voided: boolean) => ({ id: 1, voided_at: voided ? "2026-10-21T10:00:00+09:00" : null }) as unknown as RunEvent;
+  const board = (events: RunEvent[], completed = false, end: string | null = "2026-10-21T12:00:00+09:00"): BoardPlan =>
+    ({ plan: plan("A", "L1", "2026-10-21T09:00:00+09:00", end), events, completed }) as unknown as BoardPlan;
+
+  it("計画終了を過ぎ、有効な記録が無く、完了でもなければ未着手の枠", () => {
+    expect(isOverdueUnstarted(board([]), nowMs)).toBe(true);
+    expect(isOverdueUnstarted(board([ev(true)]), nowMs)).toBe(true); // 取り消した記録だけ
+  });
+
+  it("計画終了の前、始めている、完了、日程なしは未着手の枠にしない", () => {
+    expect(isOverdueUnstarted(board([], false, "2026-10-21T14:00:00+09:00"), nowMs)).toBe(false);
+    expect(isOverdueUnstarted(board([ev(false)]), nowMs)).toBe(false);
+    expect(isOverdueUnstarted(board([], true), nowMs)).toBe(false);
+    expect(isOverdueUnstarted(board([], false, null), nowMs)).toBe(false);
   });
 });

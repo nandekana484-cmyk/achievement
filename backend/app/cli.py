@@ -35,7 +35,7 @@ from app.db.models import Equipment, Line, Operator, Reason
 from app.db.session import get_sessionmaker, init_db
 from app.domain.normalize import normalize_mounting_line
 from app.services import admin_auth, ip_allowlist, masters
-from app.services.demo_seed import seed_demo, seed_handover, seed_record_samples, seed_side_pair
+from app.services.demo_seed import seed_demo, seed_handover, seed_record_samples, seed_side_pair, seed_stale_open
 from app.services.errors import NotFound, RuleViolation
 
 DEMO_REFUSED = "config.toml に paths.legacy_app_dir が設定されているため、確認用のデータは入れません(実データと混ざらないように)"
@@ -89,14 +89,20 @@ def _parser() -> argparse.ArgumentParser:
     ip_rm.add_argument("which", metavar="番号か範囲")
     ip.add_parser("disable-all", help="有効な範囲をすべて無効にする(制限がなくなる)")
 
+    _add_demo_seed(sub)
+    return p
+
+
+def _add_demo_seed(sub) -> None:  # noqa: ANN001
+    """demo-seed(画面の確認用のデータ)の引数。"""
     demo = sub.add_parser("demo-seed", help="画面の確認用の計画・作業者・設備を入れる")
     demo.add_argument("--line", required=True)
     demo.add_argument("--date", required=True, type=dt.date.fromisoformat, help="YYYY-MM-DD")
+    demo.add_argument("--stale-open", action="store_true", help="終了していない古い記録の確認用(確認用の計画と、10日前に始めて終了していない段取り・生産)を入れる")
     demo.add_argument("--handover", action="store_true", help="引き継ぎの確認の確認用の計画(出し直しで古くなった計画と、出し直し後の計画)だけを入れる")
     demo.add_argument("--side-pair", action="store_true", help="面1と面2の紐づけの確認用の組(1回目 Sライン、2回目 Uライン、同じロットNo.・ファイルNo.)だけを入れる")
     demo.add_argument("--record-samples", action="store_true", help="生産記録票の印刷の確認用の計画(10ロットの両面の組、片面だけ、面1とつながらない面2)だけを --line のラインに入れる")
     demo.add_argument("--lot-suffix", default="", help="ロットNo.の末尾に付ける文字(ほかのラインの確認用のデータとロットを分けるとき)")
-    return p
 
 
 def _add_set_vi(actions) -> None:  # noqa: ANN001
@@ -179,6 +185,10 @@ def _demo_seed(s: Session, args: argparse.Namespace) -> None:
     if args.side_pair:
         first, second = seed_side_pair(s, args.date)
         print(f"面1と面2の紐づけの確認用の組を入れました: 1回目 {first}(Sライン)、2回目 {second}(Uライン)。キー H ではつながりません")
+        return
+    if args.stale_open:
+        ids = seed_stale_open(s, args.line, args.date)
+        print(f"終了していない古い記録を入れました(ライン {normalize_mounting_line(args.line)}): 工程の記録ID " + "、".join(map(str, ids)))
         return
     if args.handover:
         old, new = seed_handover(s, args.line, args.date)

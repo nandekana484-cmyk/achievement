@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barcodeWarnings, clampCopies, defaultKinds, type IdSlip, initialSelection, pagesOf, toggleKind, toggleLot } from "./idSlipLogic";
+import { barcodeWarnings, defaultKinds, type IdSlip, initialSelection, pagesOf, toggleKind, toggleLot } from "./idSlipLogic";
 
 const slip = (over: Partial<IdSlip> = {}): IdSlip => ({
   kitting_no: "0722-1-S-251014-01", line_code: "S", run_no: 1, file_no: "722", suf: "SUF-0722", product_name: "基板A",
@@ -18,10 +18,9 @@ describe("初期値の種類", () => {
     expect(initialSelection(slip({ run_no: 2 })).kinds).toEqual([1, 4]);
   });
 
-  it("ロットは全ロット、枚数は 1", () => {
+  it("ロットは全ロット", () => {
     const sel = initialSelection(slip());
     expect(sel.lots).toEqual(["L001", "L002", "L003"]);
-    expect(sel.copies).toEqual({ 1: 1, 2: 1, 3: 1, 4: 1 });
   });
 
   it("初期値以外の種類もチェックを入れれば出せる(片面製品で1つ目を1回目の計画で出す)", () => {
@@ -32,30 +31,22 @@ describe("初期値の種類", () => {
   });
 });
 
-describe("枚数とロットの選択", () => {
-  it("枚数は 1〜20 の整数", () => {
-    expect(clampCopies(0)).toBe(1);
-    expect(clampCopies(-3)).toBe(1);
-    expect(clampCopies(2.9)).toBe(2);
-    expect(clampCopies(20)).toBe(20);
-    expect(clampCopies(21)).toBe(20);
-    expect(clampCopies(Number.NaN)).toBe(1);
+describe("ロットの選択とページ数(1枚の識別票 = 1ページ)", () => {
+  it("ロットごとの種類は、選んだロットの数だけ(ロット1つで1ページ)", () => {
+    const sel = { ...initialSelection(slip()), lots: ["L001"] };
+    for (const kind of [1, 2, 3] as const) expect(pagesOf(kind, sel)).toEqual([{ lot: "L001" }]);
   });
 
-  it("ロットごとの種類は、選んだロット × 枚数(ロット1つあたり)", () => {
-    const sel = { ...initialSelection(slip()), lots: ["L001", "L003"], copies: { 1: 1, 2: 2, 3: 1, 4: 1 } as const };
-    expect(pagesOf(2, { ...sel, copies: { ...sel.copies } })).toEqual([{ lot: "L001" }, { lot: "L001" }, { lot: "L003" }, { lot: "L003" }]);
-    expect(pagesOf(3, { ...sel, copies: { ...sel.copies } })).toHaveLength(2);
-  });
-
-  it("ロット3つ × 枚数2 で6ページ", () => {
+  it("ロット3つで3ページ。同じロットの同じ種類を2ページ以上出さない", () => {
     const sel = initialSelection(slip());
-    expect(pagesOf(1, { ...sel, copies: { ...sel.copies, 1: 2 } })).toHaveLength(6);
+    for (const kind of [1, 2, 3] as const) expect(pagesOf(kind, sel).map((p) => p.lot)).toEqual(["L001", "L002", "L003"]);
+    expect(pagesOf(1, { ...sel, lots: ["L001", "L001", "L002"] }).map((p) => p.lot)).toEqual(["L001", "L002"]);
   });
 
-  it("4つ目はキッティングNo.ごと(ロットの選択に関係なく、枚数分)", () => {
-    const sel = { ...initialSelection(slip()), lots: [], copies: { 1: 1, 2: 1, 3: 1, 4: 3 } as const };
-    expect(pagesOf(4, { ...sel, copies: { ...sel.copies } })).toEqual([{ lot: null }, { lot: null }, { lot: null }]);
+  it("4つ目はキッティングNo.ごとに1ページ(ロットの選択に関係なく)", () => {
+    const sel = { ...initialSelection(slip()), lots: [] };
+    expect(pagesOf(4, sel)).toEqual([{ lot: null }]);
+    expect(pagesOf(4, initialSelection(slip()))).toEqual([{ lot: null }]);
   });
 
   it("ロットを外す・戻す(計画のロットの順)", () => {

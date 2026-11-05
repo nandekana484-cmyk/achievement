@@ -79,6 +79,9 @@ export function LineScreen() {
         onChangeOperator={openOperator}
       />
       <section className="col-center">
+        {board && board.stale_kitting_nos.length > 0 && (
+          <Notice kind="error">{t("lineScreen.staleWarning", { count: board.stale_kitting_nos.length, list: board.stale_kitting_nos.join(", ") })}</Notice>
+        )}
         {board && selected && isOutsideDisplay(selected.plan, board) && (
           <Notice kind="info">{outsideMessage(selected.plan, t)}</Notice>
         )}

@@ -28,9 +28,12 @@ def produced_total(session: Session, kitting_no: str) -> int:
     )) or 0
 
 
-def valid_completion():  # noqa: ANN201
-    """完了にした片付けが取り消されていない(SQL の条件。RunCompletion と組み合わせる)。"""
-    return exists().where(RunEvent.id == RunCompletion.cleanup_event_id, RunEvent.voided_at.is_(None))
+def valid_completion(cleanup: type[RunEvent] = RunEvent):  # noqa: ANN201
+    """完了にした片付けが取り消されていない(SQL の条件。RunCompletion と組み合わせる)。
+
+    外側の問い合わせが RunEvent を使うときは、相関が混ざらないよう別名(aliased)を cleanup に渡す。
+    """
+    return exists().where(cleanup.id == RunCompletion.cleanup_event_id, cleanup.voided_at.is_(None))
 
 
 def latest_completion(session: Session, kitting_no: str) -> RunCompletion | None:

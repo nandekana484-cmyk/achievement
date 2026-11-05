@@ -12,14 +12,15 @@ from sqlalchemy.orm import Session
 
 from app.core import clock
 from app.db.models import LineEvent, RunEvent
-from app.domain.workday import display_range, workday_of, workday_range
+from app.domain.workday import workday_of, workday_range
 from app.services.kitting_plans import KittingGroup, load_active_groups, load_group
 from app.services.field_side_link import view
 from app.services.line_operators import current_row
 from app.services.masters import get_line
 from app.services.ng_inputs import latest_ng, ng_choices
 from app.services.metrics import efficiency_from_intervals, plan_progress
-from app.services.plan_query import board_kitting_nos
+from app.core.config import ScheduleConfig
+from app.services.plan_query import board_kitting_nos, display_window
 from app.services.report_intervals import build_intervals
 from app.services.plan_views import BoardOut, BoardPlanOut, kitting_plan_out
 from app.services.completions import latest_completion, produced_total
@@ -49,20 +50,21 @@ def get_run(session: Session, kitting_no: str) -> BoardPlanOut:
     return board_plan_out(session, load_group(session, kitting_no))
 
 
-def get_board(session: Session, line_code: str, day: dt.date | None, day_start: dt.time) -> BoardOut:
-    """稼働日(省略すると今の稼働日)のライン画面の情報。"""
+def get_board(session: Session, line_code: str, day: dt.date | None, day_start: dt.time, max_extend_hours: int = ScheduleConfig.display_extend_max_hours) -> BoardOut:
+    """稼働日(省略すると今の稼働日)のライン画面の情報。表示範囲は plan_query.display_window。"""
     line = get_line(session, line_code)
     now = clock.now()
     day = day or workday_of(now, day_start)
     work_start, work_end = workday_range(day, day_start)
-    disp_start, disp_end = display_range(day, day_start)
+    window = display_window(session, line.line_code, day, day_start, max_extend_hours)
+    disp_start, disp_end = window.start, window.end
 
-    groups = load_active_groups(session, board_kitting_nos(session, line.line_code, disp_start, disp_end, now))
+    groups = load_active_groups(session, board_kitting_nos(session, line.line_code, disp_start, disp_end))
     operator = current_row(session, line.line_code)
     intervals = build_intervals(session, day, day, line.line_code, day_start)
     return BoardOut(
         line_code=line.line_code, date=day,
-        workday_start=work_start, workday_end=work_end, display_start=disp_start, display_end=disp_end, server_time=now,
+        workday_start=work_start, workday_end=work_end, display_start=disp_start, display_end=disp_end, server_time=now, stale_kitting_nos=list(window.stale_kitting_nos),
         current_operator=current_operator_out(session, operator) if operator is not None else None,
         plans=[board_plan_out(session, g) for g in groups],
         line_events=[line_event_out(session, e) for e in _line_events(session, line.line_code, disp_start, disp_end, now)],

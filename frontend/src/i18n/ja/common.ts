@@ -36,5 +36,7 @@ export const common = {
 
   "plan.summary": "{what}・計画数 {qty}・{run}",
   "plan.summaryWithState": "{summary}・{state}",
+  "plan.outsideShort": "範囲外・片付け前",
+  "plan.overdueUnstarted": "未着手",
   "plan.outsideDisplay": "表示範囲外の計画です(計画: {when})",
 } as const;

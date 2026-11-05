@@ -1,5 +1,5 @@
 // 識別票4種類の印刷(AD-20)。印刷のメディアで、種類ごとに A6 の大きさで1枚1ページになること
-// (ロット3つ × 枚数2 で6ページ、4つ目はロット10個で1ページ)と、細いバーの幅が 0.25mm 以上であること、見た目(スクリーンショット)。
+// (1枚の識別票 = 1ページ。ロット1つで1ページ、ロット3つで3ページ、4つ目はロット10個でも1ページ。印刷の画面の組み直し(afterprint)でも変わらないこと)と、細いバーの幅が 0.25mm 以上であること、見た目(スクリーンショット)。
 // 計画は demo-seed(ラインS: 0722 の組、1000 の3ロットの組)と --record-samples(ラインR: 1300 の10ロットの組、1303 の3ロットの組)。
 // 様式(docs/design/forms/id-*.html)は CDN の JsBarcode を読むので、同じ内容の手元のファイルに差し替えて開く。最後に動かす。
 import { readFileSync } from "node:fs";
@@ -33,14 +33,12 @@ const KIND_NAMES = { 1: "1 基板製品ロット現品票", 2: "2 バーコー�
 type Kind = keyof typeof KIND_NAMES;
 
 const checkbox = (page: Page, kind: Kind) => page.getByRole("checkbox", { name: KIND_NAMES[kind] });
-const copies = (page: Page, kind: Kind) => page.getByLabel(`枚数 ${KIND_NAMES[kind]}`);
 
-async function setup(page: Page, kno: string, kinds: Kind[], copy = 1) {
+async function setup(page: Page, kno: string, kinds: Kind[]) {
   await page.goto(url(kno));
   await expect(page.locator(".idslip-toolbar")).toBeVisible();
   for (const k of [1, 2, 3, 4] as Kind[]) {
     if ((await checkbox(page, k).isChecked()) !== kinds.includes(k)) await checkbox(page, k).setChecked(kinds.includes(k));
-    if (kinds.includes(k)) await copies(page, k).fill(String(copy));
   }
 }
 
@@ -81,8 +79,22 @@ test("㊹ ライン画面で計画を選ぶと「識別票」のボタンが出�
   await expect(page.locator(".idslip-head strong")).toHaveText(S1);
 });
 
-test("㊺ 種類ごとに A6 で1枚1ページ: ロット3つ × 枚数2 で6ページ、4つ目は1ページ", async ({ page }) => {
-  await setup(page, H1, [1, 2, 3, 4], 2);
+/** 「ロット」の欄で、選ぶロットを1つにする。 */
+async function onlyLot(page: Page, lot: string) {
+  for (const box of await page.locator(".idslip-lots input[type=checkbox]").all()) {
+    const name = (await box.evaluate((el) => el.parentElement?.textContent ?? "")).trim();
+    if ((await box.isChecked()) !== (name === lot)) await box.setChecked(name === lot);
+  }
+}
+
+test("㊺ 種類ごとに A6 で1枚1ページ: ロット1つで1ページ、ロット3つで3ページ、4つ目は1ページ", async ({ page }) => {
+  await setup(page, H1, [1, 2, 3, 4]);
+  await onlyLot(page, "DEMO-101");
+  for (const kind of [1, 2, 3, 4] as Kind[]) {
+    expect((await printKind(page, kind)).pages, `種類${kind}・ロット1つ`).toBe(1);
+    await page.emulateMedia({ media: "screen" });
+  }
+  await page.getByRole("button", { name: "すべて選ぶ" }).click();
   const result: Record<number, { pages: number; sizes: { width: number; height: number }[] }> = {};
   for (const kind of [1, 2, 3, 4] as Kind[]) {
     const r = await printKind(page, kind);
@@ -90,12 +102,24 @@ test("㊺ 種類ごとに A6 で1枚1ページ: ロット3つ × 枚数2 で6ペ
     await page.emulateMedia({ media: "screen" });
   }
   console.log("ページ数と用紙(mm):", JSON.stringify(Object.fromEntries(Object.entries(result).map(([k, v]) => [k, [v.pages, v.sizes[0]?.width.toFixed(1), v.sizes[0]?.height.toFixed(1)]]))));
-  expect(result[1].pages).toBe(6);
-  expect(result[2].pages).toBe(6);
-  expect(result[3].pages).toBe(6);
-  expect(result[4].pages).toBe(2); // 4つ目は枚数分(キッティングNo.ごと。全ロットを1枚に並べる)
+  expect(result[1].pages).toBe(3);
+  expect(result[2].pages).toBe(3);
+  expect(result[3].pages).toBe(3);
+  expect(result[4].pages).toBe(1); // 4つ目はキッティングNo.ごと(全ロットを1枚に並べる)
   for (const kind of [1, 4] as Kind[]) for (const s of result[kind].sizes) expect(near(s.width, 105) && near(s.height, 148), `${kind}: ${s.width}×${s.height}`).toBe(true);
   for (const kind of [2, 3] as Kind[]) for (const s of result[kind].sizes) expect(near(s.width, 148) && near(s.height, 105), `${kind}: ${s.width}×${s.height}`).toBe(true);
+});
+
+test("㊺b 印刷の画面の組み直し(afterprint)が起きても、押した種類のページだけが出る", async ({ page }) => {
+  // 面1の計画は 2・3・4 にチェックが入っている。Chrome の印刷の画面は用紙を変えるたびに afterprint を飛ばして組み直す
+  await setup(page, S1, [2, 3, 4]);
+  await onlyLot(page, "DEMO-001");
+  const first = await printKind(page, 2);
+  expect(first.pages).toBe(1);
+  await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+  const again = await page.pdf({ preferCSSPageSize: true });
+  expect(pdfPageCount(again)).toBe(1); // 2 と 3 のページが重なって2ページにならない
+  expect(await page.locator(".idslip-group.is-printing").count()).toBe(1);
 });
 
 test("㊻ 4つ目はロット10個でも1ページに収まり、文字は 8px より小さくならない", async ({ page }) => {
@@ -149,7 +173,7 @@ test("㊽ Code 39 で表せない値は、バーコードを描かずに文字�
     body.lots[1].lot_no = "ok-b";
     await route.fulfill({ response: res, json: body });
   });
-  await setup(page, H1, [1, 4], 1);
+  await setup(page, H1, [1, 4]);
   await expect(page.getByRole("alert").filter({ hasText: "ロット-a" })).toHaveCount(1);
   await expect(page.getByRole("alert").filter({ hasText: "ok-b" })).toHaveCount(1);
   await expect(page.locator(".slip-bc-fallback", { hasText: "ロット-a" })).toHaveCount(1);

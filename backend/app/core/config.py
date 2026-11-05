@@ -63,6 +63,8 @@ class SyncConfig:
 class ScheduleConfig:
     # 稼働日の始まり。稼働日 = この時刻から翌日のこの時刻まで(これより前は前日の稼働日)
     day_start: time = time(8, 15)
+    # 片付けが終わっていない計画があるとき、ライン画面の表示範囲の始まりを広げる限度(稼働日の始まりの何時間前まで)
+    display_extend_max_hours: int = 72
 
 
 @dataclass(frozen=True)
@@ -79,12 +81,6 @@ class AdminConfig:
     lockout_minutes: int = 5  # この時間ログインできない
     ip_lockout_failures: int = 20  # 同じ接続元から(作業者IDを問わず)続けてこの回数間違えたら(S-07)
     ip_lockout_minutes: int = 5  # その接続元は、この時間ログインできない
-
-
-@dataclass(frozen=True)
-class CorrectionsConfig:
-    # 現場の画面で直せる範囲 = 今の稼働日の前後にこの時間を足した範囲(既定はタイムテーブルの表示範囲と同じ12時間)
-    field_margin_hours: int = 12
 
 
 @dataclass(frozen=True)
@@ -111,11 +107,11 @@ class AppConfig:
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     backup: BackupConfig = field(default_factory=BackupConfig)
     admin: AdminConfig = field(default_factory=AdminConfig)
-    corrections: CorrectionsConfig = field(default_factory=CorrectionsConfig)
     reports: ReportsConfig = field(default_factory=ReportsConfig)
     production_record: ProductionRecordConfig = field(default_factory=ProductionRecordConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
+    unused_settings: tuple[str, ...] = ()  # config.toml に残っている、もう使わない設定(起動のログに出す)
 
 
 def is_frozen() -> bool:
@@ -177,6 +173,12 @@ def _sync_from(y: dict) -> SyncConfig:
     )
 
 
+# 廃止した設定(config.toml に残っていても無視する。起動のログに「使われていない設定」と出す)
+REMOVED_SETTINGS = {
+    "[corrections] field_margin_hours": lambda raw: "field_margin_hours" in raw.get("corrections", {}),  # AD-23 で表示範囲と同じ計算にした
+}
+
+
 def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig:
     path = path or config_path(home=home)
     if not path.exists():
@@ -184,7 +186,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
 
     raw = _read_toml(path)
     s, b, a = raw.get("server", {}), raw.get("backup", {}), raw.get("admin", {})
-    c, r, pr = raw.get("corrections", {}), raw.get("reports", {}), raw.get("production_record", {})
+    r, pr = raw.get("reports", {}), raw.get("production_record", {})
     return _resolve(AppConfig(
         server=ServerConfig(host=s.get("host", "0.0.0.0"), port=int(s.get("port", 8000)),
                             expose_docs=bool(s.get("expose_docs", False)), max_body_mb=int(s.get("max_body_mb", 5))),
@@ -192,18 +194,17 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
         sync=_sync_from(raw.get("sync", {})),
         schedule=ScheduleConfig(
             day_start=time.fromisoformat(raw.get("schedule", {}).get("day_start", ScheduleConfig.day_start.isoformat("minutes"))),
+            display_extend_max_hours=int(raw.get("schedule", {}).get("display_extend_max_hours", ScheduleConfig.display_extend_max_hours)),
         ),
         backup=BackupConfig(
             daily_at=time.fromisoformat(b.get("daily_at", BackupConfig.daily_at.isoformat("minutes"))),
             keep=int(b.get("keep", BackupConfig.keep)),
         ),
         admin=AdminConfig(**{k: int(a.get(k, getattr(AdminConfig, k))) for k in AdminConfig.__dataclass_fields__}),
-        corrections=CorrectionsConfig(
-            field_margin_hours=int(c.get("field_margin_hours", CorrectionsConfig.field_margin_hours)),
-        ),
         reports=ReportsConfig(max_days=int(r.get("max_days", ReportsConfig.max_days))),
         production_record=ProductionRecordConfig(**{k: str(pr.get(k, getattr(ProductionRecordConfig, k))) for k in ProductionRecordConfig.__dataclass_fields__}),
         timezone=raw.get("timezone", "Asia/Tokyo"),
+        unused_settings=tuple(name for name, still in REMOVED_SETTINGS.items() if still(raw)),
     ), home)
 
 
@@ -215,7 +216,8 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
     return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
-                     corrections=cfg.corrections, reports=cfg.reports, production_record=cfg.production_record, timezone=cfg.timezone, home=home)
+                     reports=cfg.reports, production_record=cfg.production_record, timezone=cfg.timezone, home=home,
+                     unused_settings=cfg.unused_settings)
 
 
 @lru_cache

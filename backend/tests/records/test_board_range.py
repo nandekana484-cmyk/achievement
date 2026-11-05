@@ -11,7 +11,7 @@ from records_helpers import K1, K2, new_session, ok, reason_id, start, end, sync
 
 # 稼働日 10/21 = 10/21 8:15〜10/22 8:15、表示範囲 = 10/20 20:15〜10/22 20:15。今(テストの時計)は 10/21 8:00
 IN_RANGE = "0100-1-S-251014-01"  # 10/21 9:00〜12:00(これから)
-PAST_UNTOUCHED = "0200-1-S-251014-02"  # 10/20 21:00〜23:00(過ぎて未着手)
+PAST_UNTOUCHED = "0200-1-S-251014-02"  # 10/20 21:00〜23:00(過ぎて未着手。表示範囲の中なので出る)
 PAST_STARTED = "0300-1-S-251014-03"  # 10/20 21:00〜23:00(過ぎたが始めた)
 AHEAD = "0400-1-S-251014-04"  # 10/23 9:00〜12:00(先行して始め、片付けまで終えた)
 LATE = "0500-1-S-251014-05"  # 10/15 9:00〜12:00(10/16 に始め、片付けが終わっていない)
@@ -64,16 +64,18 @@ def test_plans_shown_on_board(client, plans):
     assert PAST_STARTED in shown  # 1. 過ぎていても始めていれば出る
     assert AHEAD in shown  # 2. 表示範囲の中に実績がある(先行。片付けまで終えていても出る)
     assert LATE in shown  # 3. 始めたが片付けが終わっていない(遅れ。日付は問わない)
-    assert PAST_UNTOUCHED not in shown  # 計画終了が過ぎたのに未着手 → 出さない(検索で選ぶ)
+    assert PAST_UNTOUCHED in shown  # 計画終了が過ぎて未着手でも、表示範囲と重なれば出る
     assert LATE_DONE not in shown  # 表示範囲の外で、片付けまで終えた
     assert FUTURE not in shown  # 表示範囲の外で、未着手
-    assert shown == [LATE, PAST_STARTED, IN_RANGE, K1, K2, AHEAD]  # 計画開始の順(world の K1・K2 も 10/21)
+    assert sorted(shown) == sorted([LATE, PAST_UNTOUCHED, PAST_STARTED, IN_RANGE, K1, K2, AHEAD])  # world の K1・K2 も 10/21
 
 
 def test_board_ranges_and_server_time(client, plans, fake_clock):
     b = ok(client.get("/api/lines/S/board", params={"date": "2026-10-21"}))
     assert (b["workday_start"], b["workday_end"]) == ("2026-10-21T08:15:00+09:00", "2026-10-22T08:15:00+09:00")
-    assert (b["display_start"], b["display_end"]) == ("2026-10-20T20:15:00+09:00", "2026-10-22T20:15:00+09:00")
+    # 遅れの計画(LATE。10/16 10:00 に始めて片付け前)があるので、始まりは稼働日の始まりの72時間前(10/18 8:15)まで広がる
+    assert (b["display_start"], b["display_end"]) == ("2026-10-18T08:15:00+09:00", "2026-10-22T20:15:00+09:00")
+    assert b["stale_kitting_nos"] == [LATE]  # 広げても入りきらない
     assert b["server_time"] == fake_clock.current.isoformat()
 
 

@@ -1,5 +1,6 @@
 // 管理画面の文言(日本語だけ。管理画面は言語を切り替えない)。{name} は差し込み。詳細: docs/design/admin.md
 import { format, type Params } from "../i18n/translate";
+import { openRunsText } from "./messagesOpenRuns";
 
 const text = {
   "title": "管理画面",
@@ -294,6 +295,7 @@ const text = {
   "password.confirm": "新しいパスワード(確認)",
   "password.mismatch": "新しいパスワードが確認と違います",
   "password.changed": "パスワードを変えました",
+  ...openRunsText,
 };
 
 export type AdminKey = keyof typeof text;

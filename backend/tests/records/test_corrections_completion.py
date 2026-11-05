@@ -121,7 +121,7 @@ def test_voided_records_leave_efficiency_and_board(client, staffed, fake_clock):
 
 
 def test_plan_with_only_voided_records_counts_as_untouched(client, staffed, fake_clock):
-    # 計画終了が過ぎた計画。押し間違いで始めた記録を取り消したら、未着手で過ぎた計画として画面に出さない
+    # 計画終了が過ぎた計画。押し間違いで始めた記録を取り消したら、未着手の計画になる(表示範囲の中なので出る。遅れの計画としては扱わない)
     past = "0200-1-S-251014-02"
     insert_plan(staffed["db"], kitting_no=past, file_no="0200", start="2026/10/20 21:00:00", end="2026/10/20 23:00:00")
     sync_plans(staffed["app"])
@@ -129,4 +129,6 @@ def test_plan_with_only_voided_records_counts_as_untouched(client, staffed, fake
     shown = lambda: past in [p["plan"]["kitting_no"] for p in ok(client.get("/api/lines/S/board"))["plans"]]  # noqa: E731
     assert shown()
     ok(void(client, e["id"], kitting_no=past))
-    assert not shown()
+    assert shown()  # 表示範囲の中の計画は、未着手でも出る
+    board = ok(client.get("/api/lines/S/board"))
+    assert board["stale_kitting_nos"] == [] and board["display_start"] == "2026-10-19T20:15:00+09:00"  # 取り消した記録は範囲を広げない(今は 10/21 8:00 = 稼働日 10/20)

@@ -112,6 +112,9 @@ def test_unknown_or_other_plans_event_is_404(client, staffed, fake_clock):
 
 def test_outside_field_range_is_rejected(client, staffed, fake_clock):
     e = _segment(client, fake_clock)  # 10/21 8:00〜9:00
+    ok(start(client, "cleanup"))  # 片付けまで終えた計画は、表示範囲を広げない
+    fake_clock.advance(minutes=10)
+    ok(end(client, "cleanup"))
     fake_clock.advance(days=2)  # 10/23 9:00 → 現場で直せる範囲は 10/22 20:15〜10/24 20:15
     conflict(fix(client, e["id"], produced_qty=1), "管理画面から直してください")
     conflict(void(client, e["id"]), "管理画面から直してください")
@@ -119,8 +122,18 @@ def test_outside_field_range_is_rejected(client, staffed, fake_clock):
     ok(add(client, "setup", at("21:00", day=22), at("21:30", day=22)))
 
 
+def test_unfinished_plan_widens_field_range(client, staffed, fake_clock):
+    e = _segment(client, fake_clock)  # 10/21 8:00〜9:00。片付けが終わっていない
+    fake_clock.advance(days=2)  # 10/23 9:00 → 表示範囲の始まりは 10/21 8:00 の12時間前(10/20 20:00)
+    ok(fix(client, e["id"], produced_qty=90))  # 範囲が広がるので、2日前の記録も現場で直せる
+    fake_clock.advance(days=3)  # 10/26 9:00 → 広げる限度(稼働日の始まりの72時間前 = 10/23 8:15)より前
+    conflict(void(client, e["id"]), "管理画面から直してください")
+
+
 def test_new_times_must_be_in_field_range(client, staffed, fake_clock):
     e = _segment(client, fake_clock)  # 今は 10/21 9:00 → 範囲は 10/20 20:15〜10/22 20:15
+    ok(start(client, "cleanup"))  # 片付けまで終えた計画は、範囲を広げない
+    ok(end(client, "cleanup"))
     conflict(fix(client, e["id"], start_at=at("20:00", day=20)), "管理画面から直してください")
     ok(fix(client, e["id"], start_at=at("20:30", day=20)))
 
