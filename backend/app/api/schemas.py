@@ -31,6 +31,18 @@ class ChangeOperatorIn(_Body):
     worker_id: WorkerId = None
 
 
+class PlanCloseIn(_Body):
+    request_id: RequestId
+    worker_id: str = Field(min_length=1, max_length=64, description="作業者ID(必須。ラインの今の担当者は使わない)")
+    reason: str = Field(max_length=20, description="delay_stop(遅延して中止)・plan_change(計画変更)・other(その他。note が必須)")
+    note: str | None = Field(default=None, max_length=500)
+
+
+class PlanCloseCancelIn(_Body):
+    request_id: RequestId
+    worker_id: str = Field(min_length=1, max_length=64, description="作業者ID(必須)")
+
+
 class StepStartIn(_Recorder):
     request_id: RequestId
     restart_reason_id: int | None = None

@@ -25,7 +25,12 @@ export function isOutsideDisplay(plan: Plan, board: Pick<Board, "display_start" 
 /** 計画終了の時刻を過ぎたのに、まだ始まっていない(取り消した記録は数えない)計画。枠を「未着手」の見た目にする。 */
 export function isOverdueUnstarted(p: BoardPlan, nowMs: number): boolean {
   const end = p.plan.planned_end;
-  return !p.completed && activeEvents(p.events).length === 0 && end !== null && Date.parse(end) <= nowMs;
+  return !p.completed && !p.closed && activeEvents(p.events).length === 0 && end !== null && Date.parse(end) <= nowMs;
+}
+
+/** 「計画終了」のボタンを出す計画: 始まっていない(取り消していない記録が無い)、取り消されていない、完了でない、計画終了していない。 */
+export function canClosePlan(p: BoardPlan): boolean {
+  return p.plan.status === "active" && !p.completed && !p.closed && activeEvents(p.events).length === 0;
 }
 
 /** 「表示範囲外の計画です(計画: 10/18 9:00〜)」の文。 */

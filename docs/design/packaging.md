@@ -153,6 +153,7 @@ HTTP のままでは、管理画面のパスワードとセッションが平文
 
 1. `C:\GenbaApp\app\` に zip を展開する(`C:\GenbaApp\app\v1.0.0\GenbaApp.exe` になる)
 2. `C:\GenbaApp\data\config.toml` を作る(リポジトリの `config.example.toml` をもとに、`legacy_app_dir`、`backup_dir`、ポートを書く。`expose_docs` は書かない = 本番は `/docs` を開かない)
+   - **`[schedule]` の `lagging_since` に設置の日(例 `"2026-11-10"`)を入れる**。使い始める前の計画が「遅れた未着手の計画」として数えられ、ライン画面の表示範囲が広がったり警告が出たりしないようにするため([line-screen.md](line-screen.md))
 3. 専用アカウントを用意し、上の「フォルダの権限」で `C:\GenbaApp` とバックアップ先の権限を絞る
 4. 管理者の PowerShell で `install-autostart.ps1 -Version v1.0.0 -User <専用アカウント>`(パスワードを入力する)と `firewall-allow.ps1 -Port <ポート> -RemoteAddress <タブレットと管理用PCのアドレス>`。起動したあと、管理画面の「アクセス制限」(または `GenbaCli.exe ip add`)に同じアドレスを登録する
 5. `Start-ScheduledTask -TaskName GenbaApp` で起動し、ブラウザで `http://<担当者PC>:<ポート>/api/health` が ok を返すことを確かめる。`http://<担当者PC>:<ポート>/docs` が開かない(画面の表示か 404)ことも確かめる

@@ -5,9 +5,10 @@ import { common } from "./ja/common";
 import { idslip } from "./ja/idslip";
 import { line } from "./ja/line";
 import { link } from "./ja/link";
+import { planClose } from "./ja/planClose";
 import { record } from "./ja/record";
 
-export const ja = { ...common, ...line, ...link, ...record, ...idslip };
+export const ja = { ...common, ...line, ...link, ...record, ...idslip, ...planClose };
 
 export type MessageKey = keyof typeof ja;
 export type Messages = Record<MessageKey, string>;

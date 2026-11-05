@@ -62,7 +62,7 @@ def get_board(
     session: Session = Depends(get_session),
 ) -> BoardOut:
     """ライン画面用: 表示範囲の計画ごとの工程の記録・生産数・NG数・完了・進捗率と、付帯作業、今の担当者。"""
-    return board.get_board(session, line_code, date, get_config().schedule.day_start, get_config().schedule.display_extend_max_hours)
+    return board.get_board(session, line_code, date, get_config().schedule.day_start, get_config().schedule.display_extend_max_hours, get_config().schedule.lagging_since)
 
 
 @router.get("/masters", response_model=MastersOut)

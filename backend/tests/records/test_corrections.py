@@ -2,7 +2,7 @@
 
 from app.db.models import RunCorrection, RunEvent
 from records_helpers import (
-    K1, K2, add, at, board_plan, conflict, count_rows, end, fix, history, ok, reason_id, rid, start, void,
+    K1, K2, add, at, board_plan, conflict, count_rows, end, fix, history, new_session, ok, reason_id, rid, start, void,
 )
 
 
@@ -12,6 +12,14 @@ def _segment(client, fake_clock, minutes=60, qty=100, **start_body):
     fake_clock.advance(minutes=minutes)
     ok(end(client, "production", produced_qty=qty))
     return e
+
+
+def _close_other(world):
+    """始まっていない K2 を計画終了にする(遅れた未着手の計画として、表示範囲を広げないように)。"""
+    from app.services.plan_closures import close_plan
+
+    with new_session() as s:
+        close_plan(s, K2, world["yamada"], "plan_change", None, "req-close-k2")
 
 
 def test_change_times_and_qty(client, staffed, fake_clock):
@@ -113,6 +121,7 @@ def test_unknown_or_other_plans_event_is_404(client, staffed, fake_clock):
 def test_outside_field_range_is_rejected(client, staffed, fake_clock):
     e = _segment(client, fake_clock)  # 10/21 8:00〜9:00
     ok(start(client, "cleanup"))  # 片付けまで終えた計画は、表示範囲を広げない
+    _close_other(staffed)  # 始まっていない K2(計画終了を過ぎる)も、範囲を広げないよう計画終了にしておく
     fake_clock.advance(minutes=10)
     ok(end(client, "cleanup"))
     fake_clock.advance(days=2)  # 10/23 9:00 → 現場で直せる範囲は 10/22 20:15〜10/24 20:15

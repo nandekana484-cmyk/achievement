@@ -6,6 +6,7 @@ import { common } from "./vi/common";
 import { idslip } from "./vi/idslip";
 import { line } from "./vi/line";
 import { link } from "./vi/link";
+import { planClose } from "./vi/planClose";
 import { record } from "./vi/record";
 
-export const vi: Messages = { ...common, ...line, ...link, ...record, ...idslip };
+export const vi: Messages = { ...common, ...line, ...link, ...record, ...idslip, ...planClose };

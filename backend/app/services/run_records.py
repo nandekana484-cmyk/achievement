@@ -15,6 +15,7 @@ from app.domain.steps import InputKind, StepType
 from app.services.completions import create_completion
 from app.services.errors import RuleViolation
 from app.services.idempotency import run_idempotent
+from app.services.plan_closures import ensure_not_closed
 from app.services.kitting_plans import KittingGroup, load_group
 from app.services.line_operators import resolve_recorder
 from app.services.views import RunInputOut, StepResultOut, run_completion_out, run_event_out, run_input_out
@@ -55,6 +56,7 @@ def start_step(
         group = load_group(session, kitting_no)
         if group.status == PLAN_CANCELLED:
             raise RuleViolation("取消になった計画は開始できません")
+        ensure_not_closed(session, kitting_no)
         if open_event(session, kitting_no, step) is not None:
             raise RuleViolation(f"{step.label}は開始されたまま終了していません。先に終了してください")
         seq = next_seq(session, kitting_no, step)

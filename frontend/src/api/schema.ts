@@ -139,6 +139,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{kitting_no}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Plan
+         * @description 計画終了にする(始まっていない計画だけ。理由と作業者IDが必須。完了とは別の扱い)。
+         */
+        post: operations["close_plan_api_runs__kitting_no__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{kitting_no}/close/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel Close
+         * @description 計画終了を取り消す(作業者IDが必須)。履歴には取り消しの行を足す。
+         */
+        post: operations["cancel_close_api_runs__kitting_no__close_cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{kitting_no}/ng-qty": {
         parameters: {
             query?: never;
@@ -1534,6 +1574,10 @@ export interface components {
              * Format: date-time
              */
             display_end: string;
+            /** Stale Plans Total */
+            stale_plans_total: number;
+            /** Stale Plans */
+            stale_plans: components["schemas"]["StalePlanOut"][];
             /** Stale Kitting Nos */
             stale_kitting_nos: string[];
             /**
@@ -1563,6 +1607,7 @@ export interface components {
             completed: boolean;
             completion: components["schemas"]["RunCompletionOut"] | null;
             side_link: components["schemas"]["SideLinkViewOut"] | null;
+            closed: components["schemas"]["ClosureOut"] | null;
             /** In Progress */
             in_progress: boolean;
             /** Progress */
@@ -1602,6 +1647,28 @@ export interface components {
              * @description 作業者ID(全角・半角、大文字・小文字は区別しない)
              */
             worker_id?: string | null;
+        };
+        /** ClosureOut */
+        ClosureOut: {
+            /** Reason */
+            reason: string;
+            /** Note */
+            note: string | null;
+            /** Closed By Name */
+            closed_by_name: string | null;
+            /**
+             * Closed At
+             * Format: date-time
+             */
+            closed_at: string;
+        };
+        /** ClosureResultOut */
+        ClosureResultOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Closed */
+            closed: boolean;
+            closure: components["schemas"]["ClosureOut"] | null;
         };
         /** ConfirmIn */
         ConfirmIn: {
@@ -2604,6 +2671,39 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** PlanCloseCancelIn */
+        PlanCloseCancelIn: {
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /**
+             * Worker Id
+             * @description 作業者ID(必須)
+             */
+            worker_id: string;
+        };
+        /** PlanCloseIn */
+        PlanCloseIn: {
+            /**
+             * Request Id
+             * @description 操作ごとに一意のID。再送には同じIDを使う
+             */
+            request_id: string;
+            /**
+             * Worker Id
+             * @description 作業者ID(必須。ラインの今の担当者は使わない)
+             */
+            worker_id: string;
+            /**
+             * Reason
+             * @description delay_stop(遅延して中止)・plan_change(計画変更)・other(その他。note が必須)
+             */
+            reason: string;
+            /** Note */
+            note?: string | null;
+        };
         /** QuantityIn */
         QuantityIn: {
             /** Kitting No */
@@ -3085,6 +3185,23 @@ export interface components {
              */
             request_id: string;
         };
+        /** StalePlanOut */
+        StalePlanOut: {
+            /** Kitting No */
+            kitting_no: string;
+            /** Lot Nos */
+            lot_nos: string[];
+            /**
+             * Planned Start
+             * Format: date-time
+             */
+            planned_start: string;
+            /**
+             * Planned End
+             * Format: date-time
+             */
+            planned_end: string;
+        };
         /** StepEndIn */
         StepEndIn: {
             /** Operator Id */
@@ -3498,6 +3615,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StepResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_plan_api_runs__kitting_no__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCloseIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_close_api_runs__kitting_no__close_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kitting_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanCloseCancelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureResultOut"];
                 };
             };
             /** @description Validation Error */

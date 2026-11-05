@@ -30,6 +30,7 @@ const CANCEL_KEYS: Record<string, "stepPanel.cancelled.vanished" | "stepPanel.ca
 export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, actions }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
+  const closed = plan.closed;
   return (
     <section className="step-panel" aria-label={t("stepPanel.aria")}>
       <div className="plan-head">
@@ -48,6 +49,13 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
         <LotTable plan={plan} />
         {sideLink}
         {actions && <div className="plan-actions">{actions}</div>}
+        {closed && (
+          <p className="plan-warning">
+            {t("planClose.closedNote", {
+              reason: t(`planClose.reason.${closed.reason as "delay_stop" | "plan_change" | "other"}`), note: closed.note ? `(${closed.note})` : "", who: closed.closed_by_name ?? "",
+            })}{" "}{t("planClose.stepsLocked")}
+          </p>
+        )}
         {p.is_stale && <p className="plan-warning">{t("stepPanel.stale")}</p>}
         {p.status === "cancelled" && <p className="plan-warning">{t(CANCEL_KEYS[p.cancel_reason ?? "vanished"] ?? "stepPanel.cancelled.vanished")}</p>}
         {p.warnings.length > 0 && <p className="plan-warning">{t("stepPanel.warnings", { items: p.warnings.join(" / ") })}</p>}
@@ -60,7 +68,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
           return (
             <div key={step} className="step-row">
               <button type="button" className={`step-button step-${s.state}`} style={{ borderLeftColor: STEP_COLORS[step] }}
-                disabled={busy} onClick={() => onStep(s)}>
+                disabled={busy || !!closed} onClick={() => onStep(s)}>
                 <span className="step-name">{s.label}</span>
                 <span className={`step-state state-${s.state}`}>{t(STATE_KEYS[s.state])}</span>
                 <span className="step-time">{s.timeText}</span>
@@ -80,7 +88,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
       <div className="input-row">
         <button type="button" className="btn" onClick={onNg}>{t("stepPanel.ngInput")}</button>
         <button type="button" className="btn" onClick={onRemark} disabled={isBusy(`remark:${p.kitting_no}`)}>{t("stepPanel.remarkInput")}</button>
-        <button type="button" className="btn" onClick={onAdd}>{t("stepPanel.addForgotten")}</button>
+        <button type="button" className="btn" onClick={onAdd} disabled={!!closed}>{t("stepPanel.addForgotten")}</button>
         <button type="button" className="btn" onClick={onHistory}>{t("stepPanel.history")}</button>
       </div>
     </section>

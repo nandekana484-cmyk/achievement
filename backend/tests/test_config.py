@@ -165,3 +165,13 @@ def test_unused_corrections_setting_is_reported(tmp_path):
     assert load_config(p).unused_settings == ("[corrections] field_margin_hours",)  # 廃止した設定。起動のログに出す
     assert load_config(tmp_path / "none.toml").unused_settings == ()
     assert load_config(Path(__file__).resolve().parents[2] / "config.example.toml").unused_settings == ()
+
+
+def test_lagging_since(tmp_path):
+    from datetime import date
+
+    assert load_config(tmp_path / "none.toml").schedule.lagging_since is None
+    p = tmp_path / "c.toml"
+    p.write_text('[schedule]\nlagging_since = "2026-11-10"\n', encoding="utf-8")
+    assert load_config(p).schedule.lagging_since == date(2026, 11, 10)
+    assert load_config(Path(__file__).resolve().parents[2] / "config.example.toml").schedule.lagging_since is None  # 例では無効(コメント)

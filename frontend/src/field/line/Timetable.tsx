@@ -47,13 +47,13 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     if (!s) return [];
     const selected = planKey(p) === selectedKey;
     const overdue = isOverdueUnstarted(p, nowMs);
-    const state = p.completed ? t("common.done") : selected ? t("common.selected") : edge ? t("plan.outsideShort") : overdue ? t("plan.overdueUnstarted") : formatPercent(p.in_progress ? p.progress : null);
+    const state = p.completed ? t("common.done") : p.closed ? t("plan.closedManual") : selected ? t("common.selected") : edge ? t("plan.outsideShort") : overdue ? t("plan.overdueUnstarted") : formatPercent(p.in_progress ? p.progress : null);
     const clip = `${s.clippedStart ? " tt-clip-start" : ""}${s.clippedEnd ? " tt-clip-end" : ""}`;
     // 枠はキッティングNo.ごとに1つ。ロットの数と計画数の合計を出す
     return [{
       key: planKey(p), span: s, label: p.plan.kitting_no,
       sub: t("plan.summaryWithState", { summary: planSummary(p.plan, t), state }),
-      className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${overdue ? " tt-overdue" : ""}${edge ? " tt-edge" : ""}${clip}`, onClick: () => onSelect(p),
+      className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${overdue ? " tt-overdue" : ""}${p.closed ? " tt-closed" : ""}${edge ? " tt-edge" : ""}${clip}`, onClick: () => onSelect(p),
     }];
   });
 

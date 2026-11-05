@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api", tags=["corrections"])
 def _field_scope(session: Session, line_code: str | None) -> FieldScope:
     """現場の画面で直せる範囲 = そのラインのライン画面の表示範囲。"""
     cfg = get_config()
-    return FieldScope(session, line_code or "", cfg.schedule.day_start, cfg.schedule.display_extend_max_hours)
+    return FieldScope(session, line_code or "", cfg.schedule.day_start, cfg.schedule.display_extend_max_hours, cfg.schedule.lagging_since)
 
 
 def _recorder(session: Session, body: _Recorder) -> int | None:

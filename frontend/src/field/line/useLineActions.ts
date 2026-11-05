@@ -41,6 +41,19 @@ export function useLineActions(lineCode: string, op: Operation) {
           params: { path: kittingPath(p) }, body: { request_id, lot_no: lotNo, side, ng_qty: ngQty },
         }), options),
 
+    /** 計画終了(始まっていない計画。作業者IDと理由が必須)。ダイアログの中に失敗の理由を出す。 */
+    closePlan: (p: BoardPlan, workerId: string, reason: string, note: string) =>
+      op.run(`close:${p.plan.kitting_no}`, { workerId, reason, note }, (request_id) =>
+        api.POST("/api/runs/{kitting_no}/close", {
+          params: { path: kittingPath(p) }, body: { request_id, worker_id: workerId, reason, note: note || null },
+        }), inDialog),
+
+    cancelClose: (p: BoardPlan, workerId: string) =>
+      op.run(`closeCancel:${p.plan.kitting_no}`, { workerId }, (request_id) =>
+        api.POST("/api/runs/{kitting_no}/close/cancel", {
+          params: { path: kittingPath(p) }, body: { request_id, worker_id: workerId },
+        }), inDialog),
+
     addRemark: (p: BoardPlan, text: string) =>
       op.run(`remark:${p.plan.kitting_no}`, { text }, (request_id) =>
         api.POST("/api/runs/{kitting_no}/remarks", { params: { path: kittingPath(p) }, body: { request_id, text } })),

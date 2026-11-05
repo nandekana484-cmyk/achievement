@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -34,9 +34,10 @@ class FieldScope:
     line_code: str
     day_start: time
     max_extend_hours: int
+    lagging_since: date | None = None
 
     def window(self, now: datetime) -> tuple[datetime, datetime]:
-        w = display_window(self.session, self.line_code, workday_of(now, self.day_start), self.day_start, self.max_extend_hours)
+        w = display_window(self.session, self.line_code, workday_of(now, self.day_start), self.day_start, self.max_extend_hours, now, self.lagging_since)
         return w.start, w.end
 
 
