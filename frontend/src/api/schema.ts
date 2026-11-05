@@ -1779,7 +1779,8 @@ export interface components {
         ControlRow: {
             /**
              * Name
-             * @description 工程名(日本語。必須)
+             * @description 工程名(日本語。空でもよい = 手で書く行)
+             * @default
              */
             name: string;
             /**
@@ -1836,7 +1837,7 @@ export interface components {
         };
         /**
          * ControlSheetPrintOut
-         * @description 印刷に使う内容。未登録のときは registered=False で、管理No は空、行は無い(画面が空の8行で出す)。
+         * @description 印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False)。未登録のときは registered=False で、管理No は空、空の8行。
          */
         ControlSheetPrintOut: {
             /** Registered */

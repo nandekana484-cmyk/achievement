@@ -6,14 +6,10 @@ import type { IdSlip } from "./idSlipLogic";
 export type ControlRow = components["schemas"]["ControlRow"];
 export type Kind = ControlRow["kind"];
 
-/** 未登録のとき、工程の行を空で出す数。 */
-export const EMPTY_ROWS = 8;
-
 export type SheetRow = { no: number; name: string; nameVi: string; kind: Kind; procedure: string; useLine: boolean };
 
-/** 印刷する工程の行(番号は1から)。未登録のときは、空の EMPTY_ROWS 行(番号だけ)。 */
+/** 印刷する工程の行(番号は1から)。サーバーが、登録した行に、8行になるまでの空の行(ライン名の欄に斜線)を足して返す。未登録のときは空の8行。 */
 export function sheetRows(cs: IdSlip["control_sheet"]): SheetRow[] {
-  if (!cs.registered) return Array.from({ length: EMPTY_ROWS }, (_, i) => ({ no: i + 1, name: "", nameVi: "", kind: "none", procedure: "", useLine: true }));
   return cs.rows.map((r, i) => ({ no: i + 1, name: r.name, nameVi: r.name_vi ?? "", kind: r.kind, procedure: r.procedure, useLine: r.use_line }));
 }
 
@@ -28,6 +24,11 @@ export const LEVEL_COUNT = 8;
 
 /** 用紙(297mm - 上下の余白 16mm = 281mm ≒ 1062px)に収まる高さの上限(px)。余裕を少し見る。 */
 export const MAX_HEIGHT_PX = 1056;
+
+/** 一番詰めても収まらないか(最後の段階で、まだ高さが上限を超える)。 */
+export function overflowsAtLimit(level: number, heightPx: number): boolean {
+  return level >= LEVEL_COUNT - 1 && heightPx > MAX_HEIGHT_PX;
+}
 
 /** 収まらないときの次の段階(収まる、またはこれ以上詰められなければ null)。 */
 export function nextLevel(level: number, heightPx: number): number | null {

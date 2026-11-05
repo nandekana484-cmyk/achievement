@@ -4,9 +4,9 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { backUrl, barcodeWarnings, type IdSlip, isLotKind, pagesOf, type Selection, toggleKind, toggleLot } from "./idSlipLogic";
 import { SLIP_KINDS, type SlipKind } from "./idSlipTexts";
 
-type Props = { slip: IdSlip; sel: Selection; onChange: (sel: Selection) => void; onPrint: (kind: SlipKind) => void };
+type Props = { slip: IdSlip; sel: Selection; overflowRows: number; onChange: (sel: Selection) => void; onPrint: (kind: SlipKind) => void };
 
-export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
+export function IdSlipToolbar({ slip, sel, overflowRows, onChange, onPrint }: Props) {
   const { t } = useI18n();
   const warnings = barcodeWarnings(slip, sel);
   const lotKindChecked = sel.kinds.some(isLotKind);
@@ -58,6 +58,7 @@ export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
         </fieldset>
       )}
       {sel.kinds.includes(5) && !slip.control_sheet.registered && <p className="idslip-warn" role="alert">{t("idslip.controlSheetUnregistered")}</p>}
+      {sel.kinds.includes(5) && overflowRows > 0 && <p className="idslip-warn" role="alert">{t("idslip.controlSheetOverflow", { count: overflowRows })}</p>}
       {warnings.map((w) => (
         <p key={`${w.field}:${w.value}`} className="idslip-warn" role="alert">{t("idslip.warn", { item: t(`idslip.item.${w.field}`), value: w.value })}</p>
       ))}

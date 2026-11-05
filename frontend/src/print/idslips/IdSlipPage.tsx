@@ -1,6 +1,6 @@
 // 識別票(4種類)の印刷用のページ。計画を選んで開き、種類・ロットを選び、種類ごとの「この種類を印刷」で window.print を呼ぶ
 // (その種類のページだけを印刷に出す。PDF の生成やサーバー側の印刷はしない)。詳細: docs/design/id-slips.md
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -14,7 +14,7 @@ import { Slip1 } from "./Slip1";
 import { Slip23 } from "./Slip23";
 import { Slip4 } from "./Slip4";
 
-function Page({ kind, slip, lotNo }: { kind: SlipKind; slip: IdSlip; lotNo: string | null }) {
+function Page({ kind, slip, lotNo, onOverflow }: { kind: SlipKind; slip: IdSlip; lotNo: string | null; onOverflow: (lot: string, rows: number | null) => void }) {
   const qty = slip.lots.find((l) => l.lot_no === lotNo)?.order_qty ?? null;
   const land = kind === 2 || kind === 3;
   return (
@@ -22,7 +22,7 @@ function Page({ kind, slip, lotNo }: { kind: SlipKind; slip: IdSlip; lotNo: stri
       {kind === 1 && lotNo !== null && <div className="slip-scale"><Slip1 slip={slip} lotNo={lotNo} orderQty={qty} /></div>}
       {land && lotNo !== null && <div className="slip-scale slip-scale-l"><Slip23 kind={kind as 2 | 3} slip={slip} lotNo={lotNo} /></div>}
       {kind === 4 && <Slip4 slip={slip} />}
-      {kind === 5 && lotNo !== null && <ControlSheet key={`${lotNo}:${JSON.stringify(slip.control_sheet)}`} slip={slip} lotNo={lotNo} />}
+      {kind === 5 && lotNo !== null && <ControlSheet key={`${lotNo}:${JSON.stringify(slip.control_sheet)}`} slip={slip} lotNo={lotNo} onOverflow={onOverflow} />}
     </div>
   );
 }
@@ -34,6 +34,12 @@ export function IdSlipPage() {
   const [sel, setSel] = useState<Selection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [printing, setPrinting] = useState<SlipKind | null>(null);
+  const [overflow, setOverflow] = useState<Record<string, number>>({}); // 管理表が一番詰めても1ページに収まらないロット(行の数)
+  const onOverflow = useCallback((lot: string, rows: number | null) => setOverflow((prev) => {
+    if ((prev[lot] ?? null) === rows) return prev;
+    const { [lot]: _gone, ...rest } = prev;
+    return rows === null ? rest : { ...rest, [lot]: rows };
+  }), []);
 
   useEffect(() => {
     let alive = true;
@@ -56,12 +62,12 @@ export function IdSlipPage() {
 
   return (
     <div className="idslip-page" data-printing={printing ?? undefined}>
-      {slip && sel && <IdSlipToolbar slip={slip} sel={sel} onChange={(next) => { setPrinting(null); setSel(next); }} onPrint={print} />}
+      {slip && sel && <IdSlipToolbar slip={slip} sel={sel} overflowRows={Math.max(0, ...Object.values(overflow))} onChange={(next) => { setPrinting(null); setSel(next); }} onPrint={print} />}
       {error && <Notice kind="error">{error}</Notice>}
       {!slip && !error && <p className="placeholder">{t("common.loading")}</p>}
       {slip && sel && sel.kinds.map((kind) => (
         <section key={kind} className={`idslip-group${printing === kind ? " is-printing" : ""}`} data-kind={kind} aria-label={t(`idslip.kind.${kind}`)}>
-          {pagesOf(kind, sel).map((p, i) => <Page key={`${p.lot}:${i}`} kind={kind} slip={slip} lotNo={p.lot} />)}
+          {pagesOf(kind, sel).map((p, i) => <Page key={`${p.lot}:${i}`} kind={kind} slip={slip} lotNo={p.lot} onOverflow={onOverflow} />)}
         </section>
       ))}
     </div>

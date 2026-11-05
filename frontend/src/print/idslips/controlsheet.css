@@ -116,6 +116,10 @@
 .sk .sk-hanko-cell { height: var(--stamp-h); }
 .sk-white { font-size: 9px; font-weight: bold; text-align: left; margin-top: 6px; letter-spacing: 0.5px; }
 
+/* 一番詰めても収まらないとき: 枠を伸ばして、はみ出した分を2ページ目に続ける(1ページ目の下で切らない) */
+.slip-frame-a4:has(.sk[data-overflow="1"]) { height: auto; overflow: visible; }
+
 @media print {
+  .slip-frame-a4:has(.sk[data-overflow="1"]) { height: auto; break-inside: auto; }
   .slip-frame-a4 { height: 280mm; }
 }

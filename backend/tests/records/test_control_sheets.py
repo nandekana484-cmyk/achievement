@@ -23,13 +23,16 @@ def slip(client, kno=K1):
 
 
 def test_register_then_print_data_has_the_content(client, admin):
-    assert slip(client)["control_sheet"] == {"registered": False, "manager_no": "", "rows": []}  # 未登録 → 画面が空の8行で出す
+    cs = slip(client)["control_sheet"]  # 未登録 → 空の8行(ライン名の欄は斜線)
+    assert (cs["registered"], cs["manager_no"], len(cs["rows"])) == (False, "", 8)
+    assert all(r["name"] == "" and r["procedure"] == "" and r["use_line"] is False for r in cs["rows"])
     login(client)
     saved = ok(put(client))
     assert (saved["file_no"], saved["version"], saved["manager_no"], saved["saved_by_name"]) == ("0722", 1, "MP-1", "管理 花子")
     cs = slip(client)["control_sheet"]
     assert cs["registered"] is True and cs["manager_no"] == "MP-1"
-    assert [(r["name"], r["kind"], r["use_line"], r["procedure"]) for r in cs["rows"]] == [("SMT-1", "internal", True, "Side B"), ("X線検査", "internal", False, "検査数 5 枚\nロケーション")]
+    assert [(r["name"], r["kind"], r["use_line"], r["procedure"]) for r in cs["rows"][:2]] == [("SMT-1", "internal", True, "Side B"), ("X線検査", "internal", False, "検査数 5 枚\nロケーション")]
+    assert len(cs["rows"]) == 8 and all(r["name"] == "" and r["use_line"] is False for r in cs["rows"][2:])  # 足した空の行(斜線)
     assert slip(client, K2)["control_sheet"]["manager_no"] == "MP-1"  # 同じファイルNo.の2回目の計画も同じ内容
 
 
@@ -55,13 +58,16 @@ def test_edit_keeps_history_and_audit(client, admin):
 
 def test_row_checks(client, admin):
     login(client)
-    r = put(client, rows=[{"name": "  "}])
-    assert r.status_code == 409 and "1 行目の工程名" in r.json()["detail"]
+    blank = ok(put(client, rows=[{"name": "  ", "use_line": False}, {"name": "", "kind": "internal"}]))  # 空の行(手で書く行)も登録できる
+    assert [(r["name"], r["procedure"], r["use_line"], r["kind"]) for r in blank["rows"]] == [("", "", False, "none"), ("", "", True, "internal")]
+    rows = slip(client)["control_sheet"]["rows"]  # 登録した行がそのまま出て、8行になるまで下に空の行を足す
+    assert len(rows) == 8 and [r["use_line"] for r in rows] == [False, True] + [False] * 6 and rows[1]["kind"] == "internal"
     assert put(client, rows=[{"name": "A", "kind": "nope"}]).status_code == 422
     assert put(client, file_no=" ").status_code in (404, 409)
     assert put(client, rows=[{"name": f"R{i}"} for i in range(101)]).status_code == 409
     long_rows = [{"name": f"R{i}", "procedure": "x\n" * 3} for i in range(20)]
     assert len(ok(put(client, rows=long_rows))["rows"]) == 20  # 何行でも(上限 100)
+    assert len(slip(client)["control_sheet"]["rows"]) == 20  # 8行より多いときは足さない
 
 
 def test_copy_makes_a_new_one_without_manager_no(client, admin):

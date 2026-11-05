@@ -21,6 +21,7 @@ from app.services import audit
 from app.services.errors import NotFound, RuleViolation
 
 MAX_ROWS = 100
+MIN_PRINT_ROWS = 8  # 印刷する行の数の下限。登録した行がこれより少ないときは、下に空の行を足す(様式の4〜8の行と同じく、ライン名の欄に斜線)
 Kind = Literal["internal", "external", "none"]  # 区分: 社内 / 社外 / なし
 Link = Literal["none", "run1", "run2", "xray"]  # 将来の自動入力のための対応(今は印刷に使わない)
 
@@ -30,7 +31,7 @@ class ControlRow(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(max_length=100, description="工程名(日本語。必須)")
+    name: str = Field(default="", max_length=100, description="工程名(日本語。空でもよい = 手で書く行)")
     name_vi: str | None = Field(default=None, max_length=200, description="工程名のベトナム語(任意)")
     kind: Kind = "none"
     procedure: str = Field(default="", max_length=2000, description="作業要領・注意点(複数行)")
@@ -62,7 +63,7 @@ class ControlSheetSummaryOut(BaseModel):
 
 
 class ControlSheetPrintOut(BaseModel):
-    """印刷に使う内容。未登録のときは registered=False で、管理No は空、行は無い(画面が空の8行で出す)。"""
+    """印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False)。未登録のときは registered=False で、管理No は空、空の8行。"""
 
     registered: bool
     manager_no: str
@@ -79,13 +80,7 @@ def check_file_no(file_no: str) -> str:
 def _clean_rows(rows: list[ControlRow]) -> list[ControlRow]:
     if len(rows) > MAX_ROWS:
         raise RuleViolation(f"工程の行は {MAX_ROWS} 行までです")
-    out = []
-    for i, r in enumerate(rows, 1):
-        name = r.name.strip()
-        if not name:
-            raise RuleViolation(f"{i} 行目の工程名を入れてください")
-        out.append(r.model_copy(update={"name": name, "name_vi": (r.name_vi or "").strip() or None, "procedure": r.procedure.rstrip()}))
-    return out
+    return [r.model_copy(update={"name": r.name.strip(), "name_vi": (r.name_vi or "").strip() or None, "procedure": r.procedure.rstrip()}) for r in rows]
 
 
 def _out(session: Session, v: ControlSheetVersion) -> ControlSheetOut:
@@ -120,7 +115,9 @@ def history(session: Session, file_no: str) -> list[ControlSheetOut]:
 
 def print_data(session: Session, file_no: str) -> ControlSheetPrintOut:
     cur = get_current(session, file_no)
-    return ControlSheetPrintOut(registered=cur is not None, manager_no=cur.manager_no if cur else "", rows=cur.rows if cur else [])
+    rows = list(cur.rows) if cur else []
+    rows += [ControlRow(use_line=False) for _ in range(MIN_PRINT_ROWS - len(rows))]
+    return ControlSheetPrintOut(registered=cur is not None, manager_no=cur.manager_no if cur else "", rows=rows)
 
 
 def _snapshot(s: ControlSheetOut) -> dict:

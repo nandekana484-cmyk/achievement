@@ -2,7 +2,7 @@
 // 工程の行はファイルNo.ごとの内容(管理画面で登録)。1ページに収まるまで、描いてから測って、行の高さを先に、文字をあとから縮める(最小 8px)。
 // 内容が変わったら、呼ぶ側が key を変えて作り直す(詰め具合を 0 からやり直すため)。
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
-import { type SheetRow, lotCounts, nextLevel, sheetRows } from "./controlSheetLayout";
+import { type SheetRow, lotCounts, nextLevel, overflowsAtLimit, sheetRows } from "./controlSheetLayout";
 import { SHEET_TEXT, type SheetTextKey } from "./controlSheetTexts";
 import type { IdSlip } from "./idSlipLogic";
 import { Fit } from "./SlipParts";
@@ -141,9 +141,9 @@ function Bottom() {
   );
 }
 
-function Sheet({ slip, lotNo, level, inner }: { slip: IdSlip; lotNo: string; level: number; inner: RefObject<HTMLDivElement> }) {
+function Sheet({ slip, lotNo, level, overflow, inner }: { slip: IdSlip; lotNo: string; level: number; overflow: boolean; inner: RefObject<HTMLDivElement> }) {
   return (
-    <div className={`sk sk-d${level}`} data-level={level}>
+    <div className={`sk sk-d${level}`} data-level={level} data-overflow={overflow ? "1" : undefined}>
       <div ref={inner} className="sk-inner">
         <Top slip={slip} />
         <LotBlock slip={slip} lotNo={lotNo} />
@@ -161,12 +161,19 @@ function Sheet({ slip, lotNo, level, inner }: { slip: IdSlip; lotNo: string; lev
   );
 }
 
-export function ControlSheet({ slip, lotNo }: { slip: IdSlip; lotNo: string }) {
+/** onOverflow: 一番詰めても1ページに収まらないとき(行の数)と、収まったとき(null)を知らせる。収まらないときは、枠を伸ばして2ページ目に続ける(controlsheet.css)。 */
+export function ControlSheet({ slip, lotNo, onOverflow }: { slip: IdSlip; lotNo: string; onOverflow?: (lotNo: string, rows: number | null) => void }) {
   const inner = useRef<HTMLDivElement>(null);
   const [level, setLevel] = useState(0);
+  const [overflow, setOverflow] = useState(false);
   useLayoutEffect(() => {
-    const next = nextLevel(level, inner.current?.getBoundingClientRect().height ?? 0);
-    if (next !== null) setLevel(next);
-  }, [level, slip, lotNo]);
-  return <Sheet slip={slip} lotNo={lotNo} level={level} inner={inner} />;
+    const height = inner.current?.getBoundingClientRect().height ?? 0;
+    const next = nextLevel(level, height);
+    if (next !== null) { setLevel(next); return; }
+    const over = overflowsAtLimit(level, height);
+    setOverflow(over);
+    onOverflow?.(lotNo, over ? slip.control_sheet.rows.length : null);
+  }, [level, slip, lotNo, onOverflow]);
+  useLayoutEffect(() => () => onOverflow?.(lotNo, null), [lotNo, onOverflow]);
+  return <Sheet slip={slip} lotNo={lotNo} level={level} overflow={overflow} inner={inner} />;
 }

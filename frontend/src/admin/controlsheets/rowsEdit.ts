@@ -10,7 +10,7 @@ export const LINKS: Link[] = ["none", "run1", "run2", "xray"];
 
 export const blankRow = (): Row => ({ name: "", name_vi: null, kind: "none", procedure: "", use_line: true, link: "none" });
 
-/** index の次に空の行を足す(index が無ければ最後)。 */
+/** index の次に空の行(工程名も作業要領も空。手で書く行)を足す(index が無ければ最後)。 */
 export function addRow(rows: Row[], index?: number): Row[] {
   const at = index === undefined ? rows.length : index + 1;
   return [...rows.slice(0, at), blankRow(), ...rows.slice(at)];
@@ -33,11 +33,10 @@ export function updateRow(rows: Row[], index: number, patch: Partial<Row>): Row[
   return rows.map((r, i) => (i === index ? { ...r, ...patch } : r));
 }
 
-/** 工程名が空の最初の行の番号(1から)。すべて入っていれば null。 */
-export function firstBlankName(rows: Row[]): number | null {
-  const i = rows.findIndex((r) => r.name.trim() === "");
-  return i < 0 ? null : i + 1;
-}
+/** この行数を超えると、1ページに収まらないことがある(警告するだけ。保存は止めない)。作業要領が各行3行までで、一番詰めて収まるのが 20 行(詳細: docs/design/control-sheet.md)。 */
+export const PAGE_FIT_ROWS = 20;
+
+export const tooManyRows = (rows: Row[]): boolean => rows.length > PAGE_FIT_ROWS;
 
 /** 保存のとき送る形(工程名の前後の空白と、空のベトナム語を整える)。 */
 export function toPayload(rows: Row[]): Row[] {

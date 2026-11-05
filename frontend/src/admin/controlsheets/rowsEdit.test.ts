@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addRow, blankRow, firstBlankName, moveRow, removeRow, toPayload, updateRow } from "./rowsEdit";
+import { addRow, blankRow, moveRow, PAGE_FIT_ROWS, removeRow, toPayload, tooManyRows, updateRow } from "./rowsEdit";
 
 const named = (...names: string[]) => names.map((name) => ({ ...blankRow(), name }));
 const names = (rows: { name: string }[]) => rows.map((r) => r.name);
@@ -30,9 +30,17 @@ describe("管理表の行の編集", () => {
     expect(next[0]).toBe(rows[0]);
   });
 
-  it("工程名が空の最初の行の番号と、送る形", () => {
-    expect(firstBlankName(named("A", " ", ""))).toBe(2);
-    expect(firstBlankName(named("A"))).toBeNull();
+  it("空の行(工程名も作業要領も空)を足せて、そのまま送れる。区分とライン名の欄の設定は空の行にも持てる", () => {
+    const rows = updateRow(addRow(named("A")), 1, { kind: "internal", use_line: false });
+    expect(rows[1]).toMatchObject({ name: "", procedure: "", kind: "internal", use_line: false });
+    expect(toPayload(rows)[1]).toMatchObject({ name: "", name_vi: null, kind: "internal", use_line: false });
     expect(toPayload([{ ...blankRow(), name: " X線 ", name_vi: "  " }])[0]).toMatchObject({ name: "X線", name_vi: null });
+  });
+
+  it("20行を超えたら、1ページに収まらないことがあると警告する(20行まではしない)", () => {
+    const rows = (n: number) => Array.from({ length: n }, blankRow);
+    expect(PAGE_FIT_ROWS).toBe(20);
+    expect(tooManyRows(rows(20))).toBe(false);
+    expect(tooManyRows(rows(21))).toBe(true);
   });
 });

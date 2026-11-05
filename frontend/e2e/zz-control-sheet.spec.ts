@@ -76,28 +76,28 @@ test("64 管理画面「管理表の内容」: 登録・コピー・履歴・未
   // 様式の例(SMT-1、X線検査)を登録する
   await list.getByRole("row", { name: /0722/ }).getByRole("button", { name: "登録する" }).click();
   await page.getByLabel("管理No").fill("MP-0722");
-  await page.getByRole("button", { name: "行を追加", exact: true }).click();
+  await page.getByRole("button", { name: "空の行を足す", exact: true }).click();
   const r1 = page.getByRole("listitem", { name: "1 行目" });
-  await r1.getByLabel("工程名(日本語)").fill("SMT-1(リフロー)");
+  await r1.getByLabel(/^工程名\(日本語/).fill("SMT-1(リフロー)");
   await r1.getByLabel("区分").selectOption("internal");
   await r1.getByLabel(/作業要領・注意点/).fill("Side B");
   await r1.getByLabel("将来の自動入力のための対応(今は印刷に使いません)").selectOption("run1");
-  await page.getByRole("button", { name: "行を追加", exact: true }).click();
+  await page.getByRole("button", { name: "空の行を足す", exact: true }).click();
   const r2 = page.getByRole("listitem", { name: "2 行目" });
-  await r2.getByLabel("工程名(日本語)").fill("X線検査");
+  await r2.getByLabel(/^工程名\(日本語/).fill("X線検査");
   await r2.getByLabel("工程名のベトナム語(任意)").fill("Kiểm tra X-quang");
   await r2.getByLabel("区分").selectOption("internal");
   await r2.getByLabel(/作業要領・注意点/).fill("ロケーション\n検査数  5 枚");
   await r2.getByLabel(/ライン名の欄を使う/).uncheck(); // 斜線
   await r2.getByLabel("将来の自動入力のための対応(今は印刷に使いません)").selectOption("xray");
   // 並べ替えと削除: 3行目を足して、2行目の上へ動かし、消す
-  await page.getByRole("button", { name: "行を追加", exact: true }).click();
+  await page.getByRole("button", { name: "空の行を足す", exact: true }).click();
   const r3 = page.getByRole("listitem", { name: "3 行目" });
-  await r3.getByLabel("工程名(日本語)").fill("仮の行");
+  await r3.getByLabel(/^工程名\(日本語/).fill("仮の行");
   await r3.getByRole("button", { name: "上へ" }).click();
-  await expect(page.getByRole("listitem", { name: "2 行目" }).getByLabel("工程名(日本語)")).toHaveValue("仮の行");
+  await expect(page.getByRole("listitem", { name: "2 行目" }).getByLabel(/^工程名\(日本語/)).toHaveValue("仮の行");
   await page.getByRole("listitem", { name: "2 行目" }).getByRole("button", { name: "この行を削除" }).click();
-  await expect(page.getByRole("listitem", { name: "2 行目" }).getByLabel("工程名(日本語)")).toHaveValue("X線検査");
+  await expect(page.getByRole("listitem", { name: "2 行目" }).getByLabel(/^工程名\(日本語/)).toHaveValue("X線検査");
   await page.getByRole("button", { name: "保存する" }).click();
   await expect(page.getByRole("status")).toContainText("保存しました(版 1)");
   await page.screenshot({ path: `${SCREENS}/65-admin-control-sheets-editor.png`, fullPage: true });
@@ -118,7 +118,7 @@ test("64 管理画面「管理表の内容」: 登録・コピー・履歴・未
   await page.getByLabel("コピー元").selectOption("0722");
   await page.getByRole("button", { name: "登録する", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "ファイルNo. 0800 の管理表の内容" })).toBeVisible();
-  await expect(page.getByRole("listitem", { name: "1 行目" }).getByLabel("工程名(日本語)")).toHaveValue("SMT-1(リフロー)");
+  await expect(page.getByRole("listitem", { name: "1 行目" }).getByLabel(/^工程名\(日本語/)).toHaveValue("SMT-1(リフロー)");
   await expect(page.getByLabel("管理No")).toHaveValue(""); // 管理No はコピーしない
   await page.getByRole("button", { name: "一覧に戻る" }).click();
   await expect(list.getByRole("row", { name: /0722/ })).toContainText("登録済み");
@@ -127,7 +127,16 @@ test("64 管理画面「管理表の内容」: 登録・コピー・履歴・未
   await page.screenshot({ path: `${SCREENS}/66-admin-control-sheets-list.png`, fullPage: true });
 });
 
-test("67 登録した内容で印刷: 2回目の計画で初期値のチェック、A4の1ページ、様式と並べる", async ({ page }) => {
+const EXAMPLE = [ // 様式の例: SMT-1、X線検査、空の行 3〜8(3の行だけライン名の欄を使う)
+  { name: "SMT-1(リフロー)", name_vi: null, kind: "internal", procedure: "Side B", use_line: true, link: "run1" },
+  { name: "X線検査", name_vi: "Kiểm tra X-quang", kind: "internal", procedure: "ロケーション\n検査数  5 枚", use_line: false, link: "xray" },
+  { name: "", name_vi: null, kind: "none", procedure: "", use_line: true, link: "none" },
+  ...Array.from({ length: 5 }, () => ({ name: "", name_vi: null, kind: "none", procedure: "", use_line: false, link: "none" })),
+];
+
+test("67 様式の例(8行)を登録して印刷: 2回目の計画で初期値のチェック、A4の1ページ、様式と並べる", async ({ page }) => {
+  await adminLogin(page);
+  await register(page, "0722", "MP-0722", EXAMPLE);
   const k2 = await kittingOf(page, "0722", 2);
   await page.goto(`/field/print/id-slips/${k2}`);
   await expect(page.getByRole("checkbox", { name: KIND5 })).toBeChecked(); // 2回目(面2)は初期値で入る
@@ -141,7 +150,7 @@ test("67 登録した内容で印刷: 2回目の計画で初期値のチェッ�
   await printSheet(page, k2);
   const [m] = await measure(page);
   console.log("登録した内容:", JSON.stringify(m));
-  expect(m.rows).toBe(2);
+  expect(m.rows).toBe(8); // 様式と同じ8行
   expect(m.heightMm).toBeLessThanOrEqual(281);
   const pdf = await page.pdf({ preferCSSPageSize: true });
   expect(pdfPageCount(pdf)).toBe(1);
@@ -154,12 +163,12 @@ test("67 登録した内容で印刷: 2回目の計画で初期値のチェッ�
   expect(text).toContain("検査数");
   expect(text).toContain("5 枚");
   await expect(page.locator(".is-printing .sk-fileno")).toHaveText("722");
-  await expect(page.locator(".is-printing .sk-row").nth(1).locator("td").nth(3)).toHaveClass(/sk-diagonal/); // ライン名の欄の斜線
-  await expect(page.locator(".is-printing .sk-row").nth(0).locator("td").nth(3)).not.toHaveClass(/sk-diagonal/);
+  const diagonal = await page.locator(".is-printing .sk-row").evaluateAll((rows) => rows.map((r) => r.children[3].classList.contains("sk-diagonal")));
+  expect(diagonal).toEqual([false, true, false, true, true, true, true, true]); // ライン名の欄の斜線(様式: 2、4〜8の行。3の行だけ使う)
   const lots = (await (await page.request.get(`/api/id-slips/${k2}`)).json()).lots;
   await expect(page.locator(".is-printing .sk-a")).toHaveText(String(lots[0].planned_qty)); // A = plans.planned_qty
   await expect(page.locator(".is-printing .sk-c")).toHaveText(String(lots[0].order_qty)); // C = plans.order_qty
-  await expect(page.locator(".is-printing .sk-proc.sk-lined")).toHaveCount(2); // 作業要領の欄の罫線
+  await expect(page.locator(".is-printing .sk-proc.sk-lined")).toHaveCount(8); // 作業要領の欄の罫線(文字が無い行にも)
   await page.emulateMedia({ media: "screen" });
   const frame = page.locator(".idslip-group[data-kind='5'] .slip-frame").first();
   const ours = await frame.screenshot({ path: `${SCREENS}/67-control-sheet-registered.png` });
@@ -187,6 +196,7 @@ test("70 未登録のときは空の8行(番号だけ)で印刷し、操作バ�
   expect(m.rows).toBe(8);
   expect(m.heightMm).toBeLessThanOrEqual(281);
   expect(await page.locator(".is-printing .sk-row").evaluateAll((rows) => rows.map((r) => r.textContent))).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]); // 番号だけ
+  expect(await page.locator(".is-printing .sk-diagonal").count()).toBe(8); // 空の行は、ライン名の欄に斜線
   expect(pdfPageCount(await page.pdf({ preferCSSPageSize: true }))).toBe(1);
   await page.emulateMedia({ media: "screen" });
   await page.locator(".idslip-group[data-kind='5'] .slip-frame").first().screenshot({ path: `${SCREENS}/70-control-sheet-unregistered.png` });
@@ -216,4 +226,25 @@ test("72 20行・作業要領が各行3行でも1ページ(文字は 8px 以上)
   // 1ロットだけなら1ページ
   await printSheet(page, k, ["DEMO-101"]);
   expect(pdfPageCount(await page.pdf({ preferCSSPageSize: true }))).toBe(1);
+});
+
+test("73 22行(作業要領が各行3行)は1ページに収まらない: 操作バーに警告を出し、2ページ目に分かれる", async ({ page }) => {
+  await adminLogin(page);
+  const rows = Array.from({ length: 22 }, (_, i) => ({ name: `工程${i + 1}`, kind: "internal", use_line: true, link: "none", procedure: "1行目\n2行目\n3行目" }));
+  await register(page, "1000", "MP-1000", rows);
+  const k = await kittingOf(page, "1000", 2);
+  await page.goto(`/field/print/id-slips/${k}`);
+  await page.getByRole("checkbox", { name: KIND5 }).setChecked(true);
+  await expect(page.getByRole("alert").filter({ hasText: "行が多くて1ページに収まりません(22行)。管理画面で行か作業要領を減らしてください" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "2ページ目に分かれます" })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/73-control-sheet-overflow-toolbar.png`, clip: { x: 0, y: 0, width: 1366, height: 420 } });
+  await printSheet(page, k, ["DEMO-101"]);
+  const pdf = await page.pdf({ preferCSSPageSize: true });
+  expect(pdfPageCount(pdf)).toBe(2); // 印刷はできるが、2ページ目に分かれる
+  await page.emulateMedia({ media: "screen" });
+  // 20行に戻すと警告は出ない
+  await register(page, "1000", "MP-1000", rows.slice(0, 20));
+  await page.goto(`/field/print/id-slips/${k}`);
+  await expect(page.locator(".idslip-toolbar")).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "1ページに収まりません" })).toHaveCount(0);
 });

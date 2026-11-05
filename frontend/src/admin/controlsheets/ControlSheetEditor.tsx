@@ -4,7 +4,7 @@ import type { components } from "../../api/schema";
 import { adminApi, useAdminCall } from "../adminApi";
 import { ct } from "../messagesControlSheet";
 import { Feedback } from "../parts";
-import { addRow, firstBlankName, KINDS, LINKS, moveRow, removeRow, type Row, toPayload, updateRow } from "./rowsEdit";
+import { addRow, KINDS, LINKS, moveRow, removeRow, type Row, toPayload, tooManyRows, updateRow } from "./rowsEdit";
 
 type Sheet = components["schemas"]["ControlSheetOut"];
 const time = (iso: string) => iso.slice(0, 16).replace("T", " ");
@@ -60,8 +60,6 @@ export function ControlSheetEditor({ fileNo, onBack, onSaved }: { fileNo: string
   useEffect(load, [load]);
 
   const save = async () => {
-    const blank = firstBlankName(rows);
-    if (blank !== null) return setMessage({ ok: false, text: ct("cs.blankName", { no: blank }) });
     const r = await call(() => adminApi.PUT("/api/admin/control-sheets/{file_no}", { params: { path: { file_no: fileNo } }, body: { manager_no: managerNo, rows: toPayload(rows) } }));
     if (!r.ok) return setMessage({ ok: false, text: r.message });
     setMessage({ ok: true, text: ct("cs.saved", { version: r.data.version }) });
@@ -85,6 +83,7 @@ export function ControlSheetEditor({ fileNo, onBack, onSaved }: { fileNo: string
       </label>
       <h2>{ct("cs.rows")}</h2>
       {rows.length === 0 && <p>{ct("cs.noRows")}</p>}
+      {tooManyRows(rows) && <p className="admin-error" role="status">{ct("cs.manyRows", { count: rows.length })}</p>}
       <ol className="cs-rows">
         {rows.map((r, i) => (
           <RowEditor key={i} row={r} no={i + 1} last={i === rows.length - 1}

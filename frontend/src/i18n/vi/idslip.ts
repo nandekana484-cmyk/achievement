@@ -24,5 +24,6 @@ export const idslip = {
   "idslip.item.kitting": "Số kitting",
   "idslip.warn": "{item} \"{value}\" có ký tự không biểu diễn được bằng Code 39. Sẽ không vẽ mã vạch, chỉ in chữ",
   "idslip.controlSheetUnregistered": "Chưa đăng ký nội dung bảng quản lý cho số tệp này. Các dòng công đoạn sẽ in thành 8 dòng trống (chỉ có số). Hãy đăng ký ở mục \"Nội dung bảng quản lý\" trong màn hình quản trị.",
+  "idslip.controlSheetOverflow": "Có quá nhiều dòng nên không vừa 1 trang ({count} dòng). Hãy giảm số dòng hoặc quy trình làm việc ở màn hình quản trị. Vẫn in được, nhưng bảng quản lý sẽ chia sang trang thứ 2.",
   "idslip.loadError": "Không đọc được thông tin phiếu nhận diện",
 } as const;

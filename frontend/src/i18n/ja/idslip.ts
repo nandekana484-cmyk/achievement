@@ -24,5 +24,6 @@ export const idslip = {
   "idslip.item.kitting": "キッティングNo.",
   "idslip.warn": "{item}「{value}」に Code 39 で表せない文字があります。バーコードは描かず、文字だけ出します",
   "idslip.controlSheetUnregistered": "このファイルNo.の管理表の内容は未登録です。工程の行は空の8行(番号だけ)で印刷します。管理画面の「管理表の内容」で登録してください",
+  "idslip.controlSheetOverflow": "行が多くて1ページに収まりません({count}行)。管理画面で行か作業要領を減らしてください。印刷はできますが、管理表は2ページ目に分かれます",
   "idslip.loadError": "識別票の情報を読めませんでした",
 } as const;
