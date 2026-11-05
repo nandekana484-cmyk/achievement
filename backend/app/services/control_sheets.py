@@ -21,7 +21,7 @@ from app.services import audit
 from app.services.errors import NotFound, RuleViolation
 
 MAX_ROWS = 100
-MIN_PRINT_ROWS = 8  # 印刷する行の数の下限。登録した行がこれより少ないときは、下に空の行を足す(様式の4〜8の行と同じく、ライン名の欄に斜線)
+MIN_PRINT_ROWS = 8  # 印刷する行の数の下限。登録した行がこれより少ないときは、下に空の行を足す(足す行は、様式の4〜8の行と同じく、ライン名の欄に斜線。未登録の空の8行は斜線なし)
 Kind = Literal["internal", "external", "none"]  # 区分: 社内 / 社外 / なし
 Link = Literal["none", "run1", "run2", "xray"]  # 将来の自動入力のための対応(今は印刷に使わない)
 
@@ -63,7 +63,7 @@ class ControlSheetSummaryOut(BaseModel):
 
 
 class ControlSheetPrintOut(BaseModel):
-    """印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False)。未登録のときは registered=False で、管理No は空、空の8行。"""
+    """印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False = 斜線)。未登録のときは registered=False で、管理No は空、空の8行(use_line=True = 斜線なし)。"""
 
     registered: bool
     manager_no: str
@@ -116,7 +116,7 @@ def history(session: Session, file_no: str) -> list[ControlSheetOut]:
 def print_data(session: Session, file_no: str) -> ControlSheetPrintOut:
     cur = get_current(session, file_no)
     rows = list(cur.rows) if cur else []
-    rows += [ControlRow(use_line=False) for _ in range(MIN_PRINT_ROWS - len(rows))]
+    rows += [ControlRow(use_line=cur is None) for _ in range(MIN_PRINT_ROWS - len(rows))]  # 未登録の空の8行は斜線なし。登録した行に足す行だけ斜線
     return ControlSheetPrintOut(registered=cur is not None, manager_no=cur.manager_no if cur else "", rows=rows)
 
 

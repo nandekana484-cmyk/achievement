@@ -196,7 +196,7 @@ test("70 未登録のときは空の8行(番号だけ)で印刷し、操作バ�
   expect(m.rows).toBe(8);
   expect(m.heightMm).toBeLessThanOrEqual(281);
   expect(await page.locator(".is-printing .sk-row").evaluateAll((rows) => rows.map((r) => r.textContent))).toEqual(["1", "2", "3", "4", "5", "6", "7", "8"]); // 番号だけ
-  expect(await page.locator(".is-printing .sk-diagonal").count()).toBe(8); // 空の行は、ライン名の欄に斜線
+  expect(await page.locator(".is-printing .sk-diagonal").count()).toBe(0); // 未登録の空の8行は、ライン名の欄に斜線なし
   expect(pdfPageCount(await page.pdf({ preferCSSPageSize: true }))).toBe(1);
   await page.emulateMedia({ media: "screen" });
   await page.locator(".idslip-group[data-kind='5'] .slip-frame").first().screenshot({ path: `${SCREENS}/70-control-sheet-unregistered.png` });

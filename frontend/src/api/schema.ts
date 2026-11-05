@@ -1837,7 +1837,7 @@ export interface components {
         };
         /**
          * ControlSheetPrintOut
-         * @description 印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False)。未登録のときは registered=False で、管理No は空、空の8行。
+         * @description 印刷に使う内容。rows は登録した行 + 8行になるまでの空の行(use_line=False = 斜線)。未登録のときは registered=False で、管理No は空、空の8行(use_line=True = 斜線なし)。
          */
         ControlSheetPrintOut: {
             /** Registered */

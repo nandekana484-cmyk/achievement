@@ -23,9 +23,9 @@ def slip(client, kno=K1):
 
 
 def test_register_then_print_data_has_the_content(client, admin):
-    cs = slip(client)["control_sheet"]  # 未登録 → 空の8行(ライン名の欄は斜線)
+    cs = slip(client)["control_sheet"]  # 未登録 → 空の8行(ライン名の欄は斜線なし = use_line が True)
     assert (cs["registered"], cs["manager_no"], len(cs["rows"])) == (False, "", 8)
-    assert all(r["name"] == "" and r["procedure"] == "" and r["use_line"] is False for r in cs["rows"])
+    assert all(r["name"] == "" and r["procedure"] == "" and r["use_line"] is True for r in cs["rows"])
     login(client)
     saved = ok(put(client))
     assert (saved["file_no"], saved["version"], saved["manager_no"], saved["saved_by_name"]) == ("0722", 1, "MP-1", "管理 花子")
