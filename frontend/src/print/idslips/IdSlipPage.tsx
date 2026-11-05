@@ -9,6 +9,7 @@ import { Notice } from "../../shared/Notice";
 import { type IdSlip, initialSelection, pagesOf, type Selection } from "./idSlipLogic";
 import { IdSlipToolbar } from "./IdSlipToolbar";
 import type { SlipKind } from "./idSlipTexts";
+import { ControlSheet } from "./ControlSheet";
 import { Slip1 } from "./Slip1";
 import { Slip23 } from "./Slip23";
 import { Slip4 } from "./Slip4";
@@ -17,10 +18,11 @@ function Page({ kind, slip, lotNo }: { kind: SlipKind; slip: IdSlip; lotNo: stri
   const qty = slip.lots.find((l) => l.lot_no === lotNo)?.order_qty ?? null;
   const land = kind === 2 || kind === 3;
   return (
-    <div className={`slip-frame ${land ? "slip-frame-l" : "slip-frame-p"}`} data-kind={kind} data-lot={lotNo ?? ""}>
+    <div className={`slip-frame ${kind === 5 ? "slip-frame-a4" : land ? "slip-frame-l" : "slip-frame-p"}`} data-kind={kind} data-lot={lotNo ?? ""}>
       {kind === 1 && lotNo !== null && <div className="slip-scale"><Slip1 slip={slip} lotNo={lotNo} orderQty={qty} /></div>}
       {land && lotNo !== null && <div className="slip-scale slip-scale-l"><Slip23 kind={kind as 2 | 3} slip={slip} lotNo={lotNo} /></div>}
       {kind === 4 && <Slip4 slip={slip} />}
+      {kind === 5 && lotNo !== null && <ControlSheet key={`${lotNo}:${JSON.stringify(slip.control_sheet)}`} slip={slip} lotNo={lotNo} />}
     </div>
   );
 }

@@ -57,6 +57,7 @@ export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
           {sel.lots.length === 0 && <span className="idslip-warn">{t("idslip.noLots")}</span>}
         </fieldset>
       )}
+      {sel.kinds.includes(5) && !slip.control_sheet.registered && <p className="idslip-warn" role="alert">{t("idslip.controlSheetUnregistered")}</p>}
       {warnings.map((w) => (
         <p key={`${w.field}:${w.value}`} className="idslip-warn" role="alert">{t("idslip.warn", { item: t(`idslip.item.${w.field}`), value: w.value })}</p>
       ))}

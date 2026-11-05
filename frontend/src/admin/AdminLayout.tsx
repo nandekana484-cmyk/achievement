@@ -2,20 +2,22 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { type AdminMe, adminApi, useAdminCall } from "./adminApi";
-import { type AdminKey, at } from "./messages";
+import { at } from "./messages";
+import { ct } from "./messagesControlSheet";
 
-const MENU: [string, AdminKey][] = [
-  ["reports", "menu.reports"],
-  ["actuals", "menu.actuals"],
-  ["equipment", "menu.equipment"],
-  ["reasons", "menu.reasons"],
-  ["lines", "menu.lines"],
-  ["operators", "menu.operators"],
-  ["access", "menu.access"],
-  ["teitori", "menu.teitori"],
-  ["handover", "menu.handover"],
-  ["open-runs", "menu.openRuns"],
-  ["password", "menu.password"],
+const MENU: [string, () => string][] = [
+  ["reports", () => at("menu.reports")],
+  ["actuals", () => at("menu.actuals")],
+  ["equipment", () => at("menu.equipment")],
+  ["reasons", () => at("menu.reasons")],
+  ["lines", () => at("menu.lines")],
+  ["operators", () => at("menu.operators")],
+  ["access", () => at("menu.access")],
+  ["teitori", () => at("menu.teitori")],
+  ["handover", () => at("menu.handover")],
+  ["open-runs", () => at("menu.openRuns")],
+  ["control-sheets", () => ct("menu.controlSheets")],
+  ["password", () => at("menu.password")],
 ];
 
 export function AdminLayout() {
@@ -38,9 +40,9 @@ export function AdminLayout() {
       <nav className="admin-menu" aria-label={at("title")}>
         <p className="admin-title">{at("title")}</p>
         <p className="admin-user">{at("menu.user", { name: me.name, id: me.worker_id ?? "" })}</p>
-        {MENU.map(([path, key]) => (
+        {MENU.map(([path, label]) => (
           <NavLink key={path} to={`/admin/${path}`} className={({ isActive }) => `admin-menu-item${isActive ? " admin-menu-current" : ""}`}>
-            {at(key)}
+            {label()}
           </NavLink>
         ))}
         <button type="button" className="admin-menu-item admin-logout" onClick={() => void logout()}>{at("menu.logout")}</button>

@@ -1,0 +1,121 @@
+/* K社製品ロット管理票(識別票の5つ目。A4縦、余白 8mm)。様式: docs/design/forms/control-sheet-k.html の見た目(表の分け方、列の幅、行の高さの比率、線、文字の大きさ)に合わせる。
+   用紙は名前付きのページ(sheet-k)にして、A6 の識別票・生産記録票・日報の @page とぶつからないようにする。詳細: docs/design/control-sheet.md */
+@page sheet-k { size: A4 portrait; margin: 8mm; }
+
+.slip-frame-a4 { page: sheet-k; width: 194mm; height: 280mm; }
+
+/* 詰め具合(.sk-d0 が様式のまま)。収まらないとき、先に行の高さ(d1〜d3)、あとで文字(d4〜d6。最小 8px)を縮める。ControlSheet.tsx が描いてから測って決める */
+.sk-d0 { --row-h: 48px; --fs: 9.5px; --lh: 14px; --memo-h: 110px; --stamp-h: 52px; --last-h: 38px; --pad: 2px; --top-h: 40px; --title-fs: 32px; --lot-h: 38px; --circle-h: 28px; --circle-size: 32px; --head-h: 32px; }
+.sk-d1 { --row-h: 40px; --memo-h: 100px; --stamp-h: 46px; --last-h: 34px; }
+.sk-d2 { --row-h: 32px; --memo-h: 90px; --stamp-h: 40px; --last-h: 30px; }
+.sk-d3 { --row-h: 24px; --memo-h: 76px; --stamp-h: 34px; --last-h: 26px; --top-h: 34px; }
+.sk-d4 { --row-h: 0px; --fs: 9px; --lh: 12px; --memo-h: 64px; --stamp-h: 30px; --last-h: 22px; }
+.sk-d5 { --row-h: 0px; --fs: 8.5px; --lh: 11px; --memo-h: 56px; --stamp-h: 26px; --last-h: 20px; --top-h: 30px; --title-fs: 26px; --lot-h: 32px; --circle-h: 22px; --circle-size: 22px; --head-h: 28px; }
+.sk-d6 { --row-h: 0px; --fs: 8px; --lh: 10px; --memo-h: 48px; --stamp-h: 22px; --last-h: 18px; --pad: 1px; --top-h: 26px; --title-fs: 22px; --lot-h: 28px; --circle-h: 18px; --circle-size: 18px; --head-h: 26px; }
+.sk-d7 { --row-h: 0px; --fs: 8px; --lh: 10px; --memo-h: 34px; --stamp-h: 18px; --last-h: 16px; --pad: 1px; --top-h: 22px; --title-fs: 18px; --lot-h: 24px; --circle-h: 14px; --circle-size: 14px; --head-h: 24px; }
+.sk-d7 .sk-lot { margin-bottom: 2px; }
+.sk-d7 .sk-product { margin-bottom: 2px; }
+.sk-d7 .sk-progress-title { margin: 2px 0 1px; }
+.sk-d7 .sk-white { margin-top: 3px; }
+.sk-d0, .sk-d1, .sk-d2, .sk-d3, .sk-d4, .sk-d5, .sk-d6, .sk-d7 { width: 100%; color: #000; background: #fff; }
+
+.sk table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: -1px; }
+.sk th, .sk td { border: 1px solid #000; padding: 2px 3px; text-align: center; vertical-align: middle; word-break: break-all; }
+.sk-vi { display: block; font-size: 8px; font-weight: 400; line-height: 1.1; }
+.sk-vi-inline { font-size: 8px; font-weight: 400; }
+.sk-diagonal { background: linear-gradient(to top right, transparent calc(50% - 0.5px), #000 calc(50% - 0.5px), #000 calc(50% + 0.5px), transparent calc(50% + 0.5px)); }
+.sk-lined { background: repeating-linear-gradient(to bottom, transparent, transparent calc(var(--lh) - 1px), #999 calc(var(--lh) - 1px), #999 var(--lh)); background-position: 0 calc(var(--pad) + 1px); }
+
+/* タイトル周り */
+.sk .sk-header { margin-bottom: 2px; }
+.sk .sk-header td { border: none; padding: 0; }
+.sk-h-left { width: 30%; text-align: left; vertical-align: top; }
+.sk-h-title { width: 50%; }
+.sk-h-right { width: 20%; text-align: right; vertical-align: top; padding-right: 5px !important; }
+.sk .sk-group { width: 100%; table-layout: auto; margin: 0; border: 1px solid #000; }
+.sk .sk-group td { border: 1px solid #000; text-align: left; padding-left: 4px; }
+.sk .sk-group-top { font-size: 11px; border-bottom: none !important; height: 18px; }
+.sk .sk-group-label { font-size: 10px; width: 130px; height: 20px; }
+.sk .sk-group-label .sk-vi { font-size: 7px; }
+.sk .sk-fileno { font-size: 14px; font-weight: 900; text-align: center !important; }
+.sk-title { font-size: var(--title-fs); font-weight: 900; letter-spacing: 2px; text-align: center; line-height: 1.1; }
+.sk-managerno { font-size: 11px; font-style: italic; font-weight: bold; }
+.sk-managerno .sk-vi { font-style: normal; font-size: 7px; }
+.sk-manager-value { font-size: 14px; font-weight: 900; min-height: 16px; line-height: 1.1; word-break: break-all; }
+.sk-mp { background: #000; color: #fff; font-weight: 900; font-size: 16px; display: inline-block; padding: 1px 6px; border-radius: 2px; margin-top: 4px; letter-spacing: 1px; }
+
+/* 製品名 */
+.sk .sk-product { border: 2px solid #000; margin-bottom: 4px; }
+.sk .sk-product td { height: var(--top-h); border: none; text-align: left; vertical-align: top; padding: 2px 6px; }
+.sk-product-in { display: flex; align-items: flex-start; gap: 10px; }
+.sk-product-label { font-size: 16px; font-weight: 900; letter-spacing: 2px; white-space: nowrap; }
+.sk-product-label .sk-vi { font-size: 10px; font-weight: bold; letter-spacing: 0; }
+.sk-product-value { flex: 1; min-width: 0; align-self: center; }
+.sk-fit-left { text-align: left; }
+
+/* ロットNo. と 当ロット数 */
+.sk .sk-lot { border-bottom: none; margin-bottom: 6px; }
+.sk-lot-row { height: var(--lot-h); }
+.sk .sk-lot-left { text-align: left; padding-left: 6px; border-bottom: none; position: relative; }
+.sk-lot-line { display: flex; align-items: center; }
+.sk-lot-label { white-space: nowrap; font-size: 18px; font-weight: 900; letter-spacing: 1px; margin-right: 6px; line-height: 1.05; }
+.sk-lot-label .sk-vi { font-size: 8px; letter-spacing: 0; }
+.sk-lot-box { width: 250px; height: 30px; border: 1.5px solid #000; display: flex; }
+.sk-lot-main { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0 2px; }
+.sk-lot-small { width: 55px; border-left: 1.5px solid #000; }
+.sk-final-arrow { position: absolute; bottom: -20px; left: 120px; font-size: 10px; display: flex; align-items: center; z-index: 10; white-space: nowrap; }
+.sk-final-arrow .sk-vi { display: inline; margin-left: 3px; font-size: 7px; }
+.sk-final-bar { border-bottom: 1px solid #000; width: 14px; margin-right: 2px; }
+.sk .sk-qty-label { font-size: 11px; font-weight: bold; text-align: left; padding-left: 6px; }
+.sk .sk-qty-label .sk-vi { font-size: 7px; }
+.sk .sk-qty-value { text-align: left; padding-left: 6px; position: relative; vertical-align: top; }
+.sk-qty-line { display: block; font-size: 16px; }
+.sk-slash { margin: 0 6px; }
+.sk-qty-total { display: block; font-size: 9px; text-align: right; }
+.sk-qty-total .sk-vi { display: inline; font-size: 7px; margin-left: 2px; }
+.sk-circle-row { height: var(--circle-h); }
+.sk .sk-circle-row td:first-child { border-top: none; border-bottom: none; }
+.sk .sk-circle-row td + td { border-top: none; text-align: left; padding-left: 80px; }
+.sk-final-circle { width: 72px; height: var(--circle-size); border: 1.5px solid #000; border-radius: 50%; margin-left: 20px; }
+
+/* 作業進捗確認欄 */
+.sk-progress-title { font-size: 11px; font-weight: bold; text-align: left; margin: 4px 0 2px; }
+.sk-progress-title .sk-vi { display: inline; margin-left: 6px; font-size: 8px; }
+.sk-head-row td { background: #fafafa; font-size: 9.5px; font-weight: bold; height: var(--head-h); }
+.sk-head-row td:nth-child(6) .sk-vi { font-size: 7px; }
+.sk-row { height: var(--row-h); }
+.sk .sk-row td { padding: var(--pad) 3px; }
+.sk .sk-name { font-size: var(--fs); line-height: 1.2; }
+.sk-name b { display: block; }
+.sk-kind { display: block; }
+.sk .sk-proc { text-align: left; vertical-align: top; padding: calc(var(--pad) + 1px) 3px; font-size: var(--fs); line-height: var(--lh); white-space: pre-wrap; }
+.sk-last { height: var(--last-h); }
+.sk .sk-to-assembly { text-align: left; padding-left: 8px; font-size: 10px; }
+.sk-to-assembly .sk-vi { font-size: 8.5px; }
+
+/* 下部: 工程抜け確認印、メモ・処置欄、作成・確認・承認 */
+.sk .sk-bottom { border: none; margin-top: 4px; }
+.sk .sk-bottom td { border: none; }
+.sk .sk-b-left { vertical-align: top; text-align: left; padding: 0; }
+.sk-skip-wrap { display: flex; justify-content: flex-end; margin-bottom: 2px; }
+.sk .sk-skip { width: 150px; border: 1.5px solid #000; margin: 0 4px 0 0; }
+.sk .sk-skip td { border: none; }
+.sk .sk-skip-head { font-size: 9px; font-weight: bold; border-bottom: 1px solid #000 !important; }
+.sk .sk-skip-head .sk-vi { font-size: 6.5px; }
+.sk .sk-skip-cell { height: var(--stamp-h); }
+.sk-memo-title { font-size: 10.5px; font-weight: bold; margin-bottom: 1px; }
+.sk-memo-title .sk-vi { display: inline; margin-left: 6px; font-size: 8px; }
+.sk-memo-box { border: 1.5px solid #000; height: var(--memo-h); width: 99%; }
+.sk .sk-b-right { width: 85px; vertical-align: bottom; text-align: right; padding-left: 6px; }
+.sk .sk-hanko { width: 80px; margin: 0; }
+.sk .sk-hanko td { border: 1px solid #000; font-size: 11px; }
+.sk .sk-hanko-head { font-weight: bold; letter-spacing: 4px; padding: 1px 3px; }
+.sk .sk-hanko-head .sk-vi { font-size: 7px; font-weight: 400; letter-spacing: 0; }
+.sk-d5 .sk-hanko-head, .sk-d6 .sk-hanko-head, .sk-d7 .sk-hanko-head { font-size: 10px; letter-spacing: 1px; padding: 0 2px; white-space: nowrap; }
+.sk-d5 .sk-hanko-head .sk-vi, .sk-d6 .sk-hanko-head .sk-vi, .sk-d7 .sk-hanko-head .sk-vi { display: inline; margin-left: 3px; font-size: 6px; }
+.sk .sk-hanko-cell { height: var(--stamp-h); }
+.sk-white { font-size: 9px; font-weight: bold; text-align: left; margin-top: 6px; letter-spacing: 0.5px; }
+
+@media print {
+  .slip-frame-a4 { height: 280mm; }
+}

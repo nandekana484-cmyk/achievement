@@ -1,19 +1,20 @@
 // 識別票の印刷の操作バーの決まり(React に依存しない): 種類の初期値、ロットの選択、ページの並び、Code 39 で表せない値の警告。
-// 種類: 1 基板製品ロット現品票(ロットごと)、2 バーコード印字 完了(ロットごと)、3 1回目完了済み(ロットごと)、4 バーコード照合用(キッティングNo.ごと)。
+// 種類: 1 基板製品ロット現品票(ロットごと)、2 バーコード印字 完了(ロットごと)、3 1回目完了済み(ロットごと)、4 バーコード照合用(キッティングNo.ごと)、
+// 5 K社製品ロット管理票(A4縦。ロットごと)。
 import type { components } from "../../api/schema";
 import { isCode39 } from "./code39";
 import { SLIP_KINDS, type SlipKind } from "./idSlipTexts";
 
 export type IdSlip = components["schemas"]["IdSlipOut"];
 
-/** ロットごとの種類(1、2、3)。4 はキッティングNo.ごとに 1 枚(そのキッティングNo.の全ロットを並べる)。 */
+/** ロットごとの種類(1、2、3、5)。4 はキッティングNo.ごとに 1 枚(そのキッティングNo.の全ロットを並べる)。 */
 export const isLotKind = (kind: SlipKind): boolean => kind !== 4;
 
 export type Selection = { kinds: SlipKind[]; lots: string[] };
 
-/** 初めにチェックが入る種類: 1回目(面1)の計画は 2・3・4、2回目(面2)の計画は 1・4。 */
+/** 初めにチェックが入る種類: 1回目(面1)の計画は 2・3・4、2回目(面2)の計画は 1・4・5(管理表)。 */
 export function defaultKinds(runNo: number): SlipKind[] {
-  return runNo === 2 ? [1, 4] : [2, 3, 4];
+  return runNo === 2 ? [1, 4, 5] : [2, 3, 4];
 }
 
 export function initialSelection(slip: IdSlip): Selection {

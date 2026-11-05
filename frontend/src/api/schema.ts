@@ -1299,6 +1299,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/control-sheets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sheets
+         * @description 登録済みのファイルNo.(最後に直した人と日時つき)と、今の計画にあって未登録のファイルNo.。
+         */
+        get: operations["list_sheets_api_admin_control_sheets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/control-sheets/{file_no}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sheet
+         * @description ファイルNo.の今の内容(未登録なら 404)。
+         */
+        get: operations["get_sheet_api_admin_control_sheets__file_no__get"];
+        /**
+         * Save Sheet
+         * @description 内容を保存する(新しい版を足す。未登録なら新しく作る)。
+         */
+        put: operations["save_sheet_api_admin_control_sheets__file_no__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/control-sheets/{file_no}/copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy Sheet
+         * @description 別のファイルNo.の内容(工程の行)をコピーして、新しく作る。
+         */
+        post: operations["copy_sheet_api_admin_control_sheets__file_no__copy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/control-sheets/{file_no}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sheet History
+         * @description 版の履歴(新しい版から。前の版の内容を見られる)。
+         */
+        get: operations["sheet_history_api_admin_control_sheets__file_no__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1682,6 +1766,109 @@ export interface components {
              * @description 実績を移す先(候補の中から選ぶ)
              */
             new_kitting_no: string;
+        };
+        /**
+         * ControlRow
+         * @description 工程の行1つ。
+         */
+        ControlRow: {
+            /**
+             * Name
+             * @description 工程名(日本語。必須)
+             */
+            name: string;
+            /**
+             * Name Vi
+             * @description 工程名のベトナム語(任意)
+             */
+            name_vi?: string | null;
+            /**
+             * Kind
+             * @default none
+             * @enum {string}
+             */
+            kind: "internal" | "external" | "none";
+            /**
+             * Procedure
+             * @description 作業要領・注意点(複数行)
+             * @default
+             */
+            procedure: string;
+            /**
+             * Use Line
+             * @description ライン名の欄を使うか(使わない行は斜線を引く)
+             * @default true
+             */
+            use_line: boolean;
+            /**
+             * Link
+             * @default none
+             * @enum {string}
+             */
+            link: "none" | "run1" | "run2" | "xray";
+        };
+        /** ControlSheetOut */
+        ControlSheetOut: {
+            /** File No */
+            file_no: string;
+            /** Version */
+            version: number;
+            /** Manager No */
+            manager_no: string;
+            /** Rows */
+            rows: components["schemas"]["ControlRow"][];
+            /** Action */
+            action: string;
+            /** Copied From */
+            copied_from: string | null;
+            /** Saved By Name */
+            saved_by_name: string | null;
+            /**
+             * Saved At
+             * Format: date-time
+             */
+            saved_at: string;
+        };
+        /**
+         * ControlSheetPrintOut
+         * @description 印刷に使う内容。未登録のときは registered=False で、管理No は空、行は無い(画面が空の8行で出す)。
+         */
+        ControlSheetPrintOut: {
+            /** Registered */
+            registered: boolean;
+            /** Manager No */
+            manager_no: string;
+            /** Rows */
+            rows: components["schemas"]["ControlRow"][];
+        };
+        /** ControlSheetSummaryOut */
+        ControlSheetSummaryOut: {
+            /** File No */
+            file_no: string;
+            /** Registered */
+            registered: boolean;
+            /** Version */
+            version: number | null;
+            /** Manager No */
+            manager_no: string | null;
+            /** Row Count */
+            row_count: number | null;
+            /** Saved By Name */
+            saved_by_name: string | null;
+            /** Saved At */
+            saved_at: string | null;
+            /** Product Name */
+            product_name: string | null;
+            /** In Plans */
+            in_plans: boolean;
+        };
+        /** CopyIn */
+        CopyIn: {
+            /**
+             * Source File No
+             * @description コピー元のファイルNo.(登録済み)
+             */
+            source_file_no: string;
         };
         /** CorrectionChangeOut */
         CorrectionChangeOut: {
@@ -2079,6 +2266,8 @@ export interface components {
             lot_no: string;
             /** Order Qty */
             order_qty: number | null;
+            /** Planned Qty */
+            planned_qty: number;
         };
         /** IdSlipOut */
         IdSlipOut: {
@@ -2098,6 +2287,7 @@ export interface components {
             lots: components["schemas"]["IdSlipLotOut"][];
             /** Lot List */
             lot_list: string;
+            control_sheet: components["schemas"]["ControlSheetPrintOut"];
         };
         /** IntervalOut */
         IntervalOut: {
@@ -3094,6 +3284,20 @@ export interface components {
             entered_at: string;
             /** Entered By Worker Id */
             entered_by_worker_id?: string | null;
+        };
+        /** SaveIn */
+        SaveIn: {
+            /**
+             * Manager No
+             * @description 管理No(文字。ファイルNo.ごと)
+             * @default
+             */
+            manager_no: string;
+            /**
+             * Rows
+             * @description 工程の行(上から順。行の番号は印刷のときに1から振る)
+             */
+            rows: components["schemas"]["ControlRow"][];
         };
         /** SearchHitOut */
         SearchHitOut: {
@@ -5557,6 +5761,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenRunResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sheets_api_admin_control_sheets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlSheetSummaryOut"][];
+                };
+            };
+        };
+    };
+    get_sheet_api_admin_control_sheets__file_no__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlSheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_sheet_api_admin_control_sheets__file_no__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlSheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    copy_sheet_api_admin_control_sheets__file_no__copy_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlSheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sheet_history_api_admin_control_sheets__file_no__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_no: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlSheetOut"][];
                 };
             };
             /** @description Validation Error */

@@ -3,7 +3,7 @@ export const idslip = {
   "idslip.button": "Phiếu nhận diện",
   "idslip.title": "In phiếu nhận diện",
   "idslip.back": "Quay lại màn hình chuyền",
-  "idslip.hint": "Máy in đen trắng, giấy A6 (trắng). Ở màn hình in, hãy chọn giấy A6, lề mặc định, tỷ lệ 100%. Mỗi loại phiếu được in riêng. Mỗi lô 1 trang; số bản chọn ở màn hình in.",
+  "idslip.hint": "Máy in đen trắng, giấy A6 (trắng); bảng quản lý (loại 5) dùng giấy A4 (trắng). Ở màn hình in, hãy chọn giấy A6, lề mặc định, tỷ lệ 100%. Mỗi loại phiếu được in riêng. Mỗi lô 1 trang; số bản chọn ở màn hình in.",
   "idslip.colKind": "Loại",
   "idslip.colUnit": "Đơn vị",
   "idslip.colPages": "Trang",
@@ -11,6 +11,7 @@ export const idslip = {
   "idslip.kind.2": "2 Hoàn tất in mã vạch",
   "idslip.kind.3": "3 Lần đầu tiên hoàn thành",
   "idslip.kind.4": "4 Đối chiếu mã vạch",
+  "idslip.kind.5": "5 Bảng quản lý (A4 dọc)",
   "idslip.unitLot": "Theo từng lô",
   "idslip.unitKitting": "Theo số kitting",
   "idslip.pages": "{count} trang",
@@ -22,5 +23,6 @@ export const idslip = {
   "idslip.item.lot": "Số lô",
   "idslip.item.kitting": "Số kitting",
   "idslip.warn": "{item} \"{value}\" có ký tự không biểu diễn được bằng Code 39. Sẽ không vẽ mã vạch, chỉ in chữ",
+  "idslip.controlSheetUnregistered": "Chưa đăng ký nội dung bảng quản lý cho số tệp này. Các dòng công đoạn sẽ in thành 8 dòng trống (chỉ có số). Hãy đăng ký ở mục \"Nội dung bảng quản lý\" trong màn hình quản trị.",
   "idslip.loadError": "Không đọc được thông tin phiếu nhận diện",
 } as const;
