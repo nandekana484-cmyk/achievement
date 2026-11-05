@@ -10,7 +10,8 @@ import { useOperation } from "../../shared/useOperation";
 import { idSlipsUrl } from "../../print/idslips/idSlipLogic";
 import { LineDialogs, type DialogState } from "./LineDialogs";
 import { LineEventPanel } from "./LineEventPanel";
-import { isOutsideDisplay, outsideMessage } from "./planMatch";
+import { canClosePlan, isOutsideDisplay, outsideMessage } from "./planMatch";
+import { formatMDHM } from "./timeScale";
 import { PlanSearch } from "./PlanSearch";
 import { SideLinkButton, SideLinkNote } from "./SideLinkPanel";
 import { SideMenu } from "./SideMenu";
@@ -82,6 +83,16 @@ export function LineScreen() {
         {board && board.stale_kitting_nos.length > 0 && (
           <Notice kind="error">{t("lineScreen.staleWarning", { count: board.stale_kitting_nos.length, list: board.stale_kitting_nos.join(", ") })}</Notice>
         )}
+        {board && board.stale_plans.length > 0 && (
+          <Notice kind="error">
+            {t("planClose.staleWarning", {
+              count: board.stale_plans.length,
+              list: board.stale_plans.map((p) => t("planClose.staleItem", {
+                kitting: p.kitting_no, lots: p.lot_nos.join(", "), start: formatMDHM(p.planned_start), end: formatMDHM(p.planned_end),
+              })).join(" / "),
+            })}
+          </Notice>
+        )}
         {board && selected && isOutsideDisplay(selected.plan, board) && (
           <Notice kind="info">{outsideMessage(selected.plan, t)}</Notice>
         )}
@@ -111,6 +122,12 @@ export function LineScreen() {
             onHistory={() => setDialog({ kind: "history", plan: selected })}
             sideLink={<SideLinkNote plan={selected} />}
             actions={<>
+              {canClosePlan(selected) && (
+                <button type="button" className="btn btn-small" onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "close" })}>{t("planClose.button")}</button>
+              )}
+              {selected.closed && (
+                <button type="button" className="btn btn-small" onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "cancel" })}>{t("planClose.cancelButton")}</button>
+              )}
               <SideLinkButton plan={selected} workerId={board?.current_operator?.operator_worker_id} />
               {board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board) && (
                 <Link className="btn btn-small id-slip-link" to={idSlipsUrl(selected.plan.kitting_no)}>{t("idslip.button")}</Link>

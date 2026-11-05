@@ -19,6 +19,16 @@
 | `backend/app/services/views/` | 応答の形(Pydantic)と、DBの行からの組み立て。masters.py(マスタ)、operators.py(記録した人と今の担当者)、runs.py(工程の記録・完了・備考・NG数)、line_events.py(付帯作業)、corrections.py(訂正の履歴と結果)に分け、`__init__.py` から同じ名前で使える |
 | `backend/app/db/models/records.py` | 実績のテーブル |
 
+## 計画終了(AD-24)
+
+始まっていない計画を、作業者が手で終わらせる(遅延して中止 / 計画変更 / その他)。**完了(片付けの終了。`run_completions`)とは別の扱い**で、実績の書き出し・生産記録票・効率には入らない(記録が無いため)。
+
+- 対象: 取り消していない工程の記録が1つも無い、取消の印の無い、まだ計画終了していない計画。ほかは 409。`POST /api/runs/{kitting_no}/close`(request_id、worker_id(必須)、reason、note。「その他」は note が必須)、`POST /api/runs/{kitting_no}/close/cancel`(request_id、worker_id)。作業者が押せる(管理者に限らない)
+- 保存: 表 `plan_closures`(マイグレーション 0020)に、(キッティングNo.、ロットNo.)ごとに、計画終了(`close`)と取り消し(`cancel`)を1件ずつ足す。物理削除しない。最後の行が今の状態で、キッティングNo.のすべてのロットで `close` のとき計画終了。plans とは別の表なので、計画の取り込み直しで消えない。audit_log に `plan_close` / `plan_close_cancel` を残す
+- 計画終了した計画で工程を始める・押し忘れを足すのは 409(「先に計画終了を取り消す」)。board の `closed` に理由・記入・押した人
+- **引き継ぎ(AD-16)との関係**: 引き継ぎで移すのは実績のある計画で、計画終了は記録が無い計画にしかできないので、普通は重ならない。計画終了のあとでキッティングNo.が出し直しで変わったときは、新しいキッティングNo.の計画には計画終了を引き継がない(必要なら押し直す)。`plan_closures` は引き継ぎで付け替えない
+- 遅れた未着手の計画の判定と表示範囲の広がりは [line-screen.md](line-screen.md)
+
 ## 管理画面の「終了していない古い記録」(AD-23 2-b)
 
 現場の画面は、ライン画面の表示範囲([line-screen.md](line-screen.md))の記録だけ直せる。表示範囲を広げても入らない(限度より古い)、**終了が無く取り消されていない工程の記録**は、管理画面「終了していない古い記録」(`services/admin_open_runs.py`、`/api/admin/open-runs`)で管理者が直す。一覧の対象は `plan_query.stale_open_events`(ライン画面の警告と同じ定義)。ラインで絞り込める。

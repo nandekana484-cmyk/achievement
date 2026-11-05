@@ -36,7 +36,7 @@ class FieldScope:
     max_extend_hours: int
 
     def window(self, now: datetime) -> tuple[datetime, datetime]:
-        w = display_window(self.session, self.line_code, workday_of(now, self.day_start), self.day_start, self.max_extend_hours)
+        w = display_window(self.session, self.line_code, workday_of(now, self.day_start), self.day_start, self.max_extend_hours, now)
         return w.start, w.end
 
 

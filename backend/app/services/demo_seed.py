@@ -196,6 +196,20 @@ def _at(day: dt.date, hm: str) -> dt.datetime:
     return dt.datetime.combine(day, dt.time(h, m), tzinfo=clock.JST)
 
 
+def seed_old_unstarted(session: Session, line_code: str, day: dt.date) -> list[str]:
+    """遅れた未着手の計画の警告の確認用: 確認用の計画に加え、10日前に終わった未着手の計画(表示範囲を広げても入らない)を入れる。
+
+    本アプリを使い始めた時刻(一番古い記録)より後に終わる必要があるので、`--stale-open` を入れたラインを同じDBに用意しておく。
+    """
+    knos = seed_demo(session, line_code, day)
+    line = normalize_mounting_line(line_code)
+    old = _DemoPlan("1200", 1, 25, "DEMO-OLD", "古い未着手基板K", 60, 30.0, "09:00", "12:00", -10)
+    with write_transaction(session):
+        knos.append(_upsert_plan(session, old, line, day, day - dt.timedelta(days=7), ""))
+        session.commit()
+    return knos
+
+
 def seed_stale_open(session: Session, line_code: str, day: dt.date) -> list[int]:
     """「終了していない古い記録」の確認用: 確認用の計画を入れ、10日前に始めて終了していない段取りと生産を入れる(表示範囲を広げても入らない)。
 

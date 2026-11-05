@@ -1,0 +1,21 @@
+// Văn bản màn hình (tiếng Việt): kết thúc kế hoạch (kết thúc thủ công kế hoạch chưa bắt đầu) và cảnh báo kế hoạch cũ chưa bắt đầu.
+export const planClose = {
+  "planClose.button": "Kết thúc kế hoạch",
+  "planClose.cancelButton": "Hủy kết thúc kế hoạch",
+  "planClose.title": "Kết thúc kế hoạch",
+  "planClose.cancelTitle": "Hủy kết thúc kế hoạch",
+  "planClose.hint": "Kế hoạch này chưa bắt đầu. Kết thúc kế hoạch sẽ không làm nữa (khác với hoàn tất; không có trong xuất thực tích và phiếu ghi sản xuất).",
+  "planClose.cancelHint": "Hủy kết thúc kế hoạch để có thể bấm nút công đoạn.",
+  "planClose.reason": "Lý do",
+  "planClose.reason.delay_stop": "Dừng vì chậm trễ",
+  "planClose.reason.plan_change": "Thay đổi kế hoạch",
+  "planClose.reason.other": "Khác",
+  "planClose.note": "Nội dung khác (bắt buộc)",
+  "planClose.workerId": "ID người làm",
+  "planClose.submit": "Kết thúc kế hoạch",
+  "planClose.cancelSubmit": "Hủy",
+  "planClose.closedNote": "Kết thúc kế hoạch (thủ công): {reason}{note} · {who}",
+  "planClose.stepsLocked": "Để bấm nút công đoạn, trước tiên hãy bấm \"Hủy kết thúc kế hoạch\".",
+  "planClose.staleWarning": "Có {count} kế hoạch cũ đã quá giờ kết thúc mà chưa bắt đầu, nằm ngoài phạm vi bảng thời gian. Hãy tìm và chọn, rồi kết thúc kế hoạch hoặc bắt đầu làm: {list}",
+  "planClose.staleItem": "{kitting} (lô {lots}, kế hoạch {start}~{end})",
+} as const;

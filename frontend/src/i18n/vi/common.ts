@@ -36,6 +36,7 @@ export const common = {
 
   "plan.summary": "{what} · Kế hoạch {qty} · {run}",
   "plan.summaryWithState": "{summary} · {state}",
+  "plan.closedManual": "Đã kết thúc (thủ công)",
   "plan.outsideShort": "Ngoài phạm vi · chưa dọn dẹp",
   "plan.overdueUnstarted": "Chưa bắt đầu",
   "plan.outsideDisplay": "Kế hoạch nằm ngoài phạm vi hiển thị (kế hoạch: {when})",

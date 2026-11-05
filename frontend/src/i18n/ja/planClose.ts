@@ -1,0 +1,21 @@
+// 画面の文言(日本語。基準): 計画終了(始まっていない計画を手で終わらせる)と、遅れた未着手の計画の警告。詳細: docs/design/run-records.md
+export const planClose = {
+  "planClose.button": "計画終了",
+  "planClose.cancelButton": "計画終了を取り消す",
+  "planClose.title": "計画終了",
+  "planClose.cancelTitle": "計画終了を取り消す",
+  "planClose.hint": "この計画は始まっていません。作業を始めない計画を終わらせます(完了とは別の扱いで、実績の書き出しや生産記録票には出ません)。",
+  "planClose.cancelHint": "計画終了を取り消すと、工程のボタンを押せるようになります。",
+  "planClose.reason": "理由",
+  "planClose.reason.delay_stop": "遅延して中止",
+  "planClose.reason.plan_change": "計画変更",
+  "planClose.reason.other": "その他",
+  "planClose.note": "その他の内容(必須)",
+  "planClose.workerId": "作業者ID",
+  "planClose.submit": "計画終了にする",
+  "planClose.cancelSubmit": "取り消す",
+  "planClose.closedNote": "計画終了(手動): {reason}{note}・{who}",
+  "planClose.stepsLocked": "工程のボタンを押すには、先に「計画終了を取り消す」を押してください。",
+  "planClose.staleWarning": "計画終了を過ぎて作業が始まっていない古い計画が{count}件あり、タイムテーブルの範囲に入りません。検索から選んで、計画終了するか作業を始めてください: {list}",
+  "planClose.staleItem": "{kitting}(ロット {lots}、計画 {start}〜{end})",
+} as const;

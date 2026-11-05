@@ -84,7 +84,8 @@ def test_finished_plan_does_not_widen_range(client, world, fake_clock):
     ok(start(client, "cleanup", kitting_no=STARTED))
     ok(end(client, "cleanup", kitting_no=STARTED))
     fake_clock.current = now
-    assert _knos(client)["display_start"] == "2026-10-20T20:15:00+09:00"
+    # 完了した計画は広げない。広がるのは、遅れた未着手の計画(UNTOUCHED_OUT。10/20 9:00)の12時間前まで(完了した計画の記録 10/19 10:00 の12時間前より新しい)
+    assert _knos(client)["display_start"] == "2026-10-19T21:00:00+09:00"
 
 
 def test_all_plans_in_range_are_shown(client, world, fake_clock):

@@ -30,6 +30,7 @@ from app.services.correction_rules import (
 from app.services.errors import NotFound, RuleViolation
 from app.services.idempotency import run_idempotent
 from app.services.kitting_plans import load_group
+from app.services.plan_closures import ensure_not_closed
 from app.services.line_operators import resolve_recorder
 from app.services.run_records import next_seq
 from app.services.views import RunCorrectionResultOut, correction_out, run_completion_out, run_event_out
@@ -158,6 +159,7 @@ def add_run_event(
     def action(now: datetime) -> RunCorrectionResultOut:
         code, text = check_reason(reason, note)
         group = load_group(session, kitting_no)
+        ensure_not_closed(session, kitting_no)
         check_new_times_in_scope(scope, now, [start_at, end_at])
         _check_times(session, kitting_no, step, start_at, end_at, now, exclude_id=None)
         _check_qty(step, end_at, produced_qty)

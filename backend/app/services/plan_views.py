@@ -7,6 +7,7 @@ import datetime as dt
 from pydantic import BaseModel
 
 from app.services.kitting_plans import KittingGroup
+from app.services.plan_closures import ClosureOut
 from app.services.views.side_link import SideLinkViewOut
 from app.services.views.metrics import EfficiencyOut
 from app.services.views import (
@@ -60,8 +61,16 @@ class BoardPlanOut(BaseModel):
     completed: bool
     completion: RunCompletionOut | None  # 最新の完了
     side_link: SideLinkViewOut | None  # 面1と面2の紐づけ(面2は入力欄、面1は紐づいた面2の表示だけ)
+    closed: ClosureOut | None  # 計画終了している(手動。完了とは別)ときの、理由・記入・押した人
     in_progress: bool  # 生産中(最初の工程を始め、片付けが終わっていない)
     progress: float | None  # 進捗率 = 工程の記録の時間の合計 ÷ 計画の時間。生産中でない・計画の時間が無いときは null
+
+
+class StalePlanOut(BaseModel):
+    kitting_no: str
+    lot_nos: list[str]
+    planned_start: dt.datetime
+    planned_end: dt.datetime
 
 
 class BoardOut(BaseModel):
@@ -71,6 +80,7 @@ class BoardOut(BaseModel):
     workday_end: dt.datetime
     display_start: dt.datetime  # 表示範囲(稼働日の前後12時間。片付け前の計画があれば始まりを広げる)
     display_end: dt.datetime
+    stale_plans: list[StalePlanOut]  # 広げても範囲に入らない、遅れた未着手の計画(画面で警告する。検索で選んで計画終了か作業開始)
     stale_kitting_nos: list[str]  # 広げても表示範囲に入りきらない、片付けが終わっていない計画(画面で警告する)
     server_time: dt.datetime  # タブレットの時計とのずれの補正に使う
     current_operator: CurrentOperatorOut | None

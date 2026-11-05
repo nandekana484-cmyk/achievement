@@ -66,6 +66,9 @@
 /* 計画終了を過ぎても始まっていない計画: 斜線と破線の枠(白黒でも分かる)。「未着手」の文字も出す */
 .tt-overdue { background: repeating-linear-gradient(135deg, #f6f8fa 0 8px, #e6eaee 8px 10px); border-style: dashed; color: var(--muted); }
 .tt-overdue.tt-selected { border-style: solid; }
+/* 計画終了(手動): 灰色の背景と「終了(手動)」の文字(白黒でも分かる)。未着手の斜線は出さない */
+.tt-closed { background: #d0d7de; color: #424a53; border-style: solid; }
+.tt-closed .tt-sub { color: #424a53; font-weight: 700; }
 .tt-event { border-color: transparent; cursor: pointer; }
 /* 計画の時刻が範囲の外にある、片付け前の計画の枠(範囲の端に寄せている) */
 .tt-edge { border-style: dashed; }

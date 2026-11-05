@@ -20,9 +20,10 @@ from app.services.masters import get_line
 from app.services.ng_inputs import latest_ng, ng_choices
 from app.services.metrics import efficiency_from_intervals, plan_progress
 from app.core.config import ScheduleConfig
+from app.services.plan_closures import closure_out, closures_of
 from app.services.plan_query import board_kitting_nos, display_window
 from app.services.report_intervals import build_intervals
-from app.services.plan_views import BoardOut, BoardPlanOut, kitting_plan_out
+from app.services.plan_views import BoardOut, BoardPlanOut, StalePlanOut, kitting_plan_out
 from app.services.completions import latest_completion, produced_total
 from app.services.views import current_operator_out, line_event_out, run_completion_out, run_event_out
 
@@ -41,7 +42,7 @@ def board_plan_out(session: Session, g: KittingGroup) -> BoardPlanOut:
         ng_choices=ng_choices(session, g),
         completed=completion is not None,
         completion=run_completion_out(completion) if completion is not None else None,
-        side_link=view(session, g), in_progress=progress.in_progress, progress=progress.progress,
+        side_link=view(session, g), closed=closure_out(session, closures_of(session, [g.kitting_no]).get(g.kitting_no)), in_progress=progress.in_progress, progress=progress.progress,
     )
 
 
@@ -56,7 +57,7 @@ def get_board(session: Session, line_code: str, day: dt.date | None, day_start: 
     now = clock.now()
     day = day or workday_of(now, day_start)
     work_start, work_end = workday_range(day, day_start)
-    window = display_window(session, line.line_code, day, day_start, max_extend_hours)
+    window = display_window(session, line.line_code, day, day_start, max_extend_hours, now)
     disp_start, disp_end = window.start, window.end
 
     groups = load_active_groups(session, board_kitting_nos(session, line.line_code, disp_start, disp_end))
@@ -65,6 +66,7 @@ def get_board(session: Session, line_code: str, day: dt.date | None, day_start: 
     return BoardOut(
         line_code=line.line_code, date=day,
         workday_start=work_start, workday_end=work_end, display_start=disp_start, display_end=disp_end, server_time=now, stale_kitting_nos=list(window.stale_kitting_nos),
+        stale_plans=[StalePlanOut(kitting_no=p.kitting_no, lot_nos=list(p.lot_nos), planned_start=p.planned_start, planned_end=p.planned_end) for p in window.stale_plans],
         current_operator=current_operator_out(session, operator) if operator is not None else None,
         plans=[board_plan_out(session, g) for g in groups],
         line_events=[line_event_out(session, e) for e in _line_events(session, line.line_code, disp_start, disp_end, now)],

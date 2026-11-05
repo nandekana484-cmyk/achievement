@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTranslate } from "../../i18n/translate";
 import type { BoardPlan, Plan, RunEvent } from "../../shared/api";
-import { exactKittingMatch, foldForMatch, isOutsideDisplay, isOverdueUnstarted, outsideMessage, planSummary } from "./planMatch";
+import { exactKittingMatch, foldForMatch, canClosePlan, isOutsideDisplay, isOverdueUnstarted, outsideMessage, planSummary } from "./planMatch";
 
 const t = makeTranslate("ja");
 
@@ -70,5 +70,30 @@ describe("計画終了を過ぎた未着手", () => {
     expect(isOverdueUnstarted(board([ev(false)]), nowMs)).toBe(false);
     expect(isOverdueUnstarted(board([], true), nowMs)).toBe(false);
     expect(isOverdueUnstarted(board([], false, null), nowMs)).toBe(false);
+  });
+});
+
+describe("計画終了のボタンと「終了(手動)」", () => {
+  const nowMs = Date.parse("2026-10-21T13:00:00+09:00");
+  const ev = (voided: boolean) => ({ id: 1, voided_at: voided ? "2026-10-21T10:00:00+09:00" : null }) as unknown as RunEvent;
+  const bp = (over: Partial<BoardPlan> & { status?: string }, events: RunEvent[] = []): BoardPlan =>
+    ({ plan: { ...plan("A"), status: over.status ?? "active" }, events, completed: false, closed: null, ...over }) as unknown as BoardPlan;
+  const closed = { reason: "plan_change", note: null, closed_by_name: "鈴木", closed_at: "2026-10-21T12:00:00+09:00" };
+
+  it("ボタンは、始まっていない(取り消した記録だけも含む)計画にだけ出る", () => {
+    expect(canClosePlan(bp({}))).toBe(true);
+    expect(canClosePlan(bp({}, [ev(true)]))).toBe(true);
+    expect(canClosePlan(bp({}, [ev(false)]))).toBe(false); // 始まっている
+  });
+
+  it("取り消された計画・完了・すでに計画終了した計画には出さない", () => {
+    expect(canClosePlan(bp({ status: "cancelled" }))).toBe(false);
+    expect(canClosePlan(bp({ completed: true }))).toBe(false);
+    expect(canClosePlan(bp({ closed }))).toBe(false);
+  });
+
+  it("計画終了した計画は、未着手(斜線)の見た目にしない", () => {
+    expect(isOverdueUnstarted(bp({}), nowMs)).toBe(true);
+    expect(isOverdueUnstarted(bp({ closed }), nowMs)).toBe(false);
   });
 });

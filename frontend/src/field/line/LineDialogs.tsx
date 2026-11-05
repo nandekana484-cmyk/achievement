@@ -7,6 +7,7 @@ import { ConfirmDialog } from "./dialogs/ConfirmDialog";
 import { LineEventStartDialog } from "./dialogs/LineEventStartDialog";
 import { NgDialog } from "./dialogs/NgDialog";
 import { NumberPadDialog } from "./dialogs/NumberPadDialog";
+import { PlanCloseDialog } from "./dialogs/PlanCloseDialog";
 import { RestartReasonDialog } from "./dialogs/RestartReasonDialog";
 import { TextDialog } from "./dialogs/TextDialog";
 import { OperatorPicker } from "./OperatorPicker";
@@ -20,6 +21,7 @@ export type DialogState =
   | { kind: "confirm"; plan: BoardPlan; status: StepStatus }
   | { kind: "ng"; plan: BoardPlan }
   | { kind: "remark"; plan: BoardPlan }
+  | { kind: "planClose"; plan: BoardPlan; mode: "close" | "cancel" }
   | { kind: "lineEvent"; reason: Reason }
   | CorrectionDialogState;
 
@@ -91,6 +93,15 @@ export function LineDialogs({ dialog, board, masters, actions, nowMs, close }: P
       return (
         <TextDialog title={t("remark.title")} label={t("remark.label")} submitLabel={t("remark.submit")}
           onSubmit={(text) => then(() => actions.addRemark(dialog.plan, text))()} onCancel={close} />
+      );
+    case "planClose":
+      return (
+        <PlanCloseDialog
+          mode={dialog.mode} kittingNo={dialog.plan.plan.kitting_no} initialWorkerId={board.current_operator?.operator_worker_id ?? ""}
+          onSubmit={(workerId, reason, note) => untilSuccess(dialog.mode === "close"
+            ? actions.closePlan(dialog.plan, workerId, reason, note) : actions.cancelClose(dialog.plan, workerId))}
+          onCancel={close}
+        />
       );
     case "lineEvent":
       return (

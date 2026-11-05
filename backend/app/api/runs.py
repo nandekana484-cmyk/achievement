@@ -5,10 +5,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.schemas import NgQtyIn, RemarkIn, StepEndIn, StepStartIn, _Recorder
+from app.api.schemas import NgQtyIn, PlanCloseCancelIn, PlanCloseIn, RemarkIn, StepEndIn, StepStartIn, _Recorder
 from app.db.session import get_session
 from app.domain.steps import StepType
-from app.services import board, masters, ng_inputs, run_records
+from app.services import board, masters, ng_inputs, plan_closures, run_records
 from app.services.plan_views import BoardPlanOut
 from app.services.views import NgInputOut, RunInputOut, StepResultOut
 
@@ -41,6 +41,18 @@ def end_step(kitting_no: str, step_type: StepType, body: StepEndIn, session: Ses
     return run_records.end_step(
         session, kitting_no, step_type, body.request_id, produced_qty=body.produced_qty, operator_id=_recorder(session, body),
     )
+
+
+@router.post("/{kitting_no}/close", response_model=plan_closures.ClosureResultOut)
+def close_plan(kitting_no: str, body: PlanCloseIn, session: Session = Depends(get_session)) -> plan_closures.ClosureResultOut:
+    """計画終了にする(始まっていない計画だけ。理由と作業者IDが必須。完了とは別の扱い)。"""
+    return plan_closures.close_plan(session, kitting_no, masters.lookup_operator(session, body.worker_id).id, body.reason, body.note, body.request_id)
+
+
+@router.post("/{kitting_no}/close/cancel", response_model=plan_closures.ClosureResultOut)
+def cancel_close(kitting_no: str, body: PlanCloseCancelIn, session: Session = Depends(get_session)) -> plan_closures.ClosureResultOut:
+    """計画終了を取り消す(作業者IDが必須)。履歴には取り消しの行を足す。"""
+    return plan_closures.cancel_close(session, kitting_no, masters.lookup_operator(session, body.worker_id).id, body.request_id)
 
 
 @router.put("/{kitting_no}/ng-qty", response_model=NgInputOut)
