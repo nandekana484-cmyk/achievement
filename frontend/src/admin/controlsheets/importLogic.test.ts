@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { applyBody, defaultSelection, type ImportSheet, overwriteCount, toggle } from "./importLogic";
+import { applyBody, applyMeta, carrySummary, defaultSelection, type ImportSheet, overwriteCount, toggle } from "./importLogic";
 
 const sheet = (over: Partial<ImportSheet>): ImportSheet => ({
-  sheet_name: "0722", file_no: "0722", status: "new", reason: null, row_count: 3, manager_no: "M", overwrites_manual: false, changes: [], changes_more: 0, ...over,
+  sheet_name: "0722", file_no: "0722", status: "new", reason: null, row_count: 3, manager_no: "M", overwrites_manual: false, current_version: null, carried: 0, lost: [], changes: [], changes_more: 0, ...over,
 });
 const sheets = [
   sheet({ sheet_name: "722" }), sheet({ sheet_name: "0800", file_no: "0800", status: "changed", overwrites_manual: true }),
@@ -26,10 +26,24 @@ describe("Excel 取り込みの選び方", () => {
     expect(overwriteCount(sheets, ["0722"])).toBe(0);
   });
 
+  it("登録の指定は、選んだファイルNo.・確かめたブックの SHA-256・確かめたときの状態と版", () => {
+    const withVersion = sheets.map((s) => (s.file_no === "0800" ? { ...s, current_version: 3 } : s));
+    expect(applyMeta({ sha256: "ab".repeat(32), sheets: withVersion }, ["0722", "0800"])).toEqual({
+      file_nos: ["0722", "0800"], sha256: "ab".repeat(32), states: { "0722": { status: "new", version: 0 }, "0800": { status: "changed", version: 3 } },
+    });
+  });
+
+  it("引き継いだ行と、引き継げずに消えるものの合計(選んだシートだけ)", () => {
+    const withCarry = [sheet({ file_no: "0001", carried: 2, lost: [{ row: 3, name: "旧", name_vi: "v", link: "run1" }] }), sheet({ file_no: "0002", carried: 5 })];
+    expect(carrySummary(withCarry, ["0001"])).toEqual({ carried: 2, lost: 1 });
+    expect(carrySummary(withCarry, ["0001", "0002"])).toEqual({ carried: 7, lost: 1 });
+  });
+
   it("登録の本文は、10桁の長さ + JSON + ブック(サーバーと同じ形)", async () => {
-    const body = applyBody(["0722", "0800"], new Blob(["BOOK"]));
+    const meta = { file_nos: ["0722", "0800"], sha256: "00".repeat(32), states: {} };
+    const body = applyBody(meta, new Blob(["BOOK"]));
     const text = await body.text();
-    const json = JSON.stringify({ file_nos: ["0722", "0800"] });
+    const json = JSON.stringify(meta);
     expect(text.slice(0, 10)).toBe(String(new TextEncoder().encode(json).length).padStart(10, "0"));
     expect(text.slice(10)).toBe(`${json}BOOK`);
   });

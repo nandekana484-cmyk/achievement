@@ -2398,6 +2398,8 @@ export interface components {
         ImportPreviewOut: {
             /** Filename */
             filename: string;
+            /** Sha256 */
+            sha256: string;
             /** Sheets */
             sheets: components["schemas"]["ImportSheetOut"][];
             /** Counts */
@@ -2413,8 +2415,6 @@ export interface components {
             filename: string;
             /** Registered */
             registered: number;
-            /** Ignored */
-            ignored: number;
         };
         /** ImportSheetOut */
         ImportSheetOut: {
@@ -2435,6 +2435,12 @@ export interface components {
             manager_no: string | null;
             /** Overwrites Manual */
             overwrites_manual: boolean;
+            /** Current Version */
+            current_version: number | null;
+            /** Carried */
+            carried: number;
+            /** Lost */
+            lost: components["schemas"]["LostOut"][];
             /** Changes */
             changes: components["schemas"]["ChangeOut"][];
             /** Changes More */
@@ -2813,6 +2819,20 @@ export interface components {
             worker_id: string;
             /** Password */
             password: string;
+        };
+        /**
+         * LostOut
+         * @description 引き継げずに消える、今の内容の行のベトナム語と対応(工程名が変わった・消えた行)。row は今の内容の行の番号。
+         */
+        LostOut: {
+            /** Row */
+            row: number;
+            /** Name */
+            name: string;
+            /** Name Vi */
+            name_vi: string | null;
+            /** Link */
+            link: string;
         };
         /**
          * LotOut

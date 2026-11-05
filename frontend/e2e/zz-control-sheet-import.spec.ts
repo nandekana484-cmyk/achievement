@@ -39,6 +39,8 @@ test("74 管理画面で Excel を取り込む: 確かめる(DBに書かない)�
   await expect(page.getByRole("alert").filter({ hasText: "1 件は、管理画面で作った・直した内容を上書きします" })).toBeVisible();
   await table.getByRole("row", { name: /0940/ }).locator("summary").click(); // 今の内容との違い
   await expect(table.getByRole("row", { name: /0940/ })).toContainText("「手で直した」→「MP-0940N」");
+  await expect(table.getByRole("row", { name: /0940/ })).toContainText("1 行目「手で直した行」(工程名が変わった・なくなった)のベトナム語「vi」と対応「なし」は消えます"); // 工程名が変わった行のベトナム語は引き継げない
+  await expect(page.getByText("引き継げずに消えるものは 1 件です")).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/74-import-preview.png`, fullPage: true });
 
   // 確かめただけでは登録されていない

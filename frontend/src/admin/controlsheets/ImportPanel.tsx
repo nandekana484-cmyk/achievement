@@ -5,7 +5,7 @@ import type { components } from "../../api/schema";
 import { useAdminCall } from "../adminApi";
 import { ci } from "../messagesCsImport";
 import { Feedback } from "../parts";
-import { applyBody, BOOK_ACCEPT, defaultSelection, type ImportPreview, type ImportSheet, isRegisterable, overwriteCount, toggle } from "./importLogic";
+import { applyBody, applyMeta, BOOK_ACCEPT, carrySummary, defaultSelection, type ImportPreview, type ImportSheet, isRegisterable, overwriteCount, toggle } from "./importLogic";
 
 type History = components["schemas"]["ImportHistoryOut"];
 type Result = components["schemas"]["ImportResultOut"];
@@ -21,14 +21,23 @@ async function post(path: string, name: string, body: Blob) {
 
 function Changes({ sheet }: { sheet: ImportSheet }) {
   if (sheet.status === "error" || sheet.status === "skipped") return <>{sheet.reason}</>;
-  if (sheet.changes.length === 0) return null;
+  if (sheet.changes.length === 0 && sheet.carried === 0 && sheet.lost.length === 0) return null;
   const label = (c: ImportSheet["changes"][number]) => ci(`ci.field.${c.field}`, { row: c.row ?? "" });
   return (
     <details>
-      <summary>{ci("ci.showChanges", { count: sheet.changes.length + sheet.changes_more })}</summary>
+      <summary>
+        {sheet.changes.length > 0 ? ci("ci.showChanges", { count: sheet.changes.length + sheet.changes_more }) : ci("ci.showCarry")}
+        {sheet.carried > 0 && <span> {ci("ci.carried", { count: sheet.carried })}</span>}
+        {sheet.lost.length > 0 && <span className="cs-overwrite"> {ci("ci.lostCount", { count: sheet.lost.length })}</span>}
+      </summary>
       <ul className="cs-changes">
         {sheet.changes.map((c, i) => <li key={i}>{ci("ci.change", { label: label(c), before: c.before, after: c.after })}</li>)}
         {sheet.changes_more > 0 && <li>{ci("ci.changesMore", { count: sheet.changes_more })}</li>}
+        {sheet.lost.map((x) => (
+          <li key={`lost${x.row}`} className="cs-overwrite">
+            {ci("ci.lost", { row: x.row, name: x.name, vi: x.name_vi ?? ci("ci.link.none"), link: ci(`ci.link.${x.link as "none" | "run1" | "run2" | "xray"}`) })}
+          </li>
+        ))}
       </ul>
     </details>
   );
@@ -82,10 +91,13 @@ export function ImportPanel({ onApplied }: { onApplied: () => void }) {
   const apply = async () => {
     if (!book || !preview) return;
     setBusy(true);
-    const r = await call(() => post("/import/apply", book.name, applyBody(selected, book)) as Promise<{ data?: Result; error?: unknown; response: Response }>);
+    const r = await call(() => post("/import/apply", book.name, applyBody(applyMeta(preview, selected), book)) as Promise<{ data?: Result; error?: unknown; response: Response }>);
     setBusy(false);
-    if (!r.ok) return setMessage({ ok: false, text: r.message });
-    setMessage({ ok: true, text: ci("ci.done", { count: r.data.registered, name: r.data.filename }) + (r.data.ignored ? " " + ci("ci.doneIgnored", { count: r.data.ignored }) : "") });
+    if (!r.ok) { // 確かめたブックと違う・確かめたあとに内容が変わった: 何も登録されていない。確かめ直してもらう
+      setPreview(null);
+      return setMessage({ ok: false, text: r.message });
+    }
+    setMessage({ ok: true, text: ci("ci.done", { count: r.data.registered, name: r.data.filename }) });
     reset();
     loadHistory();
     onApplied();
@@ -93,6 +105,7 @@ export function ImportPanel({ onApplied }: { onApplied: () => void }) {
 
   const sheets = preview?.sheets ?? [];
   const overwrites = overwriteCount(sheets, selected);
+  const carry = carrySummary(sheets, selected);
   return (
     <section className="cs-import" aria-label={ci("ci.title")}>
       <h2>{ci("ci.title")}</h2>
@@ -108,6 +121,7 @@ export function ImportPanel({ onApplied }: { onApplied: () => void }) {
           <h3>{ci("ci.result", { name: preview.filename })}</h3>
           <p>{ci("ci.counts", { new: preview.counts.new ?? 0, changed: preview.counts.changed ?? 0, unchanged: preview.counts.unchanged ?? 0, skipped: preview.counts.skipped ?? 0, error: preview.counts.error ?? 0 })}</p>
           {overwrites > 0 && <p className="admin-error" role="alert">{ci("ci.overwriteTotal", { count: overwrites })}</p>}
+          {carry.carried + carry.lost > 0 && <p role="status">{ci("ci.carrySummary", { carried: carry.carried, lost: carry.lost })}</p>}
           <p>
             <button type="button" className="admin-btn" onClick={() => setSelected(defaultSelection(sheets))}>{ci("ci.selectAll")}</button>
             <button type="button" className="admin-btn" onClick={() => setSelected([])}>{ci("ci.selectNone")}</button>

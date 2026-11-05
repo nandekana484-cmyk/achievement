@@ -25,10 +25,27 @@ export function overwriteCount(sheets: ImportSheet[], selected: string[]): numbe
   return sheets.filter((s) => s.overwrites_manual && s.file_no !== null && selected.includes(s.file_no)).length;
 }
 
-/** 登録の本文: 先頭の 10 桁(JSON の長さ)、選んだファイルNo.の JSON、ブック。サーバー(api/admin_control_sheet_import.py)の split_apply_body と同じ形。 */
-export function applyBody(fileNos: string[], book: Blob): Blob {
-  const json = new TextEncoder().encode(JSON.stringify({ file_nos: fileNos }));
+/** 登録のとき、ブックと一緒に送る指定: 登録するファイルNo.、確かめたブックの SHA-256、確かめたときの状態(新規 / 変更あり)と今の版(新規は 0)。サーバーが照らし合わせる。 */
+export type ApplyMeta = { file_nos: string[]; sha256: string; states: Record<string, { status: "new" | "changed"; version: number }> };
+
+export function applyMeta(preview: Pick<ImportPreview, "sha256" | "sheets">, selected: string[]): ApplyMeta {
+  const states: ApplyMeta["states"] = {};
+  for (const s of preview.sheets) {
+    if (s.file_no !== null && selected.includes(s.file_no) && (s.status === "new" || s.status === "changed")) states[s.file_no] = { status: s.status, version: s.current_version ?? 0 };
+  }
+  return { file_nos: selected, sha256: preview.sha256, states };
+}
+
+/** 登録の本文: 先頭の 10 桁(JSON の長さ)、登録の指定(ApplyMeta)の JSON、ブック。サーバー(api/admin_control_sheet_import.py)の split_apply_body と同じ形。 */
+export function applyBody(meta: ApplyMeta, book: Blob): Blob {
+  const json = new TextEncoder().encode(JSON.stringify(meta));
   return new Blob([String(json.length).padStart(10, "0"), json, book]);
+}
+
+/** 引き継いだ行の数と、引き継げずに消えるものの数(確かめる画面の合計。選んだシートだけ)。 */
+export function carrySummary(sheets: ImportSheet[], selected: string[]): { carried: number; lost: number } {
+  const chosen = sheets.filter((s) => s.file_no !== null && selected.includes(s.file_no));
+  return { carried: chosen.reduce((n, s) => n + s.carried, 0), lost: chosen.reduce((n, s) => n + s.lost.length, 0) };
 }
 
 /** 受け付けるブックの拡張子。 */

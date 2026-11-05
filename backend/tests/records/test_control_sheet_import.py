@@ -17,8 +17,14 @@ def preview(client, data, filename="工程表.xlsx"):
     return client.post(f"{BASE}/import/preview", params={"filename": filename}, content=data, headers=H)
 
 
-def apply(client, data, file_nos, filename="工程表.xlsx"):
-    body = json.dumps({"file_nos": file_nos}).encode()
+def apply(client, data, file_nos, filename="工程表.xlsx", sha256=None, states=None):
+    """登録。sha256 と states は、省略すると、先に確かめて(preview)その結果を使う(画面と同じ流れ)。"""
+    if sha256 is None or states is None:
+        checked = ok(preview(client, data, filename))
+        sheets = {x["file_no"]: x for x in checked["sheets"]}
+        sha256 = sha256 or checked["sha256"]
+        states = states if states is not None else {f: {"status": sheets[f]["status"], "version": sheets[f]["current_version"] or 0} for f in file_nos if f in sheets}
+    body = json.dumps({"file_nos": file_nos, "sha256": sha256, "states": states}).encode()
     return client.post(f"{BASE}/import/apply", params={"filename": filename}, content=f"{len(body):010d}".encode() + body + data, headers=H)
 
 
@@ -58,7 +64,7 @@ def test_apply_registers_with_history_and_audit(client, admin):
     login(client)
     data = book("0722", "0723", "0724")
     res = ok(apply(client, data, ["0722", "0724"]))  # 選んだものだけ
-    assert (res["registered"], res["ignored"], res["filename"]) == (2, 0, "工程表.xlsx")
+    assert (res["registered"], res["filename"]) == (2, "工程表.xlsx")
     cur = ok(client.get(f"{BASE}/0722", headers=H))
     assert (cur["action"], cur["import_id"], cur["import_filename"], cur["version"], cur["manager_no"], len(cur["rows"])) == ("import", res["import_id"], "工程表.xlsx", 1, "MP-1", 3)
     assert client.get(f"{BASE}/0723", headers=H).status_code == 404  # 選ばなかったシートは登録しない
@@ -84,8 +90,7 @@ def test_overwrite_keeps_old_version_and_it_can_be_restored(client, admin):
     assert ok(client.get(f"{BASE}/0722", headers=H))["rows"][0]["name"] == "手で直した" and manual["version"] == 1
     # もう一度取り込む(版 4)。そのあと同じブックを取り込んでも変更なしで、版は増えない
     ok(apply(client, book("0722"), ["0722"]))
-    res = ok(apply(client, book("0722"), ["0722"]))
-    assert res["registered"] == 0
+    assert apply(client, book("0722"), ["0722"]).status_code == 409  # 変更なしのシートは登録の対象ではない
     assert [h["version"] for h in ok(client.get(f"{BASE}/0722/history", headers=H))] == [4, 3, 2, 1]
     assert by_sheet(ok(preview(client, book("0722"))))["0722"]["status"] == "unchanged"
 
@@ -99,15 +104,60 @@ def test_changed_over_an_import_is_not_a_manual_overwrite(client, admin):
     assert [(c["field"], c["before"], c["after"]) for c in s["changes"]] == [("manager_no", "MP-1", "MP-2")]
 
 
-def test_ignored_and_bad_requests(client, admin):
+def test_bad_requests(client, admin):
     login(client)
     ok(apply(client, book("0722"), ["0722"]))
-    res = ok(apply(client, book("0722"), ["0722", "9999"]))  # 変更なし・ブックに無いシートは登録しない
-    assert (res["registered"], res["ignored"]) == (0, 2)
+    r = apply(client, book("0722"), ["0722", "9999"])  # 変更なし・ブックに無いシートは登録できない(確かめたときの状態が無い)
+    assert r.status_code == 409
     r = apply(client, book("0722"), [])
     assert r.status_code == 409 and "選ばれていません" in r.json()["detail"]
-    assert apply(client, book("0722"), ["0722"], filename="a.csv").status_code == 409
+    assert apply(client, book("0723"), ["0723"], filename="a.csv", sha256="0" * 64, states={}).status_code == 409
     assert client.post(f"{BASE}/import/apply", params={"filename": "a.xlsx"}, content=b"abc", headers=H).status_code == 409  # 本文の形が違う
+
+
+def test_apply_refuses_a_different_book_from_the_one_checked(client, admin):
+    login(client)
+    checked = ok(preview(client, book("0722", "0723")))
+    assert len(checked["sha256"]) == 64 and checked["sha256"] == __import__("hashlib").sha256(book("0722", "0723")).hexdigest()
+    other = build_xlsx(example_sheet("0722", file_no_cell="", manager_no="別のブック"), example_sheet("0723", file_no_cell=""))  # 同じファイルNo.・同じ状態だが、中身が違うブック
+    r = apply(client, other, ["0722"], sha256=checked["sha256"], states={"0722": {"status": "new", "version": 0}})
+    assert r.status_code == 409 and "確かめたブックと違います。もう一度確かめてください" in r.json()["detail"]
+    assert client.get(f"{BASE}/0722", headers=H).status_code == 404  # 登録されていない
+    assert ok(apply(client, book("0722", "0723"), ["0722"], sha256=checked["sha256"], states={"0722": {"status": "new", "version": 0}}))["registered"] == 1  # 同じブックなら通る
+
+
+def test_apply_refuses_when_the_state_changed_after_checking(client, admin):
+    login(client)
+    data = book("0722", "0723")
+    checked = ok(preview(client, data))
+    states = {s["file_no"]: {"status": s["status"], "version": s["current_version"] or 0} for s in checked["sheets"]}
+    ok(client.put(f"{BASE}/0722", json={"manager_no": "間に直した", "rows": [{"name": "管理画面で直した"}]}, headers=H))  # 確かめたあとに、管理画面で登録された(新規 → すでにある)
+    r = apply(client, data, ["0722", "0723"], sha256=checked["sha256"], states=states)
+    assert r.status_code == 409 and "0722" in r.json()["detail"] and "もう一度確かめてください" in r.json()["detail"]
+    assert client.get(f"{BASE}/0723", headers=H).status_code == 404  # 1つでも変わっていたら、何も登録しない
+    assert ok(client.get(f"{BASE}/0722", headers=H))["manager_no"] == "間に直した"  # 手で直した内容は消えない
+    # 変更ありのシートでも、確かめたあとに版が増えていたら断る(新しい手の直しを見ないまま上書きしない)
+    checked = ok(preview(client, data))
+    states = {s["file_no"]: {"status": s["status"], "version": s["current_version"] or 0} for s in checked["sheets"]}
+    assert states["0722"] == {"status": "changed", "version": 1}
+    ok(client.put(f"{BASE}/0722", json={"manager_no": "また直した", "rows": [{"name": "x"}]}, headers=H))
+    assert apply(client, data, ["0722"], sha256=checked["sha256"], states=states).status_code == 409
+    assert ok(client.get(f"{BASE}/0722", headers=H))["manager_no"] == "また直した"
+
+
+def test_vietnamese_and_link_are_carried_over_and_shown(client, admin):
+    login(client)
+    rows = [{"name": "SMT-1\n(リフロー)", "name_vi": "Reflow", "link": "run1"}, {"name": "X線検査\nInspeção de Raio X", "name_vi": "X-quang", "link": "xray"},
+            {"name": "消える名前", "name_vi": "Se mat", "link": "run2"}]
+    ok(client.put(f"{BASE}/0722", json={"manager_no": "MP-1", "rows": rows}, headers=H))
+    s = by_sheet(ok(preview(client, book("0722"))))["0722"]
+    assert (s["status"], s["carried"]) == ("changed", 2)  # 工程名が同じ2行から引き継ぐ
+    assert [(x["row"], x["name"], x["name_vi"], x["link"]) for x in s["lost"]] == [(3, "消える名前", "Se mat", "run2")]  # 工程名が変わった(なくなった)行は消える
+    assert not any(c["field"] == "name_vi" for c in s["changes"])
+    ok(apply(client, book("0722"), ["0722"]))
+    cur = ok(client.get(f"{BASE}/0722", headers=H))
+    assert [(r["name_vi"], r["link"]) for r in cur["rows"]] == [("Reflow", "run1"), ("X-quang", "xray"), (None, "none")]
+    assert by_sheet(ok(preview(client, book("0722"))))["0722"]["status"] == "unchanged"  # 引き継いだ内容なら、同じブックはもう変更なし
 
 
 def test_xls_book_is_imported_too(client, admin):
@@ -121,7 +171,7 @@ def test_xls_book_is_imported_too(client, admin):
 def test_only_admins_can_import(client, admin):
     data = book("0722")
     assert preview(client, data).status_code == 401
-    assert apply(client, data, ["0722"]).status_code == 401
+    assert apply(client, data, ["0722"], sha256="0" * 64, states={}).status_code == 401
     assert client.get(f"{BASE}/imports").status_code == 401
     login(client)
     assert client.post(f"{BASE}/import/preview", params={"filename": "a.xlsx"}, content=data).status_code == 403  # X-Genba-Admin が無い
