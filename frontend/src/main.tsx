@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AccessPage } from "./admin/access/AccessPage";
 import { HandoverPage } from "./admin/handover/HandoverPage";
+import { ControlSheetsPage } from "./admin/controlsheets/ControlSheetsPage";
 import { OpenRunsPage } from "./admin/openruns/OpenRunsPage";
 import { TeitoriPage } from "./admin/teitori/TeitoriPage";
 import { ActualsPage } from "./admin/actuals/ActualsPage";
@@ -28,6 +29,7 @@ import "./admin/admin.css";
 import "./admin/reports/report.css";
 import "./print/record.css";
 import "./print/idslips/idslip.css";
+import "./print/idslips/controlsheet.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -54,6 +56,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="teitori" element={<TeitoriPage />} />
             <Route path="handover" element={<HandoverPage />} />
             <Route path="open-runs" element={<OpenRunsPage />} />
+            <Route path="control-sheets" element={<ControlSheetsPage />} />
             <Route path="password" element={<PasswordPage />} />
           </Route>
         </Routes>

@@ -1,0 +1,66 @@
+// 管理画面「管理表の内容」(K社製品ロット管理票のファイルNo.ごとの内容)の文言(日本語だけ)。詳細: docs/design/control-sheet.md
+import { format, type Params } from "../i18n/translate";
+
+const text = {
+  "menu.controlSheets": "管理表の内容",
+  "cs.title": "管理表の内容",
+  "cs.note": "K社製品ロット管理票(識別票の5つ目)の、ファイルNo.ごとの内容です。管理No と工程の行(工程名・区分・作業要領・ライン名の欄・将来の自動入力の対応)を登録します。印刷のとき、この内容で表を作ります。保存のたびに版が増え、前の版も見られます(消えません)。",
+  "cs.newTitle": "新しく登録する",
+  "cs.fileNo": "ファイルNo.",
+  "cs.copyFrom": "コピー元",
+  "cs.copyNone": "コピーしない(空から作る)",
+  "cs.create": "登録する",
+  "cs.needFileNo": "ファイルNo.を入れてください",
+  "cs.col.fileNo": "ファイルNo.",
+  "cs.col.product": "製品名(今の計画)",
+  "cs.col.state": "状態",
+  "cs.col.manager": "管理No",
+  "cs.col.rows": "行数",
+  "cs.col.version": "版",
+  "cs.col.savedBy": "最後に直した人",
+  "cs.col.savedAt": "日時",
+  "cs.registered": "登録済み",
+  "cs.unregistered": "未登録(今の計画にある)",
+  "cs.edit": "編集",
+  "cs.register": "登録する",
+  "cs.editorTitle": "ファイルNo. {file} の管理表の内容",
+  "cs.back": "一覧に戻る",
+  "cs.managerNo": "管理No",
+  "cs.rows": "工程の行(上から順。行の番号は印刷のときに1から振ります。工程名も作業要領も空の行は、手で書く行になります)",
+  "cs.noRows": "工程の行がありません。「空の行を足す」で足してください(印刷では、8行になるまで下に空の行が足されます)",
+  "cs.addRow": "空の行を足す",
+  "cs.insertBelow": "この下に空の行を足す",
+  "cs.manyRows": "行が {count} 行あります。1ページに収まらないことがあります(目安は20行まで。収まらないと2ページ目に分かれます)。保存はできます",
+  "cs.rowTitle": "{no} 行目",
+  "cs.name": "工程名(日本語。空でもよい)",
+  "cs.nameVi": "工程名のベトナム語(任意)",
+  "cs.kind": "区分",
+  "cs.kind.none": "なし",
+  "cs.kind.internal": "社内",
+  "cs.kind.external": "社外",
+  "cs.procedure": "作業要領・注意点(複数行。Side A/B の内容や、X線の検査数などもここに書く)",
+  "cs.useLine": "ライン名の欄を使う(使わない行は、ライン名の欄に斜線を引く)",
+  "cs.link": "将来の自動入力のための対応(今は印刷に使いません)",
+  "cs.link.none": "なし",
+  "cs.link.run1": "1回目",
+  "cs.link.run2": "2回目",
+  "cs.link.xray": "X線検査",
+  "cs.up": "上へ",
+  "cs.down": "下へ",
+  "cs.remove": "この行を削除",
+  "cs.save": "保存する",
+  "cs.saved": "保存しました(版 {version})",
+  "cs.history": "版の履歴(新しい版から)",
+  "cs.historyRow": "版 {version}({when}、{who}){copied}",
+  "cs.copiedFrom": "。{file} からコピー",
+  "cs.loadVersion": "この版を読み込む",
+  "cs.loaded": "版 {version} の内容を読み込みました。保存すると、新しい版になります",
+  "cs.empty": "登録済みのファイルNo.も、今の計画のファイルNo.もありません",
+} as const;
+
+export type ControlSheetKey = keyof typeof text;
+
+/** 「管理表の内容」の文言。 */
+export function ct(key: ControlSheetKey, params?: Params): string {
+  return format(text[key], params);
+}

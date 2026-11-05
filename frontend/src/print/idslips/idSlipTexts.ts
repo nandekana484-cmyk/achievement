@@ -45,6 +45,6 @@ export const SLIP_TEXT = {
 
 export type SlipTextKey = keyof typeof SLIP_TEXT;
 
-/** 4種類の識別票の名前(操作バーの種類のチェックの横に出す名前は ja.ts / vi.ts)。 */
-export const SLIP_KINDS = [1, 2, 3, 4] as const;
+/** 5種類(識別票4種類と、5つ目のK社製品ロット管理票)の名前(操作バーの種類のチェックの横に出す名前は ja.ts / vi.ts)。 */
+export const SLIP_KINDS = [1, 2, 3, 4, 5] as const;
 export type SlipKind = (typeof SLIP_KINDS)[number];

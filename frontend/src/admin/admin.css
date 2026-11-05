@@ -75,3 +75,18 @@
 .admin-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .admin-code { color: var(--muted); font-size: 12px; }
 .admin-table .admin-btn { white-space: nowrap; }
+
+/* 管理表の内容(AD-27) */
+.cs-manager { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-weight: 600; }
+.cs-manager input { padding: 5px 8px; font: inherit; width: 260px; }
+.cs-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cs-row { padding: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.cs-row-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cs-row-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 12px; }
+.cs-row-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 14px; color: var(--muted); }
+.cs-row-grid input:not([type="checkbox"]), .cs-row-grid select, .cs-row-grid textarea { padding: 5px 8px; font: inherit; color: var(--text); }
+.cs-row-grid .cs-wide { grid-column: 1 / -1; }
+.cs-row-grid .cs-check { flex-direction: row; align-items: center; gap: 6px; }
+.cs-unregistered td { background: #fff8e1; }
+.cs-history { margin: 0 0 24px; padding-left: 20px; }
+.cs-history li { margin-bottom: 4px; }

@@ -3,8 +3,8 @@ import { barcodeWarnings, defaultKinds, type IdSlip, initialSelection, pagesOf, 
 
 const slip = (over: Partial<IdSlip> = {}): IdSlip => ({
   kitting_no: "0722-1-S-251014-01", line_code: "S", run_no: 1, file_no: "722", suf: "SUF-0722", product_name: "基板A",
-  lots: [{ lot_no: "L001", order_qty: 1000 }, { lot_no: "L002", order_qty: null }, { lot_no: "L003", order_qty: 500 }],
-  lot_list: "L001, L002, L003", ...over,
+  lots: [{ lot_no: "L001", order_qty: 1000, planned_qty: 300 }, { lot_no: "L002", order_qty: null, planned_qty: 200 }, { lot_no: "L003", order_qty: 500, planned_qty: 100 }],
+  lot_list: "L001, L002, L003", control_sheet: { registered: false, manager_no: "", rows: [] }, ...over,
 });
 
 describe("初期値の種類", () => {
@@ -13,9 +13,9 @@ describe("初期値の種類", () => {
     expect(initialSelection(slip()).kinds).toEqual([2, 3, 4]);
   });
 
-  it("2回目(面2)の計画は 1・4", () => {
-    expect(defaultKinds(2)).toEqual([1, 4]);
-    expect(initialSelection(slip({ run_no: 2 })).kinds).toEqual([1, 4]);
+  it("2回目(面2)の計画は 1・4・5(管理表)", () => {
+    expect(defaultKinds(2)).toEqual([1, 4, 5]);
+    expect(initialSelection(slip({ run_no: 2 })).kinds).toEqual([1, 4, 5]);
   });
 
   it("ロットは全ロット", () => {
@@ -26,7 +26,8 @@ describe("初期値の種類", () => {
   it("初期値以外の種類もチェックを入れれば出せる(片面製品で1つ目を1回目の計画で出す)", () => {
     const sel = initialSelection(slip());
     const next = { ...sel, kinds: toggleKind(sel.kinds, 1) };
-    expect(next.kinds).toEqual([1, 2, 3, 4]);
+    expect(next.kinds).toEqual([1, 2, 3, 4]); // 1回目の計画の初期値は 2・3・4。1 を足しても 5(管理表)は入らない
+    expect(toggleKind(next.kinds, 5)).toEqual([1, 2, 3, 4, 5]); // チェックを入れれば出せる(片面製品)
     expect(pagesOf(1, next)).toHaveLength(3);
   });
 });
@@ -64,7 +65,7 @@ describe("Code 39 で表せない値の警告", () => {
   });
 
   it("英小文字・日本語のロットNo.は、1を選んだときだけ警告する", () => {
-    const s = slip({ lots: [{ lot_no: "ab-1", order_qty: 1 }, { lot_no: "ロット2", order_qty: 1 }, { lot_no: "OK-3", order_qty: 1 }] });
+    const s = slip({ lots: [{ lot_no: "ab-1", order_qty: 1, planned_qty: 1 }, { lot_no: "ロット2", order_qty: 1, planned_qty: 1 }, { lot_no: "OK-3", order_qty: 1, planned_qty: 1 }] });
     const all = s.lots.map((l) => l.lot_no);
     expect(barcodeWarnings(s, { ...sel([1], all) })).toEqual([{ field: "lot", value: "ab-1" }, { field: "lot", value: "ロット2" }]);
     expect(barcodeWarnings(s, { ...sel([2, 3, 4], all) })).toEqual([]);
