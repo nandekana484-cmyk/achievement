@@ -1,4 +1,4 @@
-// 識別票(4種類)の印刷用のページ。計画を選んで開き、種類・ロット・枚数を選び、種類ごとの「この種類を印刷」で window.print を呼ぶ
+// 識別票(4種類)の印刷用のページ。計画を選んで開き、種類・ロットを選び、種類ごとの「この種類を印刷」で window.print を呼ぶ
 // (その種類のページだけを印刷に出す。PDF の生成やサーバー側の印刷はしない)。詳細: docs/design/id-slips.md
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
@@ -45,13 +45,8 @@ export function IdSlipPage() {
     return () => { alive = false; };
   }, [kittingNo, t]);
 
-  // 印刷を終えたら(または閉じたら)、全部の種類の表示に戻す
-  useEffect(() => {
-    const done = () => setPrinting(null);
-    window.addEventListener("afterprint", done);
-    return () => window.removeEventListener("afterprint", done);
-  }, []);
-
+  // 押した種類は、種類やロットを選び直すまで覚えておく(afterprint で戻さない)。Chrome の印刷の画面は、用紙などを変えるたびに
+  // beforeprint / afterprint を飛ばして組み直すので、戻すと全部の種類(同じ識別票を含む)が重なって出てしまう。詳細: docs/design/id-slips.md
   const print = (kind: SlipKind) => {
     flushSync(() => setPrinting(kind));
     window.print();

@@ -131,13 +131,13 @@ def test_admin_settings(tmp_path):
     assert (example.idle_minutes, example.max_hours) == (30, 12)
 
 
-def test_corrections_settings(tmp_path):
-    assert load_config(tmp_path / "none.toml").corrections.field_margin_hours == 12  # 既定はタイムテーブルの表示範囲と同じ
+def test_display_extend_max_hours(tmp_path):
+    assert load_config(tmp_path / "none.toml").schedule.display_extend_max_hours == 72
     p = tmp_path / "c.toml"
-    p.write_text("[corrections]\nfield_margin_hours = 24\n", encoding="utf-8")
-    assert load_config(p).corrections.field_margin_hours == 24
-    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").corrections
-    assert example.field_margin_hours == 12
+    p.write_text("[schedule]\ndisplay_extend_max_hours = 48\n", encoding="utf-8")
+    assert load_config(p).schedule.display_extend_max_hours == 48
+    example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").schedule
+    assert example.display_extend_max_hours == 72
 
 
 def test_reports_settings(tmp_path):

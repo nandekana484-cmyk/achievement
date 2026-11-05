@@ -16,23 +16,28 @@ from sqlalchemy.orm import Session
 from app.core.clock import JST
 from app.db.models import RunCorrection
 from app.domain.corrections import CorrectionKind, CorrectionReason, CorrectionSource
-from app.domain.workday import workday_of, workday_range
+from app.domain.workday import workday_of
 from app.services.errors import RuleViolation
+from app.services.plan_query import display_window
 
 OUT_OF_FIELD_RANGE = "この記録は現場の画面で直せる範囲(タイムテーブルの表示範囲)の外です。管理画面から直してください"
 
 
 @dataclass(frozen=True)
 class FieldScope:
-    """現場の画面から直すときの範囲 = 今の稼働日の前後に margin_hours を足した範囲。管理画面から直すときは使わない。"""
+    """現場の画面から直すときの範囲 = そのラインのライン画面の表示範囲(plan_query.display_window と同じ計算)。
 
+    管理画面から直すときは使わない。詳細: docs/design/line-screen.md
+    """
+
+    session: Session
+    line_code: str
     day_start: time
-    margin_hours: int
+    max_extend_hours: int
 
     def window(self, now: datetime) -> tuple[datetime, datetime]:
-        start, end = workday_range(workday_of(now, self.day_start), self.day_start)
-        margin = timedelta(hours=self.margin_hours)
-        return start - margin, end + margin
+        w = display_window(self.session, self.line_code, workday_of(now, self.day_start), self.day_start, self.max_extend_hours)
+        return w.start, w.end
 
 
 def source_of(scope: FieldScope | None) -> CorrectionSource:

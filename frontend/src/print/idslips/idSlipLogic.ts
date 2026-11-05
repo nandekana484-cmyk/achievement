@@ -1,4 +1,4 @@
-// 識別票の印刷の操作バーの決まり(React に依存しない): 種類の初期値、ロットと枚数の選択、ページの並び、Code 39 で表せない値の警告。
+// 識別票の印刷の操作バーの決まり(React に依存しない): 種類の初期値、ロットの選択、ページの並び、Code 39 で表せない値の警告。
 // 種類: 1 基板製品ロット現品票(ロットごと)、2 バーコード印字 完了(ロットごと)、3 1回目完了済み(ロットごと)、4 バーコード照合用(キッティングNo.ごと)。
 import type { components } from "../../api/schema";
 import { isCode39 } from "./code39";
@@ -6,12 +6,10 @@ import { SLIP_KINDS, type SlipKind } from "./idSlipTexts";
 
 export type IdSlip = components["schemas"]["IdSlipOut"];
 
-export const MAX_COPIES = 20;
-
 /** ロットごとの種類(1、2、3)。4 はキッティングNo.ごとに 1 枚(そのキッティングNo.の全ロットを並べる)。 */
 export const isLotKind = (kind: SlipKind): boolean => kind !== 4;
 
-export type Selection = { kinds: SlipKind[]; lots: string[]; copies: Record<SlipKind, number> };
+export type Selection = { kinds: SlipKind[]; lots: string[] };
 
 /** 初めにチェックが入る種類: 1回目(面1)の計画は 2・3・4、2回目(面2)の計画は 1・4。 */
 export function defaultKinds(runNo: number): SlipKind[] {
@@ -19,13 +17,7 @@ export function defaultKinds(runNo: number): SlipKind[] {
 }
 
 export function initialSelection(slip: IdSlip): Selection {
-  return { kinds: defaultKinds(slip.run_no), lots: slip.lots.map((l) => l.lot_no), copies: { 1: 1, 2: 1, 3: 1, 4: 1 } };
-}
-
-/** 枚数を 1〜20 の整数にする(数でないときは 1)。 */
-export function clampCopies(value: number): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.min(MAX_COPIES, Math.max(1, Math.trunc(value)));
+  return { kinds: defaultKinds(slip.run_no), lots: slip.lots.map((l) => l.lot_no) };
 }
 
 /** 選んだ種類(SLIP_KINDS の順)。 */
@@ -38,11 +30,12 @@ export function toggleLot(all: string[], selected: string[], lot: string): strin
   return all.filter((l) => (l === lot ? !selected.includes(l) : selected.includes(l)));
 }
 
-/** 種類ごとのページ: ロットごとの種類は、選んだロット × 枚数(ロットの順に、ロット1つあたり枚数分続ける)。4 は枚数分。lot は 4 では null。 */
+/**
+ * 種類ごとのページ: ロットごとの種類は、選んだロットの数だけ(1ロット1ページ。同じロットの同じ種類を2ページ以上出さない)。
+ * 4 は1ページ(lot は null)。枚数はブラウザの印刷の画面で決める。
+ */
 export function pagesOf(kind: SlipKind, sel: Selection): { lot: string | null }[] {
-  const copies = clampCopies(sel.copies[kind]);
-  const lots: (string | null)[] = isLotKind(kind) ? sel.lots : [null];
-  return lots.flatMap((lot) => Array.from({ length: copies }, () => ({ lot })));
+  return isLotKind(kind) ? [...new Set(sel.lots)].map((lot) => ({ lot })) : [{ lot: null }];
 }
 
 export type BarcodeWarning = { field: "file" | "lot" | "kitting"; value: string };

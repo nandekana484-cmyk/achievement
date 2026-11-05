@@ -1,6 +1,6 @@
 """現場の画面からの実績の訂正のAPI(工程の記録と付帯作業)と、訂正の履歴。ルールは services/run_corrections.py など。
 
-現場の画面から直せるのは、config.toml の [corrections] の範囲の記録だけ。管理画面からの訂正は別のAPIで作る。
+現場の画面から直せるのは、ライン画面の表示範囲(config.toml の [schedule])にある記録だけ。管理画面からの訂正は別のAPIで作る。
 """
 
 from __future__ import annotations
@@ -15,14 +15,16 @@ from app.core.config import get_config
 from app.db.session import get_session
 from app.services import correction_history, line_event_corrections, masters, run_corrections
 from app.services.correction_rules import FieldScope
+from app.services.plan_query import line_of_kitting
 from app.services.views import CorrectionOut, LineEventCorrectionResultOut, RunCorrectionResultOut
 
 router = APIRouter(prefix="/api", tags=["corrections"])
 
 
-def _field_scope() -> FieldScope:
+def _field_scope(session: Session, line_code: str | None) -> FieldScope:
+    """現場の画面で直せる範囲 = そのラインのライン画面の表示範囲。"""
     cfg = get_config()
-    return FieldScope(cfg.schedule.day_start, cfg.corrections.field_margin_hours)
+    return FieldScope(session, line_code or "", cfg.schedule.day_start, cfg.schedule.display_extend_max_hours)
 
 
 def _recorder(session: Session, body: _Recorder) -> int | None:
@@ -39,7 +41,7 @@ def correct_run_event(kitting_no: str, event_id: int, body: RunEventCorrectIn,
                       session: Session = Depends(get_session)) -> RunCorrectionResultOut:
     """工程の記録の開始・終了の時刻と、生産の区切りの生産数を直す(理由が必須)。"""
     return run_corrections.correct_run_event(
-        session, kitting_no, event_id, _fields(body), body.reason, body.note, body.request_id, _field_scope(),
+        session, kitting_no, event_id, _fields(body), body.reason, body.note, body.request_id, _field_scope(session, line_of_kitting(session, kitting_no)),
         operator_id=_recorder(session, body),
     )
 
@@ -49,7 +51,7 @@ def void_run_event(kitting_no: str, event_id: int, body: VoidIn,
                    session: Session = Depends(get_session)) -> RunCorrectionResultOut:
     """工程の記録を取り消す(記録は消さない。生産数・進捗・完了・タイムテーブルの計算から外す)。"""
     return run_corrections.void_run_event(
-        session, kitting_no, event_id, body.reason, body.note, body.request_id, _field_scope(),
+        session, kitting_no, event_id, body.reason, body.note, body.request_id, _field_scope(session, line_of_kitting(session, kitting_no)),
         operator_id=_recorder(session, body),
     )
 
@@ -59,7 +61,8 @@ def add_run_event(kitting_no: str, body: RunEventAddIn, session: Session = Depen
     """押し忘れた工程を後から記録する(後から足した印が付く)。"""
     return run_corrections.add_run_event(
         session, kitting_no, body.step_type, body.start_at, body.end_at, body.produced_qty, body.reason, body.note,
-        body.request_id, _field_scope(), operator_id=_recorder(session, body),
+        body.request_id, _field_scope(session, line_of_kitting(session, kitting_no)),
+        operator_id=_recorder(session, body),
     )
 
 
@@ -74,7 +77,7 @@ def correct_line_event(line_code: str, event_id: int, body: LineEventCorrectIn,
                        session: Session = Depends(get_session)) -> LineEventCorrectionResultOut:
     """付帯作業の開始・終了の時刻と、理由(設備・記入)を直す(訂正の理由が必須)。"""
     return line_event_corrections.correct_line_event(
-        session, line_code, event_id, _fields(body), body.reason, body.note, body.request_id, _field_scope(),
+        session, line_code, event_id, _fields(body), body.reason, body.note, body.request_id, _field_scope(session, line_code),
         operator_id=_recorder(session, body),
     )
 
@@ -84,7 +87,7 @@ def void_line_event(line_code: str, event_id: int, body: VoidIn,
                     session: Session = Depends(get_session)) -> LineEventCorrectionResultOut:
     """付帯作業を取り消す(記録は消さない)。"""
     return line_event_corrections.void_line_event(
-        session, line_code, event_id, body.reason, body.note, body.request_id, _field_scope(),
+        session, line_code, event_id, body.reason, body.note, body.request_id, _field_scope(session, line_code),
         operator_id=_recorder(session, body),
     )
 

@@ -20,6 +20,7 @@ export const line = {
 
   "lineScreen.lineFallback": "Chuyền {code}",
   "lineScreen.pickOperatorFirst": "Chưa có người phụ trách. Hãy chọn người phụ trách rồi bấm lại nút.",
+  "lineScreen.staleWarning": "Có {count} kế hoạch cũ chưa dọn dẹp xong và nằm ngoài phạm vi bảng thời gian. Có thể quên bấm dọn dẹp (hãy báo quản lý): {list}",
   "lineScreen.noOperator": "Chưa có người phụ trách. Hãy chọn người phụ trách trước khi bấm nút.",
   "lineScreen.pickOperator": "Chọn người phụ trách",
   "lineScreen.selectHint": "Bấm vào kế hoạch trên bảng thời gian, hoặc tìm ở ô tìm kiếm bên trái, các nút công đoạn sẽ hiện ở đây.",

@@ -69,8 +69,9 @@ class BoardOut(BaseModel):
     date: dt.date  # 稼働日
     workday_start: dt.datetime  # 稼働日の始まり(day_start)
     workday_end: dt.datetime
-    display_start: dt.datetime  # 表示範囲(稼働日の前後12時間を足した48時間)
+    display_start: dt.datetime  # 表示範囲(稼働日の前後12時間。片付け前の計画があれば始まりを広げる)
     display_end: dt.datetime
+    stale_kitting_nos: list[str]  # 広げても表示範囲に入りきらない、片付けが終わっていない計画(画面で警告する)
     server_time: dt.datetime  # タブレットの時計とのずれの補正に使う
     current_operator: CurrentOperatorOut | None
     plans: list[BoardPlanOut]

@@ -12,7 +12,6 @@
 .idslip-off { color: #777; }
 .idslip-check { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; min-height: 40px; }
 .idslip-check input { width: 22px; height: 22px; }
-.idslip-copies { width: 72px; min-height: 40px; font-size: 16px; padding: 0 6px; }
 .idslip-note { color: #555; font-size: 13px; }
 .idslip-lots { margin: 8px 0 0; padding: 6px 10px; border: 1px solid #ccc; max-width: 1000px; }
 .idslip-warn { margin: 8px 0 0; padding: 6px 10px; background: #fff4d6; border: 1px solid #e0b84a; border-radius: 6px; }
@@ -23,7 +22,9 @@
 .slip-frame-p { page: slip-p; width: 99mm; height: 141.5mm; }
 .slip-frame-l { page: slip-l; width: 141.5mm; height: 98.8mm; }
 .slip-frame, .slip-frame * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: "Arial", "Meiryo", "Hiragino Kaku Gothic ProN", "MS Gothic", sans-serif; }
-.slip-scale { width: 105mm; height: 148mm; transform: scale(0.94); transform-origin: 0 0; }
+/* 縮める前の大きさ(105×148mm)は、A6 の余白を除いた印刷の領域より大きい。流れの中に置くと、枠からはみ出した分が次のページになる
+   (横向きでは白紙の2ページ目が出る)ので、枠の中に絶対配置して、ページの組みに加わらないようにする。詳細: docs/design/id-slips.md */
+.slip-scale { position: absolute; left: 0; top: 0; width: 105mm; height: 148mm; transform: scale(0.94); transform-origin: 0 0; }
 .slip-scale-l { width: 148mm; height: 105mm; }
 
 /* --- 部品 --- */
@@ -115,6 +116,6 @@
   .idslip-page[data-printing] .idslip-group:not(.is-printing) { display: none; }
   .idslip-group { display: block; padding: 0; }
   .idslip-group + .idslip-group { break-before: page; }
-  .slip-frame { margin: 0; box-shadow: none; break-after: page; }
+  .slip-frame { margin: 0; box-shadow: none; break-after: page; break-inside: avoid; }
   .slip-frame:last-child { break-after: auto; }
 }

@@ -1,7 +1,7 @@
-// 識別票の印刷の操作バー(印刷に出ない所): 種類のチェック、ロットの選択、枚数、種類ごとの印刷ボタン、警告。
+// 識別票の印刷の操作バー(印刷に出ない所): 種類のチェック、ロットの選択、種類ごとの印刷ボタン、警告。
 import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n/I18nProvider";
-import { backUrl, barcodeWarnings, clampCopies, type IdSlip, isLotKind, MAX_COPIES, pagesOf, type Selection, toggleKind, toggleLot } from "./idSlipLogic";
+import { backUrl, barcodeWarnings, type IdSlip, isLotKind, pagesOf, type Selection, toggleKind, toggleLot } from "./idSlipLogic";
 import { SLIP_KINDS, type SlipKind } from "./idSlipTexts";
 
 type Props = { slip: IdSlip; sel: Selection; onChange: (sel: Selection) => void; onPrint: (kind: SlipKind) => void };
@@ -10,7 +10,6 @@ export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
   const { t } = useI18n();
   const warnings = barcodeWarnings(slip, sel);
   const lotKindChecked = sel.kinds.some(isLotKind);
-  const setCopies = (kind: SlipKind, value: string) => onChange({ ...sel, copies: { ...sel.copies, [kind]: clampCopies(Number(value)) } });
   return (
     <div className="idslip-toolbar">
       <div className="idslip-head">
@@ -21,7 +20,7 @@ export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
       <p className="idslip-hint">{t("idslip.hint")}</p>
       <table className="idslip-kinds">
         <thead>
-          <tr><th>{t("idslip.colKind")}</th><th>{t("idslip.colUnit")}</th><th>{t("idslip.colCopies")}</th><th>{t("idslip.colPages")}</th><th /></tr>
+          <tr><th>{t("idslip.colKind")}</th><th>{t("idslip.colUnit")}</th><th>{t("idslip.colPages")}</th><th /></tr>
         </thead>
         <tbody>
           {SLIP_KINDS.map((kind) => {
@@ -36,13 +35,6 @@ export function IdSlipToolbar({ slip, sel, onChange, onPrint }: Props) {
                   </label>
                 </td>
                 <td>{isLotKind(kind) ? t("idslip.unitLot") : t("idslip.unitKitting")}</td>
-                <td>
-                  <input
-                    type="number" min={1} max={MAX_COPIES} inputMode="numeric" className="idslip-copies" disabled={!checked}
-                    aria-label={`${t("idslip.colCopies")} ${t(`idslip.kind.${kind}`)}`} value={sel.copies[kind]} onChange={(e) => setCopies(kind, e.target.value)}
-                  />
-                  {isLotKind(kind) && <span className="idslip-note"> {t("idslip.perLot")}</span>}
-                </td>
                 <td>{t("idslip.pages", { count: pages })}</td>
                 <td>
                   <button type="button" className="btn btn-primary" disabled={!checked || pages === 0} onClick={() => onPrint(kind)}>{t("idslip.print")}</button>

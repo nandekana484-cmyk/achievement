@@ -1474,6 +1474,8 @@ export interface components {
              * Format: date-time
              */
             display_end: string;
+            /** Stale Kitting Nos */
+            stale_kitting_nos: string[];
             /**
              * Server Time
              * Format: date-time

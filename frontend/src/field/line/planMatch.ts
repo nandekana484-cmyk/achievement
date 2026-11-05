@@ -1,6 +1,7 @@
 // 計画の検索で使う、表示から分けた判定(完全一致の1件、表示範囲の外か)と、計画の短い説明の文。
 import type { Translate } from "../../i18n/translate";
-import type { Board, Plan } from "../../shared/api";
+import type { Board, BoardPlan, Plan } from "../../shared/api";
+import { activeEvents } from "./steps";
 import { formatMDHM } from "./timeScale";
 
 /** 比べるための形(全角→半角、英字は大文字、前後の空白なし)。サーバーの検索と同じ考え方。 */
@@ -19,6 +20,12 @@ export function exactKittingMatch(results: Plan[], query: string): Plan | null {
 export function isOutsideDisplay(plan: Plan, board: Pick<Board, "display_start" | "display_end">): boolean {
   if (!plan.planned_start || !plan.planned_end) return true;
   return Date.parse(plan.planned_end) <= Date.parse(board.display_start) || Date.parse(plan.planned_start) >= Date.parse(board.display_end);
+}
+
+/** 計画終了の時刻を過ぎたのに、まだ始まっていない(取り消した記録は数えない)計画。枠を「未着手」の見た目にする。 */
+export function isOverdueUnstarted(p: BoardPlan, nowMs: number): boolean {
+  const end = p.plan.planned_end;
+  return !p.completed && activeEvents(p.events).length === 0 && end !== null && Date.parse(end) <= nowMs;
 }
 
 /** 「表示範囲外の計画です(計画: 10/18 9:00〜)」の文。 */

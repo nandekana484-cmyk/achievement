@@ -63,6 +63,9 @@
 .tt-plan .tt-label, .tt-plan .tt-sub { white-space: normal; }
 .tt-selected { background: var(--info-bg); border: 3px solid var(--accent); border-left-width: 8px; z-index: 1; }
 .tt-done { background: #dafbe1; }
+/* 計画終了を過ぎても始まっていない計画: 斜線と破線の枠(白黒でも分かる)。「未着手」の文字も出す */
+.tt-overdue { background: repeating-linear-gradient(135deg, #f6f8fa 0 8px, #e6eaee 8px 10px); border-style: dashed; color: var(--muted); }
+.tt-overdue.tt-selected { border-style: solid; }
 .tt-event { border-color: transparent; }
 .tt-line-event { background: #fff8c5; border-left-color: var(--warn); }
 .tt-open { border-bottom: 3px dashed var(--warn); }
