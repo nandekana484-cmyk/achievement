@@ -1,5 +1,5 @@
 // 日報の効率の表示(計算はサーバー。画面のバーと同じ値。詳細: docs/design/metrics.md)。
-import { formatPercent } from "../../field/line/steps";
+import { formatPercent } from "../../shared/percent";
 import { type AdminKey, at } from "../messages";
 import type { DailyReport } from "./gantt";
 

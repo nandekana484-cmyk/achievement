@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeTranslate } from "../../i18n/translate";
-import { canSubmit, confirmLines, panelState, type SideLinkView, unlinkLines } from "./sideLink";
+import { canSubmit, confirmLines, linkButtonState, linkPageUrl, panelState, safeBack, type SideLinkView, unlinkLines } from "./sideLink";
 
 const t = makeTranslate("ja");
 const view = (over: Partial<SideLinkView>): SideLinkView => ({
@@ -49,5 +49,19 @@ describe("確認の文", () => {
   it("空の入力は保存できない", () => {
     expect(canSubmit("  ")).toBe(false);
     expect(canSubmit(" 0722-1-S-251014-01 ")).toBe(true);
+  });
+});
+
+describe("紐づけのページ", () => {
+  it("URL と戻る先。戻る先は /field/ の中だけ受け付ける", () => {
+    expect(linkPageUrl("0722-2-S-261014-02")).toBe("/field/link/0722-2-S-261014-02");
+    expect(linkPageUrl("K2", "/field/print/production-record/K1")).toBe("/field/link/K2?back=%2Ffield%2Fprint%2Fproduction-record%2FK1");
+    expect(safeBack("/field/print/production-record/K1")).toBe("/field/print/production-record/K1");
+    for (const bad of [null, "", "https://example.com/", "//example.com", "/admin/login", "/field/", "/field//x"]) expect(safeBack(bad), String(bad)).toBeNull();
+  });
+
+  it("ボタンの状態: 相手がいれば紐づけ済み、いなければ未紐づけ", () => {
+    expect(linkButtonState({ partner: "K1" })).toBe("linked");
+    expect(linkButtonState({ partner: null })).toBe("unlinked");
   });
 });

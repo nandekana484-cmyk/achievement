@@ -23,8 +23,8 @@ test("㉒ ライン画面の効率と進捗率", async ({ page }) => {
   const bar = page.locator(".kpi-bar");
   await expect(bar).toContainText("効率");
   await expect(bar).toContainText(/対象外 [1-9]\d*件/); // 0800(丁取りなし・タクトなし)の記録も screens.spec.ts が入れている
-  await expect(bar).toContainText("進捗率");
-  await expect(bar.locator(".progress-chip", { hasText: MORNING })).toBeVisible();
+  await expect(bar).not.toContainText("進捗率"); // 進捗率はトップバーに出さない(AD-21)
+  await expect(bar.locator(".progress-chip")).toHaveCount(0);
   await page.screenshot({ path: `${SCREENS}/22-line-efficiency.png` });
 });
 

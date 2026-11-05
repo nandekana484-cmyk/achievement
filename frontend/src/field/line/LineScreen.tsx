@@ -12,7 +12,7 @@ import { LineDialogs, type DialogState } from "./LineDialogs";
 import { LineEventPanel } from "./LineEventPanel";
 import { isOutsideDisplay, outsideMessage } from "./planMatch";
 import { PlanSearch } from "./PlanSearch";
-import { SideLinkPanel } from "./SideLinkPanel";
+import { SideLinkButton, SideLinkNote } from "./SideLinkPanel";
 import { SideMenu } from "./SideMenu";
 import { StepPanel } from "./StepPanel";
 import type { StepStatus } from "./steps";
@@ -106,9 +106,13 @@ export function LineScreen() {
             onFix={(step: StepType) => open({ kind: "fix", plan: selected, step })()}
             onAdd={open({ kind: "add", plan: selected })}
             onHistory={() => setDialog({ kind: "history", plan: selected })}
-            sideLink={<SideLinkPanel plan={selected} op={op} requireOperator={withOperator} />}
-            idSlip={board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board)
-              ? <Link className="btn btn-small id-slip-link" to={idSlipsUrl(selected.plan.kitting_no)}>{t("idslip.button")}</Link> : undefined}
+            sideLink={<SideLinkNote plan={selected} />}
+            actions={<>
+              <SideLinkButton plan={selected} />
+              {board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board) && (
+                <Link className="btn btn-small id-slip-link" to={idSlipsUrl(selected.plan.kitting_no)}>{t("idslip.button")}</Link>
+              )}
+            </>}
           />
         ) : (
           <p className="placeholder select-hint">{t("lineScreen.selectHint")}</p>

@@ -51,7 +51,7 @@ export function RecordPage() {
         {sheet?.side2_unlinked && sheet.side2 && (
           <p className="record-unlinked">
             <span>{t("record.unlinkedNotice")}</span>
-            <Link className="btn" to={linkScreenUrl(sheet.side2.line_code, sheet.side2.kitting_no)}>{t("record.linkFirst")}</Link>
+            <Link className="btn" to={linkScreenUrl(sheet.side2.kitting_no, kittingNo)}>{t("record.linkFirst")}</Link>
           </p>
         )}
         <p className="record-hint">{t("record.printHint")}</p>

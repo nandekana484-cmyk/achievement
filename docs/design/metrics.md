@@ -9,7 +9,7 @@
 | 稼働率 | `services/board.py`(`BoardOut.utilization`)、`RunCompletion.utilization` | 計算していなかった(常に null) | 効率に置き換え。`RunCompletion.utilization` の列は使わない(列は残す) |
 | ラインの進捗率 | `services/board.py` の `_line_progress`、`BoardOut.line_progress` | 稼働日に重なる計画の生産数の合計 ÷ 計画数の合計 | 廃止。生産中の計画ごとの進捗率に置き換え |
 | 計画の進捗率 | `services/board.py` の `board_plan_out`、`BoardPlanOut.progress` | 生産数の合計 ÷ 計画数 | 時間の進捗率に置き換え(下) |
-| 表示 | `TopBar.tsx`、`Timetable.tsx`(枠の「%」)、`StepPanel.tsx`(計画の進捗率) | 上の値を出す | `BoardPlanOut.in_progress` / `progress` と `BoardOut.efficiency` を出す |
+| 表示 | `TopBar.tsx`(効率だけ。AD-21 で進捗率をやめた)、`Timetable.tsx`(枠の「%」)、`StepPanel.tsx`(計画の進捗率)、日報(`DailyReportView`。効率) | 上の値を出す | `BoardPlanOut.in_progress` / `progress` と `BoardOut.efficiency` を出す |
 | 理由の「稼働率に含める」 | `reasons.counts_in_utilization`、管理画面「理由」 | 付帯作業を稼働率に含めるかの設定(未使用) | **列は残し、使わない**。管理画面の理由の設定からは欄を隠した(効率は理由によらず付帯作業の時間を分母に入れない) |
 
 ## 効率
@@ -65,7 +65,8 @@
 
 ## 画面・日報・区間 CSV
 
-- ライン画面のバー: 今日の効率(外した計画があれば「対象外 N件」)と、生産中の計画ごとの進捗率。タイムテーブルの枠の「%」も、生産中なら進捗率、そうでなければ「—」
+- ライン画面のバー: 今日の効率(外した計画があれば「対象外 N件」)。**進捗率はバーに出さない**(AD-21)。進捗率が残っている所: タイムテーブルの枠の「%」(生産中なら進捗率、そうでなければ「—」)と、右のパネルの計画の「進捗率」。計算(`services/metrics.py`)とAPI(`BoardPlanOut.progress`)は変えていない
+- **200%を超える効率と進捗率は「***%」**(AD-21): 表示の部品を `shared/percent.ts` の `formatPercent` の1つにまとめ、200%ちょうどまでは数、超えたら「***%」にする。対象は、ライン画面のバーの効率、タイムテーブルの枠の「%」、右のパネルの進捗率、日報(画面と印刷)の効率。**CSV(区間の CSV)とAPIの値は数のまま**。100%を超えたときの色の付け方は変えていない(以前の色は、トップバーの進捗率だけにあった)
 - 日報: その日の効率と、外した計画の件数・理由ごとの件数
 - 区間 CSV: 末尾(既存の列の順は変えない)に「目標タクト(秒)」「丁取り数」。工程の行にだけ入る(完了した計画は完了の写し)。丁取りが引けないとき、丁取り数は空。この2列と「生産数」「時間(分)」から効率を Excel で再計算できる(付帯作業と重なる分は「付帯作業」の行から引く)
 - 3つとも同じ関数(`efficiency_from_intervals`)と入力(`inputs_for`)を通る。テスト: `test_board_daily_report_and_csv_agree`

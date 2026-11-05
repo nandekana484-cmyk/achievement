@@ -159,7 +159,7 @@ describe("一覧", () => {
 
   it("URL とラインの列", () => {
     expect(recordUrl("0722-2-U-261014-32", "S")).toBe("/field/print/production-record/0722-2-U-261014-32?line=S");
-    expect(linkScreenUrl("U", "0722-2-U-261014-32")).toBe("/field/lines/U?kitting_no=0722-2-U-261014-32");
+    expect(linkScreenUrl("0722-2-U-261014-32", "0722-1-S-261014-01")).toBe("/field/link/0722-2-U-261014-32?back=%2Ffield%2Fprint%2Fproduction-record%2F0722-1-S-261014-01");
     expect(linesText({ side1_line: "S", side2_line: "U" })).toBe("S / U");
     expect(linesText({ side1_line: "S", side2_line: "S" })).toBe("S");
     expect(linesText({ side1_line: null, side2_line: "U" })).toBe("U");

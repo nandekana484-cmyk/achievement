@@ -10,6 +10,12 @@ describe("日報の効率", () => {
     expect(efficiencyText(report(null, []))).toBe("効率: —");
   });
 
+  it("200%を超える効率は「***%」(200%ちょうどまでは数)", () => {
+    expect(efficiencyText(report(2, []))).toBe("効率: 200%");
+    expect(efficiencyText(report(2.001, []))).toBe("効率: ***%");
+    expect(efficiencyText(report(2.5, []))).toBe("効率: ***%");
+  });
+
   it("外した計画が無ければ何も出さない。あれば件数と理由ごとの件数", () => {
     expect(excludedText(report(0.8, []))).toBeNull();
     expect(excludedText(report(0.8, [{ reason: "no_k_row", count: 2 }, { reason: "no_takt", count: 1 }]))).toBe(

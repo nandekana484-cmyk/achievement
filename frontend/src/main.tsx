@@ -14,6 +14,7 @@ import { PasswordPage } from "./admin/PasswordPage";
 import { ReasonsPage } from "./admin/ReasonsPage";
 import { ReportsPage } from "./admin/reports/ReportsPage";
 import { Dashboard } from "./field/Dashboard";
+import { LinkPage } from "./field/link/LinkPage";
 import { LineScreen } from "./field/line/LineScreen";
 import { IdSlipPage } from "./print/idslips/IdSlipPage";
 import { RecordListPage } from "./print/RecordListPage";
@@ -35,6 +36,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/" element={<Navigate to="/field" replace />} />
           <Route path="/field" element={<Dashboard />} />
           <Route path="/field/lines/:lineCode" element={<LineScreen />} />
+          <Route path="/field/link/:kittingNo" element={<LinkPage />} />
           <Route path="/field/print/production-record" element={<RecordListPage />} />
           <Route path="/field/print/production-record/:kittingNo" element={<RecordPage />} />
           <Route path="/field/print/id-slips/:kittingNo" element={<IdSlipPage />} />

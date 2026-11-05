@@ -32,3 +32,18 @@ export function unlinkLines(exported: boolean, t: Translate): string[] {
 }
 
 export const canSubmit = (text: string) => text.trim().length > 0;
+
+/** 紐づけのページの URL(2回目のキッティングNo.)。back は戻る先(/field/ から始まる URL だけ。無ければ、その計画を選んだライン画面)。 */
+export function linkPageUrl(side2KittingNo: string, back?: string): string {
+  return `/field/link/${encodeURIComponent(side2KittingNo)}${back ? `?back=${encodeURIComponent(back)}` : ""}`;
+}
+
+/** 戻る先として受け付ける URL(同じアプリの /field/ の中だけ)。 */
+export function safeBack(back: string | null): string | null {
+  return back !== null && /^\/field\/[^/]/.test(back) && !back.includes("//") ? back : null;
+}
+
+/** 紐づけのボタンに出す今の状態。 */
+export function linkButtonState(v: Pick<SideLinkView, "partner">): "linked" | "unlinked" {
+  return v.partner ? "linked" : "unlinked";
+}

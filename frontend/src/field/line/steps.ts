@@ -95,7 +95,3 @@ export function stepStatus(events: RunEvent[], step: StepType, t: Translate): St
   };
 }
 
-/** 進捗率などの割合を「50%」の形にする。空なら「—」。 */
-export function formatPercent(ratio: number | null | undefined): string {
-  return ratio === null || ratio === undefined ? "—" : `${Math.round(ratio * 100)}%`;
-}

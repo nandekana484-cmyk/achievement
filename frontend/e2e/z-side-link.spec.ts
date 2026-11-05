@@ -1,4 +1,4 @@
-// 現場の画面での面1と面2の紐づけ(AD-19)。1回目 Sライン、2回目 Uライン(キー H ではつながらない)を、2回目の画面で紐づけ、
+// 現場の画面での面1と面2の紐づけ(AD-19。AD-21 で、計画の画面の欄から別のページ /field/link/... にした)。1回目 Sライン、2回目 Uライン(キー H ではつながらない)を、2回目の画面で紐づけ、
 // 管理画面に出るまで(㉚㉛)。書き出したあとに外すと、「書き出し後に紐づけ・割り振りが変わった計画」に出る(㉜)。
 // 計画は demo-seed --side-pair(e2e/serve.mjs)。記録は「押し忘れの追加」で過去の時刻に入れる。最後(z-)に動かす。
 import { expect, type Page, test } from "@playwright/test";
@@ -38,16 +38,33 @@ test("㉚㉛㉜ 現場で面1と面2を紐づけ、管理画面に出る。書�
   const op = await page.request.put("/api/lines/U/operator", { data: { request_id: "e2e-side-op", worker_id: "Y001" } });
   expect(op.status(), await op.text()).toBe(200);
 
-  // 2回目の画面: 同じロットNo.・ファイルNo.の1回目がちょうど1つなので、欄に最初から入っている(候補2)
+  // 2回目の計画: 識別票と同じ並びに「紐づけ」のボタンがあり、今の状態は「未紐づけ」
   await page.goto("/field/lines/U");
   await page.locator(".tt-plan", { hasText: SIDE2 }).click();
+  const button = page.getByRole("link", { name: /^紐づけ/ });
+  await expect(button).toContainText("未紐づけ");
+  await expect(page.getByLabel("1回目のキッティングNo.", { exact: true })).toHaveCount(0); // 計画の画面に欄は無い
+  await page.locator(".plan-actions").screenshot({ path: `${SCREENS}/54-link-button-unlinked.png` });
+  await button.click();
+
+  // 紐づけのページ: 同じロットNo.・ファイルNo.の1回目がちょうど1つなので、欄に最初から入っている(候補2)。作業者IDが要る
+  await expect(page).toHaveURL(new RegExp(`/field/link/${SIDE2}`));
   const field = page.getByLabel("1回目のキッティングNo.", { exact: true });
-  await expect(field.locator("input")).toHaveValue(SIDE1);
+  await expect(field.getByLabel("1回目のキッティングNo.を入れる欄")).toHaveValue(SIDE1);
+  await expect(field.getByRole("button", { name: "紐づける" })).toBeDisabled();
+  await field.getByLabel("作業者ID").fill("Y001");
   await page.screenshot({ path: `${SCREENS}/30-side-link-field.png` });
   await field.getByRole("button", { name: "紐づける" }).click();
   await expect(field).toContainText(`紐づけ済み: ${SIDE1}`);
   await expect(field).toContainText("山田(Y001)");
   await page.screenshot({ path: `${SCREENS}/31-side-link-linked.png` });
+
+  // 戻ると、ボタンの状態が「紐づけ済み」に変わっている
+  await page.getByRole("link", { name: "戻る" }).click();
+  await expect(page).toHaveURL(/\/field\/lines\/U/);
+  await page.locator(".tt-plan", { hasText: SIDE2 }).click();
+  await expect(page.getByRole("link", { name: /^紐づけ/ })).toContainText("紐づけ済み");
+  await page.locator(".plan-actions").screenshot({ path: `${SCREENS}/55-link-button-linked.png` });
 
   // 管理画面: 現場の紐づけとして出る(管理者の確定は待たない)
   await adminActuals(page);
@@ -62,6 +79,8 @@ test("㉚㉛㉜ 現場で面1と面2を紐づけ、管理画面に出る。書�
   await expect(page.getByRole("status")).toContainText(/に書き出しました/);
   await page.goto("/field/lines/U");
   await page.locator(".tt-plan", { hasText: SIDE2 }).click();
+  await page.getByRole("link", { name: /^紐づけ/ }).click();
+  await page.getByLabel("作業者ID").fill("Y001");
   await page.getByLabel("1回目のキッティングNo.", { exact: true }).getByRole("button", { name: "外す" }).click();
   const dialog = page.getByRole("dialog", { name: "紐づけの確認" });
   await expect(dialog).toContainText("書き出し済みです。既存アプリの値は管理者が直す必要があります");
