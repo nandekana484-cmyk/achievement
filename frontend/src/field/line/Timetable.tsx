@@ -3,8 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import { localName } from "../../i18n/translate";
 import type { Board, BoardPlan } from "../../shared/api";
-import { formatPercent } from "../../shared/percent";
-import { isOverdueUnstarted, planSummary } from "./planMatch";
+import { isOverdueUnstarted, planBlockSub } from "./planMatch";
 import { activeEvents, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
 import { assignLanes, edgeSpan, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
 
@@ -30,7 +29,7 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
 
   const scrollToNow = () => {
     const el = scroller.current;
-    if (el) el.scrollTop = Math.max(0, y(nowInRange ? nowMs : board.workday_start) - el.clientHeight / 3);
+    if (el) el.scrollTop = Math.max(0, y(nowInRange && board.date === board.today ? nowMs : board.workday_start) - el.clientHeight / 3);
   };
   useImperativeHandle(ref, () => ({ scrollToNow }));
   useEffect(scrollToNow, []); // 開いたときだけ
@@ -47,12 +46,11 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     if (!s) return [];
     const selected = planKey(p) === selectedKey;
     const overdue = isOverdueUnstarted(p, nowMs);
-    const state = p.completed ? t("common.done") : p.closed ? t("plan.closedManual") : selected ? t("common.selected") : edge ? t("plan.outsideShort") : overdue ? t("plan.overdueUnstarted") : formatPercent(p.in_progress ? p.progress : null);
     const clip = `${s.clippedStart ? " tt-clip-start" : ""}${s.clippedEnd ? " tt-clip-end" : ""}`;
     // 枠はキッティングNo.ごとに1つ。ロットの数と計画数の合計を出す
     return [{
       key: planKey(p), span: s, label: p.plan.kitting_no,
-      sub: t("plan.summaryWithState", { summary: planSummary(p.plan, t), state }),
+      sub: planBlockSub(p, { selected, edge, overdue }, t),
       className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${overdue ? " tt-overdue" : ""}${p.closed ? " tt-closed" : ""}${edge ? " tt-edge" : ""}${clip}`, onClick: () => onSelect(p),
     }];
   });

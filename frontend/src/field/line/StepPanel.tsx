@@ -17,6 +17,7 @@ type Props = {
   onHistory: () => void;
   sideLink?: ReactNode; // 面1の計画に、紐づいた2回目の表示(SideLinkNote)
   actions?: ReactNode; // 別のページへのボタン(紐づけ、識別票)
+  readOnly?: boolean; // 今日以外の稼働日を見ている(表示のみ)。記録するボタンを押せなくする
 };
 
 export const stepKey = (p: BoardPlan, step: string) => `step:${p.plan.kitting_no}:${step}`;
@@ -27,7 +28,7 @@ const CANCEL_KEYS: Record<string, "stepPanel.cancelled.vanished" | "stepPanel.ca
   carried_over: "stepPanel.cancelled.carried_over",
 };
 
-export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, actions }: Props) {
+export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, onHistory, sideLink, actions, readOnly = false }: Props) {
   const { t } = useI18n();
   const p = plan.plan;
   const closed = plan.closed;
@@ -68,7 +69,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
           return (
             <div key={step} className="step-row">
               <button type="button" className={`step-button step-${s.state}`} style={{ borderLeftColor: STEP_COLORS[step] }}
-                disabled={busy || !!closed} onClick={() => onStep(s)}>
+                disabled={busy || !!closed || readOnly} onClick={() => onStep(s)}>
                 <span className="step-name">{s.label}</span>
                 <span className={`step-state state-${s.state}`}>{t(STATE_KEYS[s.state])}</span>
                 <span className="step-time">{s.timeText}</span>
@@ -76,7 +77,7 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
                   {busy ? t("common.sending") : s.action === "start" ? t("stepPanel.pressToStart") : t("stepPanel.pressToEnd")}
                 </span>
               </button>
-              <button type="button" className="btn step-fix" disabled={s.records.length === 0}
+              <button type="button" className="btn step-fix" disabled={s.records.length === 0 || readOnly}
                 aria-label={t("stepPanel.fixAria", { step: t(STEP_LABEL_KEYS[step]) })} onClick={() => onFix(step)}>
                 {t("stepPanel.fix")}
               </button>
@@ -86,9 +87,9 @@ export function StepPanel({ plan, isBusy, onStep, onNg, onRemark, onFix, onAdd, 
       </div>
 
       <div className="input-row">
-        <button type="button" className="btn" onClick={onNg}>{t("stepPanel.ngInput")}</button>
-        <button type="button" className="btn" onClick={onRemark} disabled={isBusy(`remark:${p.kitting_no}`)}>{t("stepPanel.remarkInput")}</button>
-        <button type="button" className="btn" onClick={onAdd} disabled={!!closed}>{t("stepPanel.addForgotten")}</button>
+        <button type="button" className="btn" onClick={onNg} disabled={readOnly}>{t("stepPanel.ngInput")}</button>
+        <button type="button" className="btn" onClick={onRemark} disabled={readOnly || isBusy(`remark:${p.kitting_no}`)}>{t("stepPanel.remarkInput")}</button>
+        <button type="button" className="btn" onClick={onAdd} disabled={!!closed || readOnly}>{t("stepPanel.addForgotten")}</button>
         <button type="button" className="btn" onClick={onHistory}>{t("stepPanel.history")}</button>
       </div>
     </section>

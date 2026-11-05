@@ -34,9 +34,9 @@ def test_board(client, staffed, fake_clock):
 
     # 日付を省略すると今の稼働日(10/21 8:00 は 8:15 より前なので 10/20)
     assert ok(client.get("/api/lines/S/board"))["date"] == "2026-10-20"
-    # 別の稼働日でも、片付けが終わっていない計画(遅れ)は出る。付帯作業は出ない
+    # 今日以外の稼働日は前後12時間だけ(片付けが終わっていない計画も広げて出さない。詳細は test_board_day.py)。付帯作業は出ない
     other = ok(client.get("/api/lines/S/board", params={"date": "2026-10-24"}))
-    assert [p["plan"]["kitting_no"] for p in other["plans"]] == [K1, K2]
+    assert other["plans"] == []
     assert other["line_events"] == [] and other["efficiency"]["efficiency"] is None
 
 

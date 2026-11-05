@@ -9,6 +9,8 @@ import { useMasters } from "../../shared/useMasters";
 import { useOperation } from "../../shared/useOperation";
 import { idSlipsUrl } from "../../print/idslips/idSlipLogic";
 import { LineDialogs, type DialogState } from "./LineDialogs";
+import { DayPicker } from "./DayPicker";
+import { isReadOnlyDay, parseDay } from "./dayView";
 import { LineEventPanel } from "./LineEventPanel";
 import { canClosePlan, isOutsideDisplay, outsideMessage } from "./planMatch";
 import { formatMDHM } from "./timeScale";
@@ -27,12 +29,13 @@ import { useSelectedPlan } from "./useSelectedPlan";
 export function LineScreen() {
   const { lineCode = "" } = useParams();
   const { t } = useI18n();
-  const { board, error: boardError, offsetMs, reload } = useBoard(lineCode);
+  const [query, setQuery] = useSearchParams();
+  const day = parseDay(query.get("day")); // 表示する稼働日(URL の ?day=。無ければ今日)
+  const { board, error: boardError, offsetMs, reload } = useBoard(lineCode, day);
   const { masters, error: mastersError } = useMasters(lineCode);
   const op = useOperation(reload);
   const actions = useLineActions(lineCode, op);
   const nowMs = useNow(5_000, offsetMs);
-  const [query] = useSearchParams();
   const [selectedKno, setSelectedKno] = useState<string | null>(query.get("kitting_no")); // 生産記録票の「1回目と紐づける」から来たとき
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const timetable = useRef<TimetableHandle>(null);
@@ -49,6 +52,13 @@ export function LineScreen() {
   const lineName = line ? displayLineName(line, t) : t("lineScreen.lineFallback", { code: lineCode });
   const openOperator = () => setDialog({ kind: "operator" });
   const select = (p: Plan) => setSelectedKno(p.kitting_no);
+  const readOnly = isReadOnlyDay(board); // 今日以外の稼働日は表示のみ
+  const changeDay = (next: string | null) => setQuery((prev) => {
+    const q = new URLSearchParams(prev);
+    if (next) q.set("day", next);
+    else q.delete("day");
+    return q;
+  }, { replace: true });
 
   // 記録のボタンは、担当者が未設定ならサーバーに送らず、先に担当者を選ぶ画面を出す
   const withOperator = (action: () => void) => () => {
@@ -80,6 +90,7 @@ export function LineScreen() {
         onChangeOperator={openOperator}
       />
       <section className="col-center">
+        <DayPicker board={board} onChange={changeDay} />
         {board && board.stale_kitting_nos.length > 0 && (
           <Notice kind="error">{t("lineScreen.staleWarning", { count: board.stale_kitting_nos.length, list: board.stale_kitting_nos.join(", ") })}</Notice>
         )}
@@ -97,7 +108,7 @@ export function LineScreen() {
           <Notice kind="info">{outsideMessage(selected.plan, t)}</Notice>
         )}
         {board ? (
-          <Timetable ref={timetable} board={board} nowMs={nowMs} selectedKey={selectedKno} onSelect={(p) => select(p.plan)} />
+          <Timetable key={board.date} ref={timetable} board={board} nowMs={nowMs} selectedKey={selectedKno} onSelect={(p) => select(p.plan)} />
         ) : (
           <p className="placeholder">{boardError ?? t("common.loading")}</p>
         )}
@@ -114,6 +125,7 @@ export function LineScreen() {
           <StepPanel
             plan={selected}
             isBusy={op.isBusy}
+            readOnly={readOnly}
             onStep={(status) => onStep(selected, status)}
             onNg={open({ kind: "ng", plan: selected })}
             onRemark={open({ kind: "remark", plan: selected })}
@@ -123,10 +135,10 @@ export function LineScreen() {
             sideLink={<SideLinkNote plan={selected} />}
             actions={<>
               {canClosePlan(selected) && (
-                <button type="button" className="btn btn-small" onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "close" })}>{t("planClose.button")}</button>
+                <button type="button" className="btn btn-small" disabled={readOnly} onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "close" })}>{t("planClose.button")}</button>
               )}
               {selected.closed && (
-                <button type="button" className="btn btn-small" onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "cancel" })}>{t("planClose.cancelButton")}</button>
+                <button type="button" className="btn btn-small" disabled={readOnly} onClick={() => setDialog({ kind: "planClose", plan: selected, mode: "cancel" })}>{t("planClose.cancelButton")}</button>
               )}
               <SideLinkButton plan={selected} workerId={board?.current_operator?.operator_worker_id} />
               {board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board) && (
@@ -144,6 +156,7 @@ export function LineScreen() {
             openEvents={board.line_events.filter((e) => !e.end_at && !e.voided_at)}
             nowMs={nowMs}
             isBusy={op.isBusy}
+            readOnly={readOnly}
             onStart={onLineEventStart}
             onEnd={onLineEventEnd}
             onFix={open({ kind: "lineFix" })}

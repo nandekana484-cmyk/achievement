@@ -33,6 +33,14 @@ export function canClosePlan(p: BoardPlan): boolean {
   return p.plan.status === "active" && !p.completed && !p.closed && activeEvents(p.events).length === 0;
 }
 
+/** タイムテーブルの計画の枠の2行目。状態(完了・計画終了・選択中・範囲の端・未着手)があれば「・状態」を付ける。進捗率の「%」は出さない(右のパネルに出す)。 */
+export function planBlockSub(p: BoardPlan, flags: { selected: boolean; edge: boolean; overdue: boolean }, t: Translate): string {
+  const summary = planSummary(p.plan, t);
+  const state = p.completed ? t("common.done") : p.closed ? t("plan.closedManual") : flags.selected ? t("common.selected")
+    : flags.edge ? t("plan.outsideShort") : flags.overdue ? t("plan.overdueUnstarted") : null;
+  return state ? t("plan.summaryWithState", { summary, state }) : summary;
+}
+
 /** 「表示範囲外の計画です(計画: 10/18 9:00〜)」の文。 */
 export function outsideMessage(plan: Plan, t: Translate): string {
   return t("plan.outsideDisplay", { when: plannedFrom(plan, t) });
