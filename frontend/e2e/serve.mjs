@@ -42,6 +42,10 @@ execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "V", "--date", E2E
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "S", "--date", E2E_DATE, "--side-pair"], { cwd: backend, env, stdio: "inherit" });
 // 生産記録票の印刷(e2e/zz-production-record.spec.ts)。別のラインRに、10ロットの両面の組・片面だけ・面1とつながらない面2を入れる
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "R", "--date", E2E_DATE, "--record-samples"], { cwd: backend, env, stdio: "inherit" });
+// 表示範囲の確認(e2e/zz-timetable-range.spec.ts)。記録を入れても、ほかの確認に影響しないよう、別のラインXに入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "X", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
+// 終了していない古い記録(e2e/zz-open-runs.spec.ts)。別のラインWに、10日前に始めて終了していない段取りと生産を入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "W", "--date", E2E_DATE, "--stale-open"], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {
   cwd: backend, env, input: `${E2E_ADMIN_PASSWORD}

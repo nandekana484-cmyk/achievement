@@ -14,6 +14,7 @@ const MENU: [string, AdminKey][] = [
   ["access", "menu.access"],
   ["teitori", "menu.teitori"],
   ["handover", "menu.handover"],
+  ["open-runs", "menu.openRuns"],
   ["password", "menu.password"],
 ];
 

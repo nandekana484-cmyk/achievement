@@ -102,6 +102,16 @@ export function assignLanes(items: { startMin: number; endMin: number }[]): { la
   return { lanes, laneCount: Math.max(1, laneEnds.length) };
 }
 
+/**
+ * 計画の時刻が範囲の外にある、始まっていて片付けが終わっていない計画の枠を、範囲の端(atEnd なら下、そうでなければ上)に寄せて描く位置。
+ * 選べるようにするためで、計画の時刻は表さない(旗は立てない)。
+ */
+export function edgeSpan(atEnd: boolean, totalMinutes: number, pxPerHour: number, height: number): Span {
+  const startMin = atEnd ? totalMinutes - (height / pxPerHour) * 60 : 0;
+  const endMin = startMin + (height / pxPerHour) * 60;
+  return { top: minutesToY(startMin, pxPerHour), height, startMin, endMin, clippedStart: false, clippedEnd: false };
+}
+
 /** ミリ秒を、サーバーに送る形(日本時間の +09:00 付きの ISO 文字列。秒まで)にする。 */
 export function toJstIso(ms: number): string {
   return new Date(Math.floor(ms / 1000) * 1000 + JST_OFFSET_MS).toISOString().replace(/\.\d{3}Z$/, "+09:00");

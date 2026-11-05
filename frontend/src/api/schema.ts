@@ -1199,6 +1199,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/open-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Open Runs
+         * @description 終了していない古い記録(表示範囲を広げても現場の画面に入らないもの)。ラインで絞り込める。
+         */
+        get: operations["list_open_runs_api_admin_open_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/open-runs/{event_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End Open Run
+         * @description 終了の時刻を入れる。片付けなら、計画が完了になる。
+         */
+        post: operations["end_open_run_api_admin_open_runs__event_id__end_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/open-runs/{event_id}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void Open Run
+         * @description 取り消す(取り消しの印。物理削除しない)。
+         */
+        post: operations["void_open_run_api_admin_open_runs__event_id__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1694,6 +1754,27 @@ export interface components {
             excluded_plans: components["schemas"]["ExcludedPlanOut"][];
             /** Warnings */
             warnings: string[];
+        };
+        /** EndIn */
+        EndIn: {
+            /**
+             * End At
+             * Format: date-time
+             * @description 終了の時刻(開始より後、今より前)
+             */
+            end_at: string;
+            /**
+             * Produced Qty
+             * @description 生産の区切りのときの良品数
+             */
+            produced_qty?: number | null;
+            /**
+             * Reason
+             * @description 訂正の理由(mistake・forgot・wrong_qty・other)
+             */
+            reason: string;
+            /** Note */
+            note?: string | null;
         };
         /** EquipmentAdminOut */
         EquipmentAdminOut: {
@@ -2448,6 +2529,39 @@ export interface components {
             /** Ng Qty */
             ng_qty: number;
         };
+        /** OpenRunOut */
+        OpenRunOut: {
+            /** Id */
+            id: number;
+            /** Kitting No */
+            kitting_no: string;
+            /** Line Code */
+            line_code: string;
+            /** Product Name */
+            product_name: string;
+            /** Step Type */
+            step_type: string;
+            /** Step Label */
+            step_label: string;
+            /**
+             * Start At
+             * Format: date-time
+             */
+            start_at: string;
+            /** Started By Name */
+            started_by_name: string | null;
+        };
+        /** OpenRunResultOut */
+        OpenRunResultOut: {
+            /** Event Id */
+            event_id: number;
+            /** Kitting No */
+            kitting_no: string;
+            /** Action */
+            action: string;
+            /** Completed */
+            completed: boolean;
+        };
         /** OperatorAdminOut */
         OperatorAdminOut: {
             /** Id */
@@ -3146,11 +3260,18 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VoidIn */
+        app__api__admin_open_runs__VoidIn: {
+            /** Reason */
+            reason: string;
+            /** Note */
+            note?: string | null;
+        };
         /**
          * VoidIn
          * @description 記録の取り消し。
          */
-        VoidIn: {
+        app__api__schemas__VoidIn: {
             /** Operator Id */
             operator_id?: number | null;
             /**
@@ -3743,7 +3864,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoidIn"];
+                "application/json": components["schemas"]["app__api__schemas__VoidIn"];
             };
         };
         responses: {
@@ -3881,7 +4002,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoidIn"];
+                "application/json": components["schemas"]["app__api__schemas__VoidIn"];
             };
         };
         responses: {
@@ -5148,6 +5269,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HandoverResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_open_runs_api_admin_open_runs_get: {
+        parameters: {
+            query?: {
+                line_code?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenRunOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_open_run_api_admin_open_runs__event_id__end_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenRunResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_open_run_api_admin_open_runs__event_id__void_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__admin_open_runs__VoidIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenRunResultOut"];
                 };
             };
             /** @description Validation Error */

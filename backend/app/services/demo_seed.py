@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core import clock
-from app.db.models import PLAN_ACTIVE, BoardTeitori, Equipment, Operator, Plan
+from app.db.models import PLAN_ACTIVE, BoardTeitori, Equipment, Operator, Plan, RunEvent
 from app.db.session import write_transaction
 from app.domain.kitting_no import parse_kitting_no
 from app.domain.normalize import normalize_mounting_line
@@ -194,3 +194,23 @@ def _upsert_teitori(session: Session, line: str) -> None:
 def _at(day: dt.date, hm: str) -> dt.datetime:
     h, m = (int(x) for x in hm.split(":"))
     return dt.datetime.combine(day, dt.time(h, m), tzinfo=clock.JST)
+
+
+def seed_stale_open(session: Session, line_code: str, day: dt.date) -> list[int]:
+    """「終了していない古い記録」の確認用: 確認用の計画を入れ、10日前に始めて終了していない段取りと生産を入れる(表示範囲を広げても入らない)。
+
+    入れた工程の記録のIDを返す(管理画面で終了の時刻を入れる・取り消す確認用。e2e/zz-open-runs.spec.ts)。
+    """
+    knos = list(dict.fromkeys(seed_demo(session, line_code, day)))
+    started_by = session.scalars(select(Operator).where(Operator.worker_key == worker_key("Y001"))).one().id
+    start = dt.datetime.combine(day - dt.timedelta(days=10), dt.time(10, 0), tzinfo=clock.JST)
+    ids = []
+    with write_transaction(session):
+        for kno, step in ((knos[0], "setup"), (knos[3], "production")):
+            e = RunEvent(kitting_no=kno, step_type=step, seq=1, start_at=start, started_by=started_by,
+                         start_request_id=f"demo-stale-{kno}-{step}", created_at=start)
+            session.add(e)
+            session.flush()
+            ids.append(e.id)
+        session.commit()
+    return ids

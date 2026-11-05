@@ -85,3 +85,18 @@ def test_finished_plan_does_not_widen_range(client, world, fake_clock):
     ok(end(client, "cleanup", kitting_no=STARTED))
     fake_clock.current = now
     assert _knos(client)["display_start"] == "2026-10-20T20:15:00+09:00"
+
+
+def test_all_plans_in_range_are_shown(client, world, fake_clock):
+    # 表示範囲の中の、完了した計画・片付けが終わっていない計画・始まっていない計画(計画終了を過ぎたものを含む)は、すべて board に出る
+    done, doing = "0400-1-S-251014-04", "0410-1-S-251014-05"
+    insert_plan(world["db"], kitting_no=done, file_no="0400", start="2026/10/20 21:00:00", end="2026/10/20 22:00:00")
+    insert_plan(world["db"], kitting_no=doing, file_no="0410", start="2026/10/20 22:00:00", end="2026/10/20 23:00:00")
+    sync_plans(world["app"])
+    ok(start(client, "cleanup", kitting_no=done))
+    ok(end(client, "cleanup", kitting_no=done))
+    ok(start(client, "setup", kitting_no=doing))
+    shown = _shown(_knos(client))
+    assert done in shown and doing in shown  # 完了、片付け前
+    assert UNTOUCHED_IN in shown  # 計画終了を過ぎて未着手
+    assert "0900-1-S-251014-09" not in shown

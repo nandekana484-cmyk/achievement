@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts", "print/recordTexts.ts", "print/idslips/idSlipTexts.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts。生産記録票の様式の文言(日本語とベトナム語の併記で固定)は print/recordTexts.ts、識別票の様式の文言は print/idslips/idSlipTexts.ts。辞書は画面ごとに分けた(i18n/ja/*.ts、i18n/vi/*.ts)
+const SKIP = new Set(["i18n/ja.ts", "i18n/vi.ts", "i18n/translate.ts", "admin/messages.ts", "admin/messagesOpenRuns.ts", "print/recordTexts.ts", "print/idslips/idSlipTexts.ts"]); // translate.ts は言語の名前(「日本語」)を持つ。管理画面の文言は admin/messages.ts。生産記録票の様式の文言(日本語とベトナム語の併記で固定)は print/recordTexts.ts、識別票の様式の文言は print/idslips/idSlipTexts.ts。辞書は画面ごとに分けた(i18n/ja/*.ts、i18n/vi/*.ts)
 
 // ひらがな・カタカナ・漢字と、全角の記号(「、」「〜」「(」など)
 const JAPANESE = /[　-〿぀-ヿ㐀-鿿＀-￯]/;

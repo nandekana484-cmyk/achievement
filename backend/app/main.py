@@ -16,7 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
-from app.api import admin, admin_access, admin_actuals, admin_handover, admin_masters, admin_reports, admin_teitori, allocations, corrections, side_links as side_links_api, health, lines, plans, production_records, runs, id_slips
+from app.api import admin, admin_access, admin_actuals, admin_handover, admin_open_runs, admin_masters, admin_reports, admin_teitori, allocations, corrections, side_links as side_links_api, health, lines, plans, production_records, runs, id_slips
 from app.core.config import get_config, is_frozen
 from app.db.migrate import upgrade_to_head
 from app.db.session import get_sessionmaker, init_db
@@ -42,6 +42,8 @@ STATIC_DIR = Path(
 async def lifespan(_app: FastAPI):
     config = get_config()
     logger.info("基準のフォルダ: %s、DB: %s", config.home or Path.cwd(), config.paths.database)
+    for name in config.unused_settings:
+        logger.warning("使われていない設定が config.toml に残っています: %s(削除してかまいません)", name)
     # 更新の前のバックアップ(開発指針 10)。DBの構造を変える前に取る
     make_backup(config.paths.database, config.paths.backup_dir, config.backup.keep, "startup")
     engine = init_db(config.paths.database)
@@ -91,6 +93,7 @@ app.include_router(admin_actuals.router)
 app.include_router(admin_access.router)
 app.include_router(admin_teitori.router)
 app.include_router(admin_handover.router)
+app.include_router(admin_open_runs.router)
 
 
 @app.exception_handler(RuleViolation)

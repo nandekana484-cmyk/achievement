@@ -20,7 +20,7 @@ export const line = {
 
   "lineScreen.lineFallback": "{code}ライン",
   "lineScreen.pickOperatorFirst": "担当者が設定されていません。担当者を選んでから、もう一度ボタンを押してください。",
-  "lineScreen.staleWarning": "片付けが終わっていない古い計画が{count}件あり、タイムテーブルの範囲に入りません。片付けの押し忘れの可能性があります(管理者に連絡してください): {list}",
+  "lineScreen.staleWarning": "終了していない古い記録のある計画が{count}件あり、タイムテーブルの範囲に入りません。終了の押し忘れの可能性があります。管理者に連絡してください(管理画面の「終了していない古い記録」で直せます): {list}",
   "lineScreen.noOperator": "担当者が設定されていません。ボタンを押す前に、担当者を選んでください。",
   "lineScreen.pickOperator": "担当者を選ぶ",
   "lineScreen.selectHint": "タイムテーブルの計画を押すか、左の検索欄で探すと、ここに工程のボタンが表示されます。",

@@ -157,3 +157,11 @@ def test_production_record_settings(tmp_path):
     assert (cfg.approver, cfg.version, cfg.checker, cfg.author) == ("承認 太郎", "1.2", "", "シマダ")  # "" は空欄
     example = load_config(Path(__file__).resolve().parents[2] / "config.example.toml").production_record
     assert (example.approver, example.revision_date, example.version) == ("木下", "2025/02/25", "02")
+
+
+def test_unused_corrections_setting_is_reported(tmp_path):
+    p = tmp_path / "c.toml"
+    p.write_text("[corrections]\nfield_margin_hours = 24\n", encoding="utf-8")
+    assert load_config(p).unused_settings == ("[corrections] field_margin_hours",)  # 廃止した設定。起動のログに出す
+    assert load_config(tmp_path / "none.toml").unused_settings == ()
+    assert load_config(Path(__file__).resolve().parents[2] / "config.example.toml").unused_settings == ()

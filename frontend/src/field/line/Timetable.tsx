@@ -6,7 +6,7 @@ import type { Board, BoardPlan } from "../../shared/api";
 import { formatPercent } from "../../shared/percent";
 import { isOverdueUnstarted, planSummary } from "./planMatch";
 import { activeEvents, recordNumbers, STEP_COLORS, STEP_LABEL_KEYS } from "./steps";
-import { assignLanes, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
+import { assignLanes, edgeSpan, formatHM, formatMD, hourTicks, minutesFrom, minutesToY, type Span, spanFor } from "./timeScale";
 
 export const PX_PER_HOUR = 90;
 const MIN_HEIGHT = 30; // 短い記録でも工程名が1行は読めるように
@@ -39,17 +39,21 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
     spanFor(start, end, origin, total, nowMs, PX_PER_HOUR, minHeight);
 
   const planBlocks: Block[] = board.plans.flatMap((p) => {
-    const s = span(p.plan.planned_start, p.plan.planned_end, TOUCH_MIN);
+    const inRange = span(p.plan.planned_start, p.plan.planned_end, TOUCH_MIN);
+    // 始まって片付けが終わっていない計画は、計画の時刻が範囲の外でも、範囲の端に寄せて枠を出す(選べるように)
+    const unfinished = !p.completed && activeEvents(p.events).length > 0;
+    const edge = !inRange && unfinished;
+    const s = inRange ?? (edge ? edgeSpan(!!p.plan.planned_start && Date.parse(p.plan.planned_start) >= Date.parse(board.display_end), total, PX_PER_HOUR, TOUCH_MIN) : null);
     if (!s) return [];
     const selected = planKey(p) === selectedKey;
     const overdue = isOverdueUnstarted(p, nowMs);
-    const state = p.completed ? t("common.done") : selected ? t("common.selected") : overdue ? t("plan.overdueUnstarted") : formatPercent(p.in_progress ? p.progress : null);
+    const state = p.completed ? t("common.done") : selected ? t("common.selected") : edge ? t("plan.outsideShort") : overdue ? t("plan.overdueUnstarted") : formatPercent(p.in_progress ? p.progress : null);
     const clip = `${s.clippedStart ? " tt-clip-start" : ""}${s.clippedEnd ? " tt-clip-end" : ""}`;
     // 枠はキッティングNo.ごとに1つ。ロットの数と計画数の合計を出す
     return [{
       key: planKey(p), span: s, label: p.plan.kitting_no,
       sub: t("plan.summaryWithState", { summary: planSummary(p.plan, t), state }),
-      className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${overdue ? " tt-overdue" : ""}${clip}`, onClick: () => onSelect(p),
+      className: `tt-plan${selected ? " tt-selected" : ""}${p.completed ? " tt-done" : ""}${overdue ? " tt-overdue" : ""}${edge ? " tt-edge" : ""}${clip}`, onClick: () => onSelect(p),
     }];
   });
 
@@ -64,7 +68,7 @@ export const Timetable = forwardRef<TimetableHandle, Props>(function Timetable({
       return [{
         key: `e${e.id}`, span: s, label: step === "production" ? t("step.productionShort", { seq: n }) : t(STEP_LABEL_KEYS[step]),
         sub: e.end_at ? p.plan.kitting_no : t("plan.summaryWithState", { summary: p.plan.kitting_no, state: t("common.doing") }),
-        color: STEP_COLORS[step], className: `tt-event${e.end_at ? "" : " tt-open"}`,
+        color: STEP_COLORS[step], className: `tt-event${e.end_at ? "" : " tt-open"}`, onClick: () => onSelect(p), // 帯を押しても、その計画を選べる
       }];
     });
   });

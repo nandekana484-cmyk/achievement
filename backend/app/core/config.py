@@ -111,6 +111,7 @@ class AppConfig:
     production_record: ProductionRecordConfig = field(default_factory=ProductionRecordConfig)
     timezone: str = "Asia/Tokyo"
     home: Path | None = None  # 基準のフォルダ(開発で GENBA_HOME が無ければ None = 起動したフォルダ)
+    unused_settings: tuple[str, ...] = ()  # config.toml に残っている、もう使わない設定(起動のログに出す)
 
 
 def is_frozen() -> bool:
@@ -172,6 +173,12 @@ def _sync_from(y: dict) -> SyncConfig:
     )
 
 
+# 廃止した設定(config.toml に残っていても無視する。起動のログに「使われていない設定」と出す)
+REMOVED_SETTINGS = {
+    "[corrections] field_margin_hours": lambda raw: "field_margin_hours" in raw.get("corrections", {}),  # AD-23 で表示範囲と同じ計算にした
+}
+
+
 def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig:
     path = path or config_path(home=home)
     if not path.exists():
@@ -197,6 +204,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
         reports=ReportsConfig(max_days=int(r.get("max_days", ReportsConfig.max_days))),
         production_record=ProductionRecordConfig(**{k: str(pr.get(k, getattr(ProductionRecordConfig, k))) for k in ProductionRecordConfig.__dataclass_fields__}),
         timezone=raw.get("timezone", "Asia/Tokyo"),
+        unused_settings=tuple(name for name, still in REMOVED_SETTINGS.items() if still(raw)),
     ), home)
 
 
@@ -208,7 +216,8 @@ def _resolve(cfg: AppConfig, home: Path | None) -> AppConfig:
         backup_dir=opt(p.backup_dir), log_dir=_at(home, p.log_dir),
     )
     return AppConfig(server=cfg.server, paths=paths, sync=cfg.sync, schedule=cfg.schedule, backup=cfg.backup, admin=cfg.admin,
-                     reports=cfg.reports, production_record=cfg.production_record, timezone=cfg.timezone, home=home)
+                     reports=cfg.reports, production_record=cfg.production_record, timezone=cfg.timezone, home=home,
+                     unused_settings=cfg.unused_settings)
 
 
 @lru_cache
