@@ -14,6 +14,11 @@ from legacy_fixture import insert_plan
 from records_helpers import end, new_session, ok, start, sync_plans
 from test_plan_closures import close
 
+
+@pytest.fixture(autouse=True)
+def _workday_started(fake_clock):
+    fake_clock.advance(minutes=30)  # 10/21 8:30 = 稼働日 10/21 の中(8:00 は前の稼働日。board の日付を渡さなければ今日の稼働日を出す)
+
 # 今(テストの時計)は 10/21 8:00。稼働日 10/21 8:15〜、通常の表示範囲 = 10/20 20:15〜10/22 20:15、広げる限度 = 10/18 8:15
 DONE = "0100-1-S-251014-01"  # 10/18 9:00〜12:00。10/18 10:00 に片付けまで終えた(Sラインの一番古い記録 = 10/18 10:00)
 LAG = "0200-1-S-251014-02"  # 10/19 9:00〜12:00 未着手(遅れた未着手の計画)

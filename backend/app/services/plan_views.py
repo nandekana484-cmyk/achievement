@@ -75,7 +75,8 @@ class StalePlanOut(BaseModel):
 
 class BoardOut(BaseModel):
     line_code: str
-    date: dt.date  # 稼働日
+    date: dt.date  # 表示している稼働日
+    today: dt.date  # 今の稼働日(date と違えば「表示のみ」。範囲を広げる・警告は今日だけ)
     workday_start: dt.datetime  # 稼働日の始まり(day_start)
     workday_end: dt.datetime
     display_start: dt.datetime  # 表示範囲(稼働日の前後12時間。片付け前の計画があれば始まりを広げる)

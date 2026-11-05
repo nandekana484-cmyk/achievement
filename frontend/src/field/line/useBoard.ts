@@ -9,7 +9,8 @@ export const BOARD_INTERVAL_MS = 5000;
 
 type BoardState = { board: Board | null; error: string | null; offsetMs: number; reload: () => void };
 
-export function useBoard(lineCode: string): BoardState {
+/** day = 表示する稼働日(YYYY-MM-DD)。null なら今の稼働日。 */
+export function useBoard(lineCode: string, day: string | null = null): BoardState {
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offsetMs, setOffsetMs] = useState(0);
@@ -22,7 +23,7 @@ export function useBoard(lineCode: string): BoardState {
     const mine = ++seq.current; // 古い応答があとから届いても、新しい応答で上書きされないようにする
     const sent = Date.now();
     api
-      .GET("/api/lines/{line_code}/board", { params: { path: { line_code: lineCode } } })
+      .GET("/api/lines/{line_code}/board", { params: { path: { line_code: lineCode }, query: day ? { date: day } : {} } })
       .then(({ data, error: e }) => {
         if (mine !== seq.current) return;
         if (data) {
@@ -34,7 +35,7 @@ export function useBoard(lineCode: string): BoardState {
         }
       })
       .catch(() => mine === seq.current && setError(tRef.current("error.connection")));
-  }, [lineCode]);
+  }, [lineCode, day]);
 
   useEffect(() => {
     let timer: number | undefined;
