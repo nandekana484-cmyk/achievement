@@ -14,7 +14,7 @@ import sys
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import time
+from datetime import date, time
 from functools import lru_cache
 from pathlib import Path
 
@@ -65,6 +65,8 @@ class ScheduleConfig:
     day_start: time = time(8, 15)
     # 片付けが終わっていない計画があるとき、ライン画面の表示範囲の始まりを広げる限度(稼働日の始まりの何時間前まで)
     display_extend_max_hours: int = 72
+    # 現場アプリを使い始めた日。遅れた未着手の計画は、この日の稼働日の始まりより後に始まる計画だけ数える(空なら、ラインごとの一番古い記録から)
+    lagging_since: date | None = None
 
 
 @dataclass(frozen=True)
@@ -195,6 +197,7 @@ def load_config(path: Path | None = None, home: Path | None = None) -> AppConfig
         schedule=ScheduleConfig(
             day_start=time.fromisoformat(raw.get("schedule", {}).get("day_start", ScheduleConfig.day_start.isoformat("minutes"))),
             display_extend_max_hours=int(raw.get("schedule", {}).get("display_extend_max_hours", ScheduleConfig.display_extend_max_hours)),
+            lagging_since=date.fromisoformat(str(raw["schedule"]["lagging_since"])) if raw.get("schedule", {}).get("lagging_since") else None,
         ),
         backup=BackupConfig(
             daily_at=time.fromisoformat(b.get("daily_at", BackupConfig.daily_at.isoformat("minutes"))),

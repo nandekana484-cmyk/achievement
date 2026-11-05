@@ -196,12 +196,36 @@ def _at(day: dt.date, hm: str) -> dt.datetime:
     return dt.datetime.combine(day, dt.time(h, m), tzinfo=clock.JST)
 
 
+def _add_old_record(session: Session, kno: str, day: dt.date) -> None:
+    """そのラインの一番古い記録(11日前に片付けまで終えた)。遅れた未着手の計画は、ラインの一番古い記録より後に始まる計画だけ数えるため。"""
+    from app.services.completions import create_completion
+    from app.services.kitting_plans import load_group
+
+    who = session.scalars(select(Operator).where(Operator.worker_key == worker_key("Y001"))).one().id
+    start = dt.datetime.combine(day - dt.timedelta(days=11), dt.time(10, 0), tzinfo=clock.JST)
+    with write_transaction(session):
+        e = RunEvent(kitting_no=kno, step_type="cleanup", seq=1, start_at=start, end_at=start + dt.timedelta(minutes=10), started_by=who,
+                     ended_by=who, start_request_id=f"demo-old-{kno}-s", end_request_id=f"demo-old-{kno}-e", created_at=start)
+        session.add(e)
+        session.flush()
+        create_completion(session, load_group(session, kno), e)
+        session.commit()
+
+
+def seed_old_record(session: Session, line_code: str, day: dt.date) -> list[str]:
+    """遅れた未着手の計画の確認用(e2e のラインY): 確認用の計画に加え、そのラインの一番古い記録(11日前に片付けまで終えた)を入れる。"""
+    knos = seed_demo(session, line_code, day)
+    _add_old_record(session, knos[0], day)
+    return knos
+
+
 def seed_old_unstarted(session: Session, line_code: str, day: dt.date) -> list[str]:
     """遅れた未着手の計画の警告の確認用: 確認用の計画に加え、10日前に終わった未着手の計画(表示範囲を広げても入らない)を入れる。
 
-    本アプリを使い始めた時刻(一番古い記録)より後に終わる必要があるので、`--stale-open` を入れたラインを同じDBに用意しておく。
+    そのラインの一番古い記録(11日前)より後に始まる計画なので、遅れた未着手の計画として数えられる。
     """
     knos = seed_demo(session, line_code, day)
+    _add_old_record(session, knos[0], day)
     line = normalize_mounting_line(line_code)
     old = _DemoPlan("1200", 1, 25, "DEMO-OLD", "古い未着手基板K", 60, 30.0, "09:00", "12:00", -10)
     with write_transaction(session):

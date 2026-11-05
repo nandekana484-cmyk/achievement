@@ -83,13 +83,13 @@ export function LineScreen() {
         {board && board.stale_kitting_nos.length > 0 && (
           <Notice kind="error">{t("lineScreen.staleWarning", { count: board.stale_kitting_nos.length, list: board.stale_kitting_nos.join(", ") })}</Notice>
         )}
-        {board && board.stale_plans.length > 0 && (
+        {board && board.stale_plans_total > 0 && (
           <Notice kind="error">
             {t("planClose.staleWarning", {
-              count: board.stale_plans.length,
+              count: board.stale_plans_total,
               list: board.stale_plans.map((p) => t("planClose.staleItem", {
                 kitting: p.kitting_no, lots: p.lot_nos.join(", "), start: formatMDHM(p.planned_start), end: formatMDHM(p.planned_end),
-              })).join(" / "),
+              })).join(" / ") + (board.stale_plans_total > board.stale_plans.length ? t("planClose.staleMore", { count: board.stale_plans_total - board.stale_plans.length }) : ""),
             })}
           </Notice>
         )}

@@ -1574,6 +1574,8 @@ export interface components {
              * Format: date-time
              */
             display_end: string;
+            /** Stale Plans Total */
+            stale_plans_total: number;
             /** Stale Plans */
             stale_plans: components["schemas"]["StalePlanOut"][];
             /** Stale Kitting Nos */

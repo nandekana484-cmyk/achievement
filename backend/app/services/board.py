@@ -28,6 +28,9 @@ from app.services.completions import latest_completion, produced_total
 from app.services.views import current_operator_out, line_event_out, run_completion_out, run_event_out
 
 
+STALE_PLANS_SHOWN = 5  # 警告に出す、遅れた未着手の計画の数(古い順。多いときに画面が埋まらないように。全体の件数は stale_plans_total)
+
+
 def board_plan_out(session: Session, g: KittingGroup) -> BoardPlanOut:
     """まとまり1件の、工程の記録・生産数の合計・NG数・最新の完了・進捗率(生産中のみ)。"""
     events = session.scalars(select(RunEvent).where(RunEvent.kitting_no == g.kitting_no).order_by(RunEvent.start_at, RunEvent.id))
@@ -51,13 +54,14 @@ def get_run(session: Session, kitting_no: str) -> BoardPlanOut:
     return board_plan_out(session, load_group(session, kitting_no))
 
 
-def get_board(session: Session, line_code: str, day: dt.date | None, day_start: dt.time, max_extend_hours: int = ScheduleConfig.display_extend_max_hours) -> BoardOut:
+def get_board(session: Session, line_code: str, day: dt.date | None, day_start: dt.time, max_extend_hours: int = ScheduleConfig.display_extend_max_hours,
+              lagging_since: dt.date | None = None) -> BoardOut:
     """稼働日(省略すると今の稼働日)のライン画面の情報。表示範囲は plan_query.display_window。"""
     line = get_line(session, line_code)
     now = clock.now()
     day = day or workday_of(now, day_start)
     work_start, work_end = workday_range(day, day_start)
-    window = display_window(session, line.line_code, day, day_start, max_extend_hours, now)
+    window = display_window(session, line.line_code, day, day_start, max_extend_hours, now, lagging_since)
     disp_start, disp_end = window.start, window.end
 
     groups = load_active_groups(session, board_kitting_nos(session, line.line_code, disp_start, disp_end))
@@ -66,7 +70,8 @@ def get_board(session: Session, line_code: str, day: dt.date | None, day_start: 
     return BoardOut(
         line_code=line.line_code, date=day,
         workday_start=work_start, workday_end=work_end, display_start=disp_start, display_end=disp_end, server_time=now, stale_kitting_nos=list(window.stale_kitting_nos),
-        stale_plans=[StalePlanOut(kitting_no=p.kitting_no, lot_nos=list(p.lot_nos), planned_start=p.planned_start, planned_end=p.planned_end) for p in window.stale_plans],
+        stale_plans_total=len(window.stale_plans),
+        stale_plans=[StalePlanOut(kitting_no=p.kitting_no, lot_nos=list(p.lot_nos), planned_start=p.planned_start, planned_end=p.planned_end) for p in window.stale_plans[:STALE_PLANS_SHOWN]],
         current_operator=current_operator_out(session, operator) if operator is not None else None,
         plans=[board_plan_out(session, g) for g in groups],
         line_events=[line_event_out(session, e) for e in _line_events(session, line.line_code, disp_start, disp_end, now)],

@@ -4,7 +4,7 @@ import { expect, type Page, test } from "@playwright/test";
 
 const KNO = (fileNo: string, seq: number) => `${fileNo}-1-S-261014-${String(seq).padStart(2, "0")}`;
 const FIRST = KNO("0722", 1); // 10/21 8:30〜11:30
-const PAST = KNO("0950", 7); // 10/18 9:00〜12:00(過ぎて未着手。AD-24 から表示範囲が広がって枠が出る)
+const PAST = KNO("0950", 7); // 10/18 9:00〜12:00(過ぎて未着手。検索で選ぶ)
 const MULTI1 = KNO("1000", 9); // 3ロット(DEMO-101〜103)の面1
 const MULTI2 = "1000-2-S-261014-10"; // 同じ3ロットの面2
 
@@ -140,8 +140,7 @@ test("ライン画面の操作", async ({ page }) => {
 
   // ⑨ 表示範囲外の計画を選んだ状態
   await results.getByRole("option", { name: new RegExp(PAST) }).click();
-  // AD-24: 遅れた未着手の計画なので表示範囲が広がり、枠が出る(表示範囲外のお知らせは出ない。出る場合は e2e/zz-plan-close.spec.ts の 60)
-  await expect(page.locator(".tt-plan.tt-overdue", { hasText: PAST })).toBeVisible();
+  await expect(page.getByText("表示範囲外の計画です(計画: 10/18 9:00〜)")).toBeVisible();
   await expect(page.locator(".plan-kno")).toHaveText(PAST);
   await shot(page, "09-outside-plan");
 });

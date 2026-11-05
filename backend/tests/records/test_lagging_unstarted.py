@@ -1,6 +1,6 @@
 """遅れた未着手の計画(AD-24): 判定、表示範囲の広がり、上限と警告。"""
 
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 import pytest
 from sqlalchemy import update
@@ -9,15 +9,16 @@ from app.core.clock import JST
 from app.db.models import RunEvent
 from app.services import masters
 from app.services.correction_rules import FieldScope
+from app.services.plan_query import lagging_unstarted
 from legacy_fixture import insert_plan
 from records_helpers import end, new_session, ok, start, sync_plans
 from test_plan_closures import close
 
 # 今(テストの時計)は 10/21 8:00。稼働日 10/21 8:15〜、通常の表示範囲 = 10/20 20:15〜10/22 20:15、広げる限度 = 10/18 8:15
-DONE = "0100-1-S-251014-01"  # 10/18 9:00〜12:00。10/18 10:00 に片付けまで終えた(本アプリの使い始め = 10/18 10:00)
+DONE = "0100-1-S-251014-01"  # 10/18 9:00〜12:00。10/18 10:00 に片付けまで終えた(Sラインの一番古い記録 = 10/18 10:00)
 LAG = "0200-1-S-251014-02"  # 10/19 9:00〜12:00 未着手(遅れた未着手の計画)
 LAG_OLD = "0300-1-S-251014-03"  # 10/17 21:00〜23:00 未着手(限度より古い)
-LAG_BEFORE = "0400-1-S-251014-04"  # 10/17 9:00〜10:00 未着手(使い始めより前に終わった)
+LAG_BEFORE = "0400-1-S-251014-04"  # 10/17 9:00〜10:00 未着手(そのラインの一番古い記録より前に始まる)
 OVER = "0500-1-S-251014-05"  # 10/19 10:00〜11:00(LAG と時間が重なる)
 
 
@@ -99,3 +100,42 @@ def test_correction_range_follows_widened_window(client, world2):
     with new_session() as s:
         lo, hi = FieldScope(s, "S", time(8, 15), 72).window(datetime(2026, 10, 21, 8, 0, tzinfo=JST))
     assert lo == datetime(2026, 10, 18, 21, 0, tzinfo=JST)  # 表示範囲と同じ(広がった範囲の記録も訂正できる)
+
+
+NOW = datetime(2026, 10, 21, 8, 0, tzinfo=JST)
+
+
+def _lagging(line="S", since=None):
+    with new_session() as s:
+        return [g.kitting_no for g in lagging_unstarted(s, line, NOW, time(8, 15), since)]
+
+
+def test_lagging_since(client, world2):
+    # lagging_since が無ければ、そのラインの一番古い記録(10/18 10:00)より後に始まる計画(LAG。10/19 9:00)
+    assert _lagging() == [LAG]
+    assert _lagging(since=date(2026, 10, 10)) == [LAG]  # 記録より前の日なら、記録の開始のほう(遅い方)
+    assert _lagging(since=date(2026, 10, 19)) == [LAG]  # 10/19 8:15 より後に始まる(9:00)
+    assert _lagging(since=date(2026, 10, 20)) == []  # その日の稼働日の始まり(10/20 8:15)より後に始まる計画は無い
+
+
+def test_lagging_is_per_line(client, world2):
+    # Tライン: 計画はあるが記録が1つも無い → 遅れた未着手の計画は無し(Sラインの記録は数えない)
+    insert_plan(world2["db"], kitting_no="0600-1-T-251014-06", file_no="0600", line="T", start="2026/10/19 09:00:00", end="2026/10/19 12:00:00")
+    sync_plans(world2["app"])
+    assert _lagging("T") == []
+    assert _lagging("S") == [LAG]
+
+
+def test_warning_shows_first_five_oldest(client, world2):
+    with new_session() as s:  # 一番古い記録を 10/10 にして、LAG_OLD・LAG_BEFORE も数える(どちらも上限(10/18 8:15)より古い = 警告の対象)
+        s.execute(update(RunEvent).where(RunEvent.kitting_no == DONE).values(start_at=datetime(2026, 10, 10, 10, 0, tzinfo=JST)))
+        s.commit()
+    b = board(client)
+    assert b["stale_plans_total"] == len(b["stale_plans"]) == 2  # 範囲に入る LAG は警告に出ない
+    for i in range(4):  # 上限より古い遅れた未着手の計画を、合わせて 6 件にする(10/11〜10/14 の 9:00〜10:00)
+        _plan(world2["db"], f"08{i:02d}-1-S-251014-{40 + i}", f"2026/10/{11 + i} 09:00:00", f"2026/10/{11 + i} 10:00:00")
+    sync_plans(world2["app"])
+    b = board(client)
+    assert b["stale_plans_total"] == 6 and len(b["stale_plans"]) == 5  # 件数は全体、一覧は古い順の最初の5件
+    starts = [p["planned_start"] for p in b["stale_plans"]]
+    assert starts == sorted(starts)

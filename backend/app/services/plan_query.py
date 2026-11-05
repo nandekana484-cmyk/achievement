@@ -11,6 +11,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import and_, exists, func, not_, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.core.clock import JST
 from app.db.models import PLAN_ACTIVE, Plan, RunCompletion, RunEvent
 from app.domain.workday import DISPLAY_MARGIN, display_range, workday_of, workday_range
 from app.services.completions import valid_completion
@@ -51,20 +52,23 @@ class LaggingPlan:
     planned_end: datetime
 
 
-def lagging_unstarted(session: Session, line_code: str, now: datetime) -> list[LaggingPlan]:
+def lagging_unstarted(session: Session, line_code: str, now: datetime, day_start: time, lagging_since: date | None = None) -> list[LaggingPlan]:
     """遅れた未着手の計画 = 計画終了を過ぎていて、取り消していない工程の記録が無く、取消の印も計画終了も無い計画。
 
     ただし、同じラインで計画の時刻が重なる別の計画が完了(片付けの終了)していれば、計画変更で飛ばされたものとして外す。
-    本アプリを使い始める前の計画で埋まらないよう、最初の記録(全ライン)より前に終わった計画は数えない。
-    TODO(要確認): 「使い始め」の決め方(今は、記録の中で一番古い開始の時刻)。詳細: docs/design/line-screen.md
+    使い始める前の計画で埋まらないよう、計画の開始が次の日時より後の計画だけ数える: そのラインで一番古い記録の開始(記録が
+    1つも無いラインは、遅れた未着手の計画は無し)。lagging_since(config.toml の [schedule])があれば、その日の稼働日の始まりと
+    この開始の、遅い方。詳細: docs/design/line-screen.md
     """
-    adopted = session.scalar(select(func.min(RunEvent.start_at)).where(RunEvent.voided_at.is_(None)))
-    if adopted is None:
+    kittings = select(Plan.kitting_no).where(Plan.line_code == line_code)
+    oldest = session.scalar(select(func.min(RunEvent.start_at)).where(RunEvent.voided_at.is_(None), RunEvent.kitting_no.in_(kittings)))
+    if oldest is None:
         return []
+    since = max(oldest, datetime.combine(lagging_since, day_start, tzinfo=JST)) if lagging_since else oldest
     started = exists().where(RunEvent.kitting_no == Plan.kitting_no, RunEvent.voided_at.is_(None))
     rows = session.execute(select(Plan.kitting_no, Plan.lot_no, Plan.planned_start, Plan.planned_end).where(
         Plan.line_code == line_code, Plan.status == PLAN_ACTIVE, Plan.planned_start.is_not(None), Plan.planned_end.is_not(None),
-        Plan.planned_end < now, Plan.planned_end > adopted, not_(started),
+        Plan.planned_end < now, Plan.planned_start > since, not_(started),
     )).all()
     closed = closed_kitting_nos(session)
     done = session.execute(select(Plan.kitting_no, Plan.planned_start, Plan.planned_end).distinct().where(
@@ -101,7 +105,9 @@ class DisplayWindow:
         return tuple(sorted({e.kitting_no for e in self.stale_events}))
 
 
-def display_window(session: Session, line_code: str, day: date, day_start: time, max_extend_hours: int, now: datetime) -> DisplayWindow:
+def display_window(
+    session: Session, line_code: str, day: date, day_start: time, max_extend_hours: int, now: datetime, lagging_since: date | None = None,
+) -> DisplayWindow:
     """稼働日の前後12時間。そのラインに、片付けが終わっていない計画(最初の記録)か、遅れた未着手の計画(計画開始)があれば、
     始まりを一番古いものの12時間前まで広げる。
 
@@ -115,7 +121,7 @@ def display_window(session: Session, line_code: str, day: date, day_start: time,
         .where(Plan.line_code == line_code, Plan.status == PLAN_ACTIVE, RunEvent.voided_at.is_(None), _unfinished())
         .group_by(RunEvent.kitting_no)
     ).all()
-    lagging = lagging_unstarted(session, line_code, now)
+    lagging = lagging_unstarted(session, line_code, now, day_start, lagging_since)
     oldest = [first for _, first in rows] + [g.planned_start for g in lagging]
     if oldest:
         limit = workday_range(day, day_start)[0] - timedelta(hours=max_extend_hours)
@@ -149,8 +155,8 @@ def board_kitting_nos(session: Session, line_code: str, display_start: datetime,
     return list(session.scalars(stmt))
 
 
-def stale_open_events(session: Session, now: datetime, day_start: time, max_extend_hours: int, line_code: str | None = None) -> list[RunEvent]:
+def stale_open_events(session: Session, now: datetime, day_start: time, max_extend_hours: int, line_code: str | None = None, lagging_since: date | None = None) -> list[RunEvent]:
     """表示範囲を広げても範囲に入らない、終了のない工程の記録(管理画面の「終了していない古い記録」)。開始の古い順。"""
     lines = [line_code] if line_code is not None else list(session.scalars(select(Plan.line_code).distinct().where(Plan.status == PLAN_ACTIVE)))
-    found = [e for line in lines for e in display_window(session, line, workday_of(now, day_start), day_start, max_extend_hours, now).stale_events]
+    found = [e for line in lines for e in display_window(session, line, workday_of(now, day_start), day_start, max_extend_hours, now, lagging_since).stale_events]
     return sorted(found, key=lambda e: (e.start_at, e.id))

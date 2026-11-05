@@ -17,5 +17,6 @@ export const planClose = {
   "planClose.closedNote": "Kết thúc kế hoạch (thủ công): {reason}{note} · {who}",
   "planClose.stepsLocked": "Để bấm nút công đoạn, trước tiên hãy bấm \"Hủy kết thúc kế hoạch\".",
   "planClose.staleWarning": "Có {count} kế hoạch cũ đã quá giờ kết thúc mà chưa bắt đầu, nằm ngoài phạm vi bảng thời gian. Hãy tìm và chọn, rồi kết thúc kế hoạch hoặc bắt đầu làm: {list}",
+  "planClose.staleMore": " (chỉ hiển thị một phần theo thứ tự cũ nhất; còn {count} kế hoạch khác)",
   "planClose.staleItem": "{kitting} (lô {lots}, kế hoạch {start}~{end})",
 } as const;

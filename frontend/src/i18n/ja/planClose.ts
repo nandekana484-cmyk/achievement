@@ -17,5 +17,6 @@ export const planClose = {
   "planClose.closedNote": "計画終了(手動): {reason}{note}・{who}",
   "planClose.stepsLocked": "工程のボタンを押すには、先に「計画終了を取り消す」を押してください。",
   "planClose.staleWarning": "計画終了を過ぎて作業が始まっていない古い計画が{count}件あり、タイムテーブルの範囲に入りません。検索から選んで、計画終了するか作業を始めてください: {list}",
+  "planClose.staleMore": " (古い順の一部だけ表示。ほか{count}件)",
   "planClose.staleItem": "{kitting}(ロット {lots}、計画 {start}〜{end})",
 } as const;

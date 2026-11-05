@@ -46,8 +46,8 @@ execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "R", "--date", E2E
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "X", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
 // 終了していない古い記録(e2e/zz-open-runs.spec.ts)。別のラインWに、10日前に始めて終了していない段取りと生産を入れる
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "W", "--date", E2E_DATE, "--stale-open"], { cwd: backend, env, stdio: "inherit" });
-// 計画終了(e2e/zz-plan-close.spec.ts)。別のラインYに確認用の計画を、ラインZに加えて10日前に終わった未着手の計画を入れる
-execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Y", "--date", E2E_DATE], { cwd: backend, env, stdio: "inherit" });
+// 計画終了(e2e/zz-plan-close.spec.ts)。遅れた未着手の計画は、そのラインの一番古い記録より後に始まる計画だけ数えるので、どちらも11日前の記録を入れる。別のラインYに確認用の計画を、ラインZに加えて10日前に終わった未着手の計画を入れる
+execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Y", "--date", E2E_DATE, "--old-record"], { cwd: backend, env, stdio: "inherit" });
 execFileSync(python, ["-m", "app.cli", "demo-seed", "--line", "Z", "--date", E2E_DATE, "--old-unstarted"], { cwd: backend, env, stdio: "inherit" });
 // 管理画面の確認用: demo-seed が入れた管理者 A001 のパスワード(e2e/admin.spec.ts と合わせる)
 execFileSync(python, ["-m", "app.cli", "admin", "set-password", "--worker-id", "A001", "--stdin"], {

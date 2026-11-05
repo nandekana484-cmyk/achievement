@@ -80,6 +80,7 @@ class BoardOut(BaseModel):
     workday_end: dt.datetime
     display_start: dt.datetime  # 表示範囲(稼働日の前後12時間。片付け前の計画があれば始まりを広げる)
     display_end: dt.datetime
+    stale_plans_total: int  # 上のうち、警告の対象の全体の件数(stale_plans は古い順の最初の5件だけ)
     stale_plans: list[StalePlanOut]  # 広げても範囲に入らない、遅れた未着手の計画(画面で警告する。検索で選んで計画終了か作業開始)
     stale_kitting_nos: list[str]  # 広げても表示範囲に入りきらない、片付けが終わっていない計画(画面で警告する)
     server_time: dt.datetime  # タブレットの時計とのずれの補正に使う
