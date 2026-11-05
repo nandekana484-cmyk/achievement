@@ -51,12 +51,13 @@ test("㉚㉛㉜ 現場で面1と面2を紐づけ、管理画面に出る。書�
   await expect(page).toHaveURL(new RegExp(`/field/link/${SIDE2}`));
   const field = page.getByLabel("1回目のキッティングNo.", { exact: true });
   await expect(field.getByLabel("1回目のキッティングNo.を入れる欄")).toHaveValue(SIDE1);
-  await expect(field.getByRole("button", { name: "紐づける" })).toBeDisabled();
-  await field.getByLabel("作業者ID").fill("Y001");
+  await expect(field.getByLabel("作業者ID")).toHaveValue("Y001"); // ライン画面の今の担当者が、最初から入っている
+  await expect(field.getByRole("button", { name: "紐づける" })).toBeEnabled();
   await page.screenshot({ path: `${SCREENS}/30-side-link-field.png` });
   await field.getByRole("button", { name: "紐づける" }).click();
   await expect(field).toContainText(`紐づけ済み: ${SIDE1}`);
   await expect(field).toContainText("山田(Y001)");
+  await expect(field.getByLabel("作業者ID")).toHaveValue("Y001"); // 紐づけたあとも残る
   await page.screenshot({ path: `${SCREENS}/31-side-link-linked.png` });
 
   // 戻ると、ボタンの状態が「紐づけ済み」に変わっている
@@ -80,7 +81,7 @@ test("㉚㉛㉜ 現場で面1と面2を紐づけ、管理画面に出る。書�
   await page.goto("/field/lines/U");
   await page.locator(".tt-plan", { hasText: SIDE2 }).click();
   await page.getByRole("link", { name: /^紐づけ/ }).click();
-  await page.getByLabel("作業者ID").fill("Y001");
+  await expect(page.getByLabel("作業者ID")).toHaveValue("Y001");
   await page.getByLabel("1回目のキッティングNo.", { exact: true }).getByRole("button", { name: "外す" }).click();
   const dialog = page.getByRole("dialog", { name: "紐づけの確認" });
   await expect(dialog).toContainText("書き出し済みです。既存アプリの値は管理者が直す必要があります");

@@ -6,7 +6,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { LanguageSwitch } from "../../i18n/LanguageSwitch";
 import { api, type BoardPlan } from "../../shared/api";
 import { Notice } from "../../shared/Notice";
-import { safeBack, type SideLinkView } from "../line/sideLink";
+import { initialWorkerId, safeBack, type SideLinkView } from "../line/sideLink";
 import { LinkForm } from "./LinkForm";
 
 export function LinkPage() {
@@ -16,6 +16,7 @@ export function LinkPage() {
   const [plan, setPlan] = useState<BoardPlan | null>(null);
   const [view, setView] = useState<SideLinkView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [workerId, setWorkerId] = useState(() => initialWorkerId(params)); // ライン画面から開いたときは、今の担当者。ページにいる間は残す
 
   useEffect(() => {
     let alive = true;
@@ -47,7 +48,7 @@ export function LinkPage() {
       {!plan && !error && <p className="placeholder">{t("common.loading")}</p>}
       {plan && (!view || view.role !== "side2") && <Notice kind="info">{t("link.notSide2")}</Notice>}
       {plan && view && view.role === "side2" && (
-        <LinkForm key={`${view.partner}:${view.suggested}`} kittingNo={kittingNo} view={view} onView={setView} />
+        <LinkForm key={`${view.partner}:${view.suggested}`} kittingNo={kittingNo} view={view} onView={setView} workerId={workerId} onWorkerId={setWorkerId} />
       )}
     </main>
   );

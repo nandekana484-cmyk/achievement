@@ -1,5 +1,5 @@
 // 紐づけのページの本体(AD-19 と同じ): 1回目のキッティングNo.の欄と候補、作業者ID、「紐づける」(確かめてから保存)、直す、外す。
-// 保存の前に、合わないロットと書き出し済みを確かめる。規則とAPIは AD-19 のまま。詳細: docs/design/actuals-export.md
+// 作業者IDは親(LinkPage)が持つので、紐づけたあとにこの部品をつくり直しても消えない。保存の前に、合わないロットと書き出し済みを確かめる。規則とAPIは AD-19 のまま。詳細: docs/design/actuals-export.md
 import { useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
 import { api } from "../../shared/api";
@@ -8,15 +8,14 @@ import { failureMessage, sendWithRetry } from "../../shared/send";
 import { uuidv4 } from "../../shared/uuid";
 import { canSubmit, confirmLines, panelState, type SideLinkCheck, type SideLinkView, unlinkLines } from "../line/sideLink";
 
-type Props = { kittingNo: string; view: SideLinkView; onView: (v: SideLinkView) => void };
+type Props = { kittingNo: string; view: SideLinkView; onView: (v: SideLinkView) => void; workerId: string; onWorkerId: (v: string) => void };
 type Ask = { lines: string[]; confirmLabel: string; run: () => void };
 
-export function LinkForm({ kittingNo, view, onView }: Props) {
+export function LinkForm({ kittingNo, view, onView, workerId, onWorkerId }: Props) {
   const { t } = useI18n();
   const state = panelState(view);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(state.mode === "input" ? state.initial : "");
-  const [workerId, setWorkerId] = useState("");
   const [ask, setAsk] = useState<Ask | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,7 +77,7 @@ export function LinkForm({ kittingNo, view, onView }: Props) {
         </p>
       )}
       <label className="link-worker">{t("link.workerId")}
-        <input value={workerId} onChange={(e) => setWorkerId(e.target.value)} autoComplete="off" />
+        <input value={workerId} onChange={(e) => onWorkerId(e.target.value)} autoComplete="off" />
       </label>
       {showInput && (
         <div className="side-link-row">

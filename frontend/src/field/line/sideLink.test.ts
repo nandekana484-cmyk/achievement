@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeTranslate } from "../../i18n/translate";
-import { canSubmit, confirmLines, linkButtonState, linkPageUrl, panelState, safeBack, type SideLinkView, unlinkLines } from "./sideLink";
+import { canSubmit, confirmLines, initialWorkerId, linkButtonState, linkPageUrl, panelState, safeBack, type SideLinkView, unlinkLines } from "./sideLink";
 
 const t = makeTranslate("ja");
 const view = (over: Partial<SideLinkView>): SideLinkView => ({
@@ -58,6 +58,15 @@ describe("紐づけのページ", () => {
     expect(linkPageUrl("K2", "/field/print/production-record/K1")).toBe("/field/link/K2?back=%2Ffield%2Fprint%2Fproduction-record%2FK1");
     expect(safeBack("/field/print/production-record/K1")).toBe("/field/print/production-record/K1");
     for (const bad of [null, "", "https://example.com/", "//example.com", "/admin/login", "/field/", "/field//x"]) expect(safeBack(bad), String(bad)).toBeNull();
+  });
+
+  it("ライン画面から開くときは、今の担当者の作業者IDを URL に載せ、ページの欄の初期値にする。分からないときは空欄", () => {
+    expect(linkPageUrl("K2", undefined, "Y001")).toBe("/field/link/K2?worker=Y001");
+    expect(linkPageUrl("K2", "/field/print/production-record/K1", "Y001")).toBe("/field/link/K2?back=%2Ffield%2Fprint%2Fproduction-record%2FK1&worker=Y001");
+    expect(linkPageUrl("K2", undefined, null)).toBe("/field/link/K2");
+    expect(initialWorkerId(new URLSearchParams("worker=Y001"))).toBe("Y001");
+    expect(initialWorkerId(new URLSearchParams("worker=%20Y001%20"))).toBe("Y001");
+    expect(initialWorkerId(new URLSearchParams("back=%2Ffield%2Fx"))).toBe(""); // 生産記録票から来たとき
   });
 
   it("ボタンの状態: 相手がいれば紐づけ済み、いなければ未紐づけ", () => {

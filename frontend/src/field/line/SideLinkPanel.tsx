@@ -12,14 +12,14 @@ export function SideLinkNote({ plan }: { plan: BoardPlan }) {
   return v?.role === "side1" && v.partner ? <p className="side-link">{t("sideLink.side1Partner", { partner: v.partner })}</p> : null;
 }
 
-/** 面2の計画: 「紐づけ」のボタンと今の状態(「未紐づけ」「紐づけ済み」)。 */
-export function SideLinkButton({ plan }: { plan: BoardPlan }) {
+/** 面2の計画: 「紐づけ」のボタンと今の状態(「未紐づけ」「紐づけ済み」)。workerId はそのラインの今の担当者(ページの欄に最初から入る)。 */
+export function SideLinkButton({ plan, workerId }: { plan: BoardPlan; workerId?: string | null }) {
   const { t } = useI18n();
   const v = plan.side_link;
   if (!v || v.role !== "side2") return null;
   const state = linkButtonState(v);
   return (
-    <Link className="btn btn-small side-link-button" to={linkPageUrl(plan.plan.kitting_no)} aria-label={`${t("sideLink.button")} ${t(`sideLink.state.${state}`)}`}>
+    <Link className="btn btn-small side-link-button" to={linkPageUrl(plan.plan.kitting_no, undefined, workerId)} aria-label={`${t("sideLink.button")} ${t(`sideLink.state.${state}`)}`}>
       {t("sideLink.button")}
       <span className={`side-link-state side-link-state-${state}`}>{t(`sideLink.state.${state}`)}</span>
     </Link>

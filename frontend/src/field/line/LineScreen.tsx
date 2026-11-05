@@ -108,7 +108,7 @@ export function LineScreen() {
             onHistory={() => setDialog({ kind: "history", plan: selected })}
             sideLink={<SideLinkNote plan={selected} />}
             actions={<>
-              <SideLinkButton plan={selected} />
+              <SideLinkButton plan={selected} workerId={board?.current_operator?.operator_worker_id} />
               {board && selected.plan.status !== "cancelled" && !isOutsideDisplay(selected.plan, board) && (
                 <Link className="btn btn-small id-slip-link" to={idSlipsUrl(selected.plan.kitting_no)}>{t("idslip.button")}</Link>
               )}
